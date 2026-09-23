@@ -2029,7 +2029,7 @@ const showPublishModal = ref(false)
 const changeSummary = ref('')
 
 const todayDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'
+const apiBase = import.meta.env.VITE_API_BASE_URL || (typeof window !== 'undefined' && (window.location.protocol === 'https:' || (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')) ? '/api' : 'http://localhost:3001/api')
 
 function getHeaders() {
   return {

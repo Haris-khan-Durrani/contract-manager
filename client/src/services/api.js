@@ -1,7 +1,21 @@
 import axios from 'axios'
 
+export function getApiBaseUrl() {
+  if (import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL
+  }
+  if (typeof window !== 'undefined') {
+    if (window.location.protocol === 'https:' || (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')) {
+      return '/api'
+    }
+  }
+  return 'http://localhost:3001/api'
+}
+
+export const API_BASE_URL = getApiBaseUrl()
+
 const api = axios.create({
-  baseURL:         import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api',
+  baseURL:         API_BASE_URL,
   timeout:         20000,
   withCredentials: false,
 })

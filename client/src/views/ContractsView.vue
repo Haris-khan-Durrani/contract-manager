@@ -188,7 +188,7 @@ function copySigningLink(token, id) {
   setTimeout(() => { if (copiedId.value === id) copiedId.value = null }, 2500)
 }
 
-const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'
+const apiBase = import.meta.env.VITE_API_BASE_URL || (typeof window !== 'undefined' && (window.location.protocol === 'https:' || (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')) ? '/api' : 'http://localhost:3001/api')
 
 function getHeaders() {
   return {

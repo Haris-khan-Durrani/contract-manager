@@ -140,10 +140,38 @@ const isFormValid = computed(() => {
 })
 
 onMounted(async () => {
-  // If user already authenticated, redirect to dashboard or redirect query
+  // If user already authenticated, redirect to dashboard
   if (auth.isAuthenticated) {
-    const redirect = route.query.redirect || '/dashboard'
-    router.replace(redirect)
+    router.replace('/dashboard')
+    return
+  }
+
+  // Check if redirected from a slash auth path (/dashboard/:locationId/:userId/:token)
+  const redirectPath = route.query.redirect || ''
+  if (redirectPath.startsWith('/dashboard/')) {
+    const parts = redirectPath.split('/').filter(Boolean)
+    // parts: ['dashboard', locationId, userId, token?]
+    if (parts.length >= 3) {
+      const locationId = parts[1]
+      const userId     = parts[2]
+      const privateToken = parts[3] || ''
+      try {
+        await auth.login({ locationId, userId, privateToken })
+        router.replace('/dashboard')
+        return
+      } catch (err) {
+        errorMessage.value = err.message || 'Auto-login failed. Please verify credentials.'
+      }
+    }
+  }
+
+  // Check if query parameters are present on /login
+  if (route.query.userId || route.query.locationId) {
+    const success = await auth.checkUrlParams(route.query)
+    if (success) {
+      router.replace('/dashboard')
+      return
+    }
   }
 })
 
