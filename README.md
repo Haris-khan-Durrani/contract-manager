@@ -248,6 +248,131 @@ docker-compose down
 
 ---
 
+## ⚡ Production Deployment with PM2
+
+For production servers (VPS, AWS EC2, DigitalOcean, Ubuntu/Debian), running with **PM2** ensures zero-downtime restarts, automatic process recovery after unexpected crashes, and auto-start on server boot.
+
+### 1. Install PM2 Globally
+```bash
+npm install -g pm2
+```
+
+### 2. Build the Frontend Production Bundle
+```bash
+cd client
+npm run build
+cd ..
+```
+
+### 3. Launch via Ecosystem File (`ecosystem.config.js`)
+An `ecosystem.config.js` configuration file is included in the project root:
+
+```bash
+# Start both backend API and frontend UI under PM2
+pm2 start ecosystem.config.js
+```
+
+### 4. Or Start Services Individually
+```bash
+# Start Backend API
+pm2 start server/src/app.js --name "contractmanager-api" --time
+
+# Serve Frontend UI (Production Preview)
+pm2 start "npm --prefix client run preview -- --port 5173 --host 0.0.0.0" --name "contractmanager-ui"
+```
+
+### 5. Configure Auto-Restart on System Reboot
+```bash
+# Generate and configure system startup script
+pm2 startup
+
+# Save current running process list
+pm2 save
+```
+
+### 6. Essential PM2 Management Commands
+```bash
+pm2 status                       # View status, CPU, and RAM usage of all services
+pm2 logs                         # View unified live streaming logs
+pm2 logs contractmanager-api     # View backend API logs only
+pm2 restart all                  # Restart all processes
+pm2 reload all                   # Zero-downtime hot reload
+pm2 stop all                     # Temporarily stop processes
+pm2 delete all                   # Remove processes from PM2 list
+```
+
+---
+
+## 🔄 How to Pull Updates & Reflect Changes in GoHighLevel CRM
+
+Whenever new updates, features, or bug fixes are pushed to GitHub, follow these exact steps to pull the latest code and make sure the changes appear live inside your GoHighLevel CRM:
+
+### Step 1: Pull the Latest Code from Git
+On your server or local machine:
+```bash
+# Navigate to project directory
+cd contractmanager
+
+# Pull latest commits from GitHub
+git pull origin main
+```
+
+### Step 2: Update Dependencies
+In case new npm packages were added:
+```bash
+npm --prefix server install
+npm --prefix client install
+```
+
+### Step 3: Run Database Migrations
+If there are schema changes, new database tables, or seeded templates:
+```bash
+npm run migrate
+```
+
+### Step 4: Rebuild the Frontend Production Assets
+Recompile the Vue 3 application so that the updated components, styles, and logic are bundled into `client/dist`:
+```bash
+npm --prefix client run build
+```
+
+### Step 5: Reload / Restart Your Application Processes
+
+* **If running via PM2**:
+  ```bash
+  pm2 reload all
+  # or
+  pm2 restart ecosystem.config.js
+  ```
+* **If running via `npm run dev`**:
+  Stop the running terminal (`Ctrl + C`) and restart:
+  ```bash
+  npm run dev
+  ```
+* **If running via Docker Compose**:
+  ```bash
+  docker-compose up -d --build
+  ```
+
+### Step 6: Reflect & Verify Changes Inside GoHighLevel CRM
+
+1. **Hard Refresh the GHL Browser Tab (Clear iFrame Cache)**:
+   * Browsers aggressively cache iFrame assets. Inside your GoHighLevel dashboard, perform a **hard refresh**:
+     * **Windows / Linux**: Press `Ctrl + F5` or `Ctrl + Shift + R`
+     * **Mac**: Press `Cmd + Shift + R`
+   * Or right-click inside the embedded ContractManager custom menu view and select **Reload frame**.
+
+2. **Refresh GHL Field Cache (If Custom Fields Were Added)**:
+   * Inside ContractManager, navigate to **Settings** (`/settings`) or the **Form Builder**.
+   * Click the **"Refresh GHL Fields"** button. This clears the in-memory cache and re-queries your GoHighLevel sub-account to detect any newly created custom fields.
+
+3. **Verify Custom Menu Link URL (If Domain / Port Changed)**:
+   * If your hosting domain or SSL tunnel changed, verify the target URL in GoHighLevel:
+     * Navigate to **GHL Agency/Sub-Account Settings** → **Custom Menu Links**.
+     * Confirm the link points to your current live URL (e.g. `https://your-domain.com`).
+
+---
+
 ## ⚙️ GoHighLevel (GHL) Setup & Integration
 
 ### 1. Embed as a Custom Menu Link in GHL
