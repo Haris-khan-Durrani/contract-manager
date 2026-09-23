@@ -42,6 +42,22 @@ const routes = [
     name: 'PublicVerify',
     component: () => import('../views/PublicVerifyView.vue'),
   },
+  // Direct slash-based auto-login / SSO routes
+  {
+    path: '/dashboard/:locationId/:userId/:token?',
+    name: 'DashboardSlashAuth',
+    component: () => import('../views/DashboardView.vue'),
+  },
+  {
+    path: '/auth/:locationId/:userId/:token?',
+    name: 'AuthSlashAuth',
+    component: () => import('../views/DashboardView.vue'),
+  },
+  {
+    path: '/sso/:locationId/:userId/:token?',
+    name: 'SsoSlashAuth',
+    component: () => import('../views/DashboardView.vue'),
+  },
   {
     path: '/access-denied',
     name: 'AccessDenied',
@@ -65,9 +81,17 @@ router.beforeEach(async (to) => {
 
   const auth = useAuthStore()
 
-  // Check URL query parameters for userId, locationId, privateToken
-  if (to.query.userId || to.query.userid || to.query.user_id || to.query.locationId || to.query.locationid || to.query.location_id) {
-    const success = await auth.checkUrlParams(to.query)
+  // Check URL path parameters (/dashboard/:locationId/:userId/:token) or query parameters
+  const locationId = to.params.locationId || to.query.locationId || to.query.locationid || to.query.location_id
+  const userId     = to.params.userId     || to.query.userId     || to.query.userid     || to.query.user_id
+  const privateToken = to.params.token   || to.query.privateToken || to.query.privatetoken || to.query.token || to.query.private_token
+
+  if (userId && locationId) {
+    const success = await auth.checkUrlParams({
+      userId,
+      locationId,
+      privateToken,
+    })
     if (success) {
       // Remove sensitive tokens from URL query for security & clean URL
       const cleanQuery = { ...to.query }
@@ -83,7 +107,7 @@ router.beforeEach(async (to) => {
       delete cleanQuery.private_token
       delete cleanQuery.redirect
 
-      const targetPath = (to.name === 'Login' || to.path === '/login' || to.path === '/')
+      const targetPath = (to.name === 'Login' || to.path === '/login' || to.path === '/' || to.params.locationId)
         ? (to.query.redirect || '/dashboard')
         : to.path
 
