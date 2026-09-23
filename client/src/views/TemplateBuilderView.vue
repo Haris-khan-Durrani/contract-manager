@@ -154,7 +154,7 @@
           <button class="btn-tool" @click="changeZoom(-0.15)" title="Zoom Out">−</button>
           <span class="zoom-level">{{ Math.round(zoomScale * 100) }}%</span>
           <button class="btn-tool" @click="changeZoom(0.15)" title="Zoom In">+</button>
-          <button class="btn-tool btn-fit" @click="zoomScale = 0.85" title="Reset Zoom">Fit</button>
+          <button class="btn-tool btn-fit" @click="fitZoom" title="Auto Fit to Screen">Fit</button>
         </div>
 
         <div class="header-divider"></div>
@@ -209,11 +209,73 @@
       <!-- ═══════════════════════════════════════════════════════════════════ -->
       <!-- TAB 1: A4 DOCUMENT DESIGNER (WYSIWYG PAPER CANVAS & THUMBNAILS)     -->
       <!-- ═══════════════════════════════════════════════════════════════════ -->
-      <div v-show="activeTab === 'builder'" class="builder-three-pane">
+      <div v-show="activeTab === 'builder'" class="builder-three-pane" :class="{ 'left-collapsed': isLeftCollapsed, 'right-collapsed': isRightCollapsed, 'in-iframe': isInIframe }">
         <!-- LEFT: BLOCK PALETTE, PREBUILT LEGAL BLOCKS & VARIABLE PICKER -->
-        <aside class="palette-sidebar">
-          <div class="palette-tabs-nav-wrap">
-            <div class="palette-tabs-nav">
+        <aside class="palette-sidebar" :class="{ 'is-collapsed': isLeftCollapsed }">
+          <!-- COLLAPSED RAIL -->
+          <div v-if="isLeftCollapsed" class="palette-collapsed-rail">
+            <button
+              type="button"
+              class="btn-rail-toggle"
+              @click="toggleLeftPane"
+              title="Expand Components Palette"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+            <div class="rail-divider"></div>
+            <button
+              type="button"
+              class="btn-rail-icon"
+              :class="{ active: paletteTab === 'blocks' }"
+              @click="isLeftCollapsed = false; paletteTab = 'blocks'"
+              title="Document Components"
+            >
+              🧩
+            </button>
+            <button
+              type="button"
+              class="btn-rail-icon"
+              :class="{ active: paletteTab === 'prebuilt' }"
+              @click="isLeftCollapsed = false; paletteTab = 'prebuilt'"
+              title="360GI Prebuilt Clauses"
+            >
+              🏢
+            </button>
+            <button
+              type="button"
+              class="btn-rail-icon"
+              :class="{ active: paletteTab === 'layers' }"
+              @click="isLeftCollapsed = false; openLayersTab()"
+              title="Layers &amp; Hierarchy"
+            >
+              📑
+            </button>
+            <button
+              type="button"
+              class="btn-rail-icon"
+              :class="{ active: paletteTab === 'tokens' }"
+              @click="isLeftCollapsed = false; paletteTab = 'tokens'"
+              title="Variables"
+            >
+              💲
+            </button>
+          </div>
+
+          <!-- EXPANDED PALETTE CONTENT -->
+          <template v-else>
+            <div class="palette-tabs-nav-wrap">
+              <div class="palette-header-row">
+                <span class="palette-panel-title">COMPONENTS</span>
+                <button
+                  type="button"
+                  class="btn-panel-collapse"
+                  @click="toggleLeftPane"
+                  title="Collapse Palette (Maximize Document Canvas)"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+              </div>
+              <div class="palette-tabs-nav">
               <button
                 class="palette-subtab"
                 :class="{ active: paletteTab === 'blocks' }"
@@ -604,6 +666,7 @@
               </div>
             </div>
           </div>
+          </template>
         </aside>
 
         <!-- CENTER: A4 PAPER DOCUMENT CANVAS & BOTTOM THUMBNAIL BAR -->
@@ -952,23 +1015,59 @@
           </div>
 
           <!-- BOTTOM A4 PAGE THUMBNAILS STRIP -->
-          <footer class="bottom-page-strip">
+          <footer class="bottom-page-strip" :class="{ 'is-minimized': isBottomStripCollapsed }">
             <div class="strip-header">
-              <span class="strip-label">
-                Pages Navigation ({{ isHtmlTemplate ? htmlPageList.length : pages.length }} A4 Sheets):
-              </span>
-              <button v-if="!isHtmlTemplate" type="button" class="btn btn-secondary btn-sm" @click="addNewPage">
-                + Add New A4 Page
-              </button>
-              <div v-else class="html-page-badge-wrap">
-                <span class="badge badge-success badge-sm" style="font-size: 0.72rem; padding: 3px 8px;">
+              <div class="strip-header-left">
+                <button
+                  type="button"
+                  class="btn-toggle-strip"
+                  @click="toggleBottomStrip"
+                  :title="isBottomStripCollapsed ? 'Expand Page Navigation' : 'Minimize Page Navigation'"
+                >
+                  <svg v-if="isBottomStripCollapsed" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
+                  <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                  <span>{{ isBottomStripCollapsed ? '▲ Pages' : '▼ Hide' }}</span>
+                </button>
+                <span class="strip-label">
+                  Page {{ activePageIndex + 1 }} of {{ isHtmlTemplate ? htmlPageList.length : pages.length }}
+                </span>
+                <span v-if="isHtmlTemplate" class="badge badge-success badge-sm" style="font-size: 0.68rem; padding: 2px 7px;">
                   12-Page Bilingual HTML Template
                 </span>
+              </div>
+
+              <!-- Quick Prev/Next Navigation Controls -->
+              <div class="strip-header-right">
+                <div class="page-quick-nav">
+                  <button
+                    type="button"
+                    class="btn-nav-step"
+                    :disabled="activePageIndex <= 0"
+                    @click="scrollToHtmlPage(activePageIndex - 1)"
+                    title="Previous Page"
+                  >
+                    ‹ Prev
+                  </button>
+                  <span class="page-step-num">{{ activePageIndex + 1 }} / {{ isHtmlTemplate ? htmlPageList.length : pages.length }}</span>
+                  <button
+                    type="button"
+                    class="btn-nav-step"
+                    :disabled="activePageIndex >= (isHtmlTemplate ? htmlPageList.length - 1 : pages.length - 1)"
+                    @click="scrollToHtmlPage(activePageIndex + 1)"
+                    title="Next Page"
+                  >
+                    Next ›
+                  </button>
+                </div>
+
+                <button v-if="!isHtmlTemplate" type="button" class="btn btn-secondary btn-sm" @click="addNewPage">
+                  + Add Page
+                </button>
               </div>
             </div>
 
             <!-- If HTML Template: Render 12 Paired-Table Page Thumbnails -->
-            <div v-if="isHtmlTemplate" class="strip-thumbnails-scroll">
+            <div v-show="!isBottomStripCollapsed" v-if="isHtmlTemplate" class="strip-thumbnails-scroll">
               <div
                 v-for="(pg, idx) in htmlPageList"
                 :key="idx"
@@ -1015,7 +1114,7 @@
             </div>
 
             <!-- Standard structured pages thumbnails -->
-            <div v-else class="strip-thumbnails-scroll">
+            <div v-else v-show="!isBottomStripCollapsed" class="strip-thumbnails-scroll">
               <div
                 v-for="(pg, idx) in pages"
                 :key="pg.id"
@@ -1074,7 +1173,28 @@
         </main>
 
         <!-- RIGHT: COMPONENT & TYPOGRAPHY INSPECTOR -->
-        <aside class="inspector-sidebar">
+        <aside class="inspector-sidebar" :class="{ 'is-collapsed': isRightCollapsed }">
+          <!-- COLLAPSED RAIL -->
+          <div v-if="isRightCollapsed" class="inspector-collapsed-rail" @click="toggleRightPane" title="Click to Expand Inspector &amp; Properties">
+            <button type="button" class="btn-rail-toggle" @click.stop="toggleRightPane">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <span class="rail-vertical-text">PROPERTIES &amp; STYLES</span>
+          </div>
+
+          <!-- EXPANDED INSPECTOR CONTENT -->
+          <template v-else>
+            <div class="inspector-top-collapse-bar">
+              <span class="inspector-panel-title">INSPECTOR &amp; STYLES</span>
+              <button
+                type="button"
+                class="btn-panel-collapse"
+                @click="toggleRightPane"
+                title="Collapse Inspector (Maximize Document Canvas)"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </div>
           <!-- ── 1. HTML TEMPLATE MODE: ELEMENT SELECTED ── -->
           <div v-if="isHtmlTemplate && selectedHtmlNode" class="inspector-content">
             <!-- Interactive DOM Breadcrumbs Bar -->
@@ -1465,6 +1585,7 @@
             <h4>No Block Selected</h4>
             <p>Click any clause, table, heading, or signature block on the A4 page to configure its properties.</p>
           </div>
+          </template>
         </aside>
       </div>
 
@@ -1974,6 +2095,40 @@ const codeSubTab = ref('html') // 'html' | 'css'
 const paletteTab = ref('blocks') // 'blocks' | 'prebuilt' | 'layers' | 'tokens'
 const zoomScale = ref(0.85)
 
+// Responsive Layout & Panel Collapsing (Optimized for HighLevel CRM Iframe)
+const isInIframe = ref(typeof window !== 'undefined' && window.self !== window.top)
+const isLeftCollapsed = ref(false)
+const isRightCollapsed = ref(isInIframe.value) // In iframe, default right inspector collapsed to give maximum room to A4 document
+const isBottomStripCollapsed = ref(isInIframe.value) // In iframe, default compact bottom strip so full page height is visible
+
+function toggleLeftPane() {
+  isLeftCollapsed.value = !isLeftCollapsed.value
+}
+
+function toggleRightPane() {
+  isRightCollapsed.value = !isRightCollapsed.value
+}
+
+function toggleBottomStrip() {
+  isBottomStripCollapsed.value = !isBottomStripCollapsed.value
+}
+
+function fitZoom() {
+  nextTick(() => {
+    const canvasEl = document.querySelector('.studio-canvas-scroll')
+    if (canvasEl) {
+      const availableWidth = canvasEl.clientWidth - 48
+      if (availableWidth > 260) {
+        // A4 page width with borders and shadows is ~830px
+        const calculated = Math.min(1.15, Math.max(0.45, Math.round((availableWidth / 830) * 100) / 100))
+        zoomScale.value = calculated
+        return
+      }
+    }
+    zoomScale.value = isInIframe.value ? 0.72 : 0.85
+  })
+}
+
 // Document Layers Tree State
 const layerPageFilter = ref(-1) // -1 = All Pages, or 0..11
 const layerSearchQuery = ref('')
@@ -2177,6 +2332,9 @@ function selectHtmlElement(target) {
   if (!target) return
   const canvas = document.getElementById('html-studio-canvas')
   if (!canvas || !canvas.contains(target)) return
+
+  // Automatically expand inspector sidebar so user can immediately style/edit
+  isRightCollapsed.value = false
 
   if (activeSelectedDomEl && activeSelectedDomEl !== target) {
     activeSelectedDomEl.classList.remove('studio-selected-node')
@@ -2828,6 +2986,7 @@ function renderTokens(text) {
 // ─── Component Operations ───────────────────────────────────────────────────
 function selectComponent(pageId, compId) {
   selectedComponentId.value = compId
+  isRightCollapsed.value = false
 }
 
 function onDropOnHtmlCanvas(event) {
@@ -3679,6 +3838,10 @@ onMounted(() => {
   loadTemplate()
   window.addEventListener('keydown', onGlobalKeydown)
   window.addEventListener('resize', updateFloatingToolbarPos)
+  window.addEventListener('resize', fitZoom)
+  setTimeout(() => {
+    fitZoom()
+  }, 350)
   setTimeout(() => {
     refreshLayersList()
   }, 600)
@@ -3687,6 +3850,7 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('keydown', onGlobalKeydown)
   window.removeEventListener('resize', updateFloatingToolbarPos)
+  window.removeEventListener('resize', fitZoom)
 })
 
 watch(activePageIndex, (newIdx) => {
@@ -3712,7 +3876,8 @@ watch(activeTab, (newTab, oldTab) => {
 .studio-container {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 64px);
+  height: 100vh;
+  max-height: 100vh;
   overflow: hidden;
   background: var(--color-bg-base);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -4082,6 +4247,20 @@ watch(activeTab, (newTab, oldTab) => {
   grid-template-columns: 290px 1fr 340px;
   width: 100%;
   height: 100%;
+  overflow: hidden;
+  transition: grid-template-columns 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.builder-three-pane.left-collapsed {
+  grid-template-columns: 46px 1fr 340px;
+}
+
+.builder-three-pane.right-collapsed {
+  grid-template-columns: 290px 1fr 46px;
+}
+
+.builder-three-pane.left-collapsed.right-collapsed {
+  grid-template-columns: 46px 1fr 46px;
 }
 
 /* ── Left Palette ── */
@@ -4091,6 +4270,106 @@ watch(activeTab, (newTab, oldTab) => {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  transition: all 0.2s ease;
+}
+
+.palette-sidebar.is-collapsed {
+  padding: 0;
+  overflow: hidden;
+  background: #f8fafc;
+}
+
+.palette-collapsed-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 4px;
+  gap: 8px;
+  height: 100%;
+}
+
+.btn-rail-toggle {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #4f46e5;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: all 0.15s ease;
+}
+
+.btn-rail-toggle:hover {
+  background: #eef2ff;
+  border-color: #6366f1;
+  transform: scale(1.05);
+}
+
+.rail-divider {
+  width: 20px;
+  height: 1px;
+  background: #e2e8f0;
+  margin: 2px 0;
+}
+
+.btn-rail-icon {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.05rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-rail-icon:hover {
+  background: #e2e8f0;
+}
+
+.btn-rail-icon.active {
+  background: #ede9fe;
+}
+
+.palette-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.palette-panel-title {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #64748b;
+}
+
+.btn-panel-collapse {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-panel-collapse:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #94a3b8;
 }
 
 .palette-tabs-nav-wrap {
@@ -4726,12 +5005,90 @@ watch(activeTab, (newTab, oldTab) => {
   flex-direction: column;
   gap: 6px;
   z-index: 15;
+  transition: all 0.2s ease;
+}
+
+.bottom-page-strip.is-minimized {
+  padding: 4px 16px;
+  gap: 0;
 }
 
 .strip-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.strip-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.strip-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-toggle-strip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-toggle-strip:hover {
+  background: #eef2ff;
+  color: #4f46e5;
+  border-color: #a5b4fc;
+}
+
+.page-quick-nav {
+  display: inline-flex;
+  align-items: center;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 2px 4px;
+  gap: 6px;
+}
+
+.btn-nav-step {
+  border: none;
+  background: transparent;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #475569;
+  cursor: pointer;
+  padding: 1px 6px;
+  border-radius: 4px;
+  transition: all 0.12s;
+}
+
+.btn-nav-step:hover:not(:disabled) {
+  background: #ffffff;
+  color: #4f46e5;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.btn-nav-step:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.page-step-num {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #1e293b;
 }
 
 .strip-label {
@@ -4845,6 +5202,57 @@ watch(activeTab, (newTab, oldTab) => {
   border-left: 1px solid var(--color-border);
   overflow-y: auto;
   padding: var(--space-4);
+  transition: all 0.2s ease;
+}
+
+.inspector-sidebar.is-collapsed {
+  padding: 0;
+  overflow: hidden;
+  background: #f8fafc;
+}
+
+.inspector-collapsed-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 4px;
+  gap: 16px;
+  height: 100%;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.inspector-collapsed-rail:hover {
+  background: #f1f5f9;
+}
+
+.rail-vertical-text {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: #64748b;
+  text-transform: uppercase;
+  margin-top: 12px;
+  user-select: none;
+}
+
+.inspector-top-collapse-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: -1rem -1rem 1rem -1rem;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.inspector-panel-title {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #64748b;
 }
 
 .inspector-header {

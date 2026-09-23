@@ -233,8 +233,8 @@ router.post('/manual', requirePermission('contract:create'), async (req, res) =>
          (location_id, template_id, template_version, ghl_contact_id, ghl_opportunity_id,
           assigned_user_id, created_by_user_id, assigned_user_name, creation_mode, form_mode, state, public_state,
           recipient_name, recipient_email, recipient_phone, signing_config_json,
-          signing_token, token_expires_at, form_response_json, form_data_json, snapshot_json)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'MANUAL', ?, 'READY', 'PENDING', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          signing_token, token_expires_at, form_response_json, form_data_json, snapshot_json, validity_days)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'MANUAL', ?, 'READY', 'PENDING', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         locationId, templateId, template.current_version, ghlContactId, ghlOpportunityId || null,
         userId, userId,
@@ -249,6 +249,7 @@ router.post('/manual', requirePermission('contract:create'), async (req, res) =>
         JSON.stringify(resolvedFormData),
         JSON.stringify(resolvedFormData),
         snapshot ? JSON.stringify(snapshot) : null,
+        numDays,
       ]
     );
 
@@ -303,7 +304,7 @@ router.post('/:id/extend', requirePermission('contract:send'), async (req, res) 
     const { extraDays = 7, expiresAt: customExpiry } = req.body;
 
     const [rows] = await db.execute(
-      'SELECT id, state, signing_token, token_expires_at FROM contract_instances WHERE id = ? AND location_id = ?',
+      'SELECT id, state, signing_token, token_expires_at, ghl_contact_id FROM contract_instances WHERE id = ? AND location_id = ?',
       [req.params.id, locationId]
     );
     if (!rows.length) return res.status(404).json({ error: 'Contract not found.' });
@@ -317,7 +318,8 @@ router.post('/:id/extend', requirePermission('contract:send'), async (req, res) 
 
     // New token if expired, keep same token if still active
     const newToken   = isExpired ? crypto.randomBytes(32).toString('hex') : contract.signing_token;
-    const baseDate   = customExpiry ? new Date(customExpiry) : new Date(Date.now() + parseInt(extraDays) * 24 * 60 * 60 * 1000);
+    const numExtra   = Math.max(1, parseInt(extraDays) || 7);
+    const baseDate   = customExpiry ? new Date(customExpiry) : new Date(Date.now() + numExtra * 24 * 60 * 60 * 1000);
     const newExpiry  = baseDate;
 
     const previousState = contract.state;
@@ -325,10 +327,20 @@ router.post('/:id/extend', requirePermission('contract:send'), async (req, res) 
 
     await db.execute(
       `UPDATE contract_instances
-         SET signing_token = ?, token_expires_at = ?, state = ?, revoked_at = NULL, updated_at = NOW()
+         SET signing_token = ?, token_expires_at = ?, validity_days = ?, state = ?, revoked_at = NULL, updated_at = NOW()
        WHERE id = ?`,
-      [newToken, newExpiry, newState, contract.id]
+      [newToken, newExpiry, numExtra, newState, contract.id]
     );
+
+    // Sync updated expiry date to GHL contact custom fields
+    if (contract.ghl_contact_id) {
+      ghlService.updateContact(locationId, contract.ghl_contact_id, {
+        customFields: [
+          { id: 'contract_expiry_date', value: newExpiry.toISOString() },
+        ],
+        privateToken: req.ghlUser?.privateToken,
+      }).catch(err => console.warn('[Contracts] GHL expiry sync note:', err.message));
+    }
 
     await db.execute(
       `INSERT INTO contract_audit_logs (contract_instance_id, actor_type, actor_id, actor_name, action, from_state, to_state, metadata_json)
@@ -446,7 +458,7 @@ router.post('/:id/send', requirePermission('contract:send'), async (req, res) =>
 
     const [rows] = await db.execute(
       `SELECT ci.*, ct.name AS template_name, ct.document_schema_json, ct.conditional_rules_json,
-              ct.validity_days, cf.schema_json AS form_schema
+              ct.validity_days AS template_validity_days, cf.schema_json AS form_schema
        FROM contract_instances ci
        JOIN contract_templates ct ON ct.id = ci.template_id
        LEFT JOIN contract_forms cf ON cf.id = ct.form_id
@@ -493,17 +505,30 @@ router.post('/:id/send', requirePermission('contract:send'), async (req, res) =>
       privateToken:     req.ghlUser?.privateToken,
     });
 
-    // Generate signing token
-    const signingToken   = crypto.randomBytes(32).toString('hex');
-    const expiryDays     = validityDays || contract.validity_days || 7;
+    // Generate signing token (or preserve existing active token)
+    const signingToken = contract.signing_token || crypto.randomBytes(32).toString('hex');
+
+    // Determine validity days: explicit request parameter > instance validity_days > remaining time > template default > 7
+    let expiryDays;
+    if (validityDays !== undefined && validityDays !== null && validityDays !== '') {
+      expiryDays = Math.max(1, parseInt(validityDays));
+    } else if (contract.validity_days) {
+      expiryDays = Math.max(1, parseInt(contract.validity_days));
+    } else if (contract.token_expires_at && new Date(contract.token_expires_at) > new Date()) {
+      const diffMs = new Date(contract.token_expires_at).getTime() - Date.now();
+      expiryDays = Math.max(1, Math.round(diffMs / (24 * 60 * 60 * 1000)));
+    } else {
+      expiryDays = contract.template_validity_days || 7;
+    }
+
     const tokenExpiresAt = new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000);
 
     // Transition to SENT with snapshot
     await db.execute(
       `UPDATE contract_instances
-       SET state = 'SENT', snapshot_json = ?, signing_token = ?, token_expires_at = ?, updated_at = NOW()
+       SET state = 'SENT', snapshot_json = ?, signing_token = ?, token_expires_at = ?, validity_days = ?, updated_at = NOW()
        WHERE id = ?`,
-      [JSON.stringify(snapshot), signingToken, tokenExpiresAt, contract.id]
+      [JSON.stringify(snapshot), signingToken, tokenExpiresAt, expiryDays, contract.id]
     );
 
     // Audit log

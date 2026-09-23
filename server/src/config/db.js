@@ -216,6 +216,7 @@ class SQLiteAdapter {
           pdf_sha256 TEXT NULL,
           ghl_file_url TEXT NULL,
           assigned_user_name TEXT NULL,
+          validity_days INTEGER NULL DEFAULT 7,
           upload_retry_count INTEGER NOT NULL DEFAULT 0,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -225,6 +226,11 @@ class SQLiteAdapter {
       // Migration: add assigned_user_name to existing contract_instances tables
       await this.run(`
         ALTER TABLE contract_instances ADD COLUMN assigned_user_name TEXT NULL;
+      `).catch(() => {}); // Silently ignore if column already exists
+
+      // Migration: add validity_days to existing contract_instances tables
+      await this.run(`
+        ALTER TABLE contract_instances ADD COLUMN validity_days INTEGER NULL DEFAULT 7;
       `).catch(() => {}); // Silently ignore if column already exists
 
       await this.run(`

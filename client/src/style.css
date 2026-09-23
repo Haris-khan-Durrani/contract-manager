@@ -497,6 +497,122 @@ textarea.form-control { resize: vertical; min-height: 80px; }
   margin-bottom: var(--space-6);
 }
 
+/* ─── Sidebar Collapsed State (Crucial for CRM Iframe) ─── */
+.app-layout.sidebar-collapsed .sidebar {
+  width: 68px;
+  transition: width 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.app-layout.sidebar-collapsed .sidebar-brand {
+  padding: 0;
+  justify-content: center;
+}
+
+.app-layout.sidebar-collapsed .sidebar-brand-text,
+.app-layout.sidebar-collapsed .sidebar-section-label,
+.app-layout.sidebar-collapsed .nav-item-text,
+.app-layout.sidebar-collapsed .sidebar-user-details,
+.app-layout.sidebar-collapsed .sidebar-logout-btn {
+  display: none !important;
+}
+
+.app-layout.sidebar-collapsed .nav-item {
+  justify-content: center;
+  padding: 10px 0;
+  margin: 4px 8px;
+}
+
+.app-layout.sidebar-collapsed .nav-icon {
+  margin: 0;
+  width: 20px;
+  height: 20px;
+}
+
+.app-layout.sidebar-collapsed .sidebar-user-row {
+  justify-content: center !important;
+  padding: 8px 0 !important;
+}
+
+.app-layout.sidebar-collapsed .main-wrapper {
+  margin-left: 68px;
+  transition: margin-left 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--color-border);
+  padding-right: 8px;
+}
+
+.sidebar-collapse-toggle {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.sidebar-collapse-toggle:hover {
+  background: var(--color-bg-subtle);
+  color: var(--color-text-primary);
+}
+
+.topbar-sidebar-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: #ffffff;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.topbar-sidebar-toggle:hover {
+  background: var(--color-bg-subtle);
+  color: var(--color-text-primary);
+}
+
+/* ─── Builder Mode (Template Studio & Form Builder) ─── */
+.app-layout.is-builder-mode .topbar {
+  display: none !important;
+}
+
+.app-layout.is-builder-mode .page-body {
+  padding: 0 !important;
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+}
+
+.app-layout.is-builder-mode .main-wrapper {
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+  min-height: 100vh;
+}
+
+/* ─── In-Iframe General Adjustments ─── */
+.app-layout.in-iframe {
+  font-size: 13.5px;
+}
+
+.app-layout.in-iframe .topbar {
+  padding: 0 14px;
+  height: 52px;
+}
+
 /* ─── Filter Pills & Tab Bars (Ref: Image) ────────────────────────────────── */
 .pill-tab-bar {
   display:       inline-flex;

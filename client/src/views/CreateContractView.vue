@@ -999,7 +999,10 @@ async function sendViaGhlNow() {
   try {
     const res = await api.post(
       `/contracts/${contractId}/send`,
-      { channels: ['sms', 'email'] },
+      {
+        validityDays: form.value.validityDays,
+        channels: ['sms', 'email'],
+      },
       { headers: getHeaders() }
     )
     alert(res.data?.message || 'Contract dispatched successfully via GoHighLevel Conversation!')

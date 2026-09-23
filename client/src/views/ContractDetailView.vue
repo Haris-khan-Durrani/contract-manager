@@ -50,7 +50,7 @@
         <button
           v-if="canExtend"
           class="btn btn-secondary"
-          @click="showExtendModal = true"
+          @click="openExtendModal"
         >
           ⏱️ Extend Expiry
         </button>
@@ -93,15 +93,16 @@
 
     <!-- Send via GHL Conversation Modal -->
     <div v-if="showSendModal" class="modal-backdrop" @click.self="showSendModal = false">
-      <div class="modal-card glass-card" style="max-width: 520px;">
-        <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
-          <div style="width:42px; height:42px; border-radius:10px; background:#eff6ff; display:flex; align-items:center; justify-content:center; font-size:22px; color:#2563eb;">
+      <div class="modal-card">
+        <div class="modal-header-row">
+          <div class="modal-icon-badge" style="background:#eff6ff; color:#2563eb;">
             💬
           </div>
           <div>
-            <h3 style="margin:0; font-size:1.15rem;">Send via GoHighLevel Conversation</h3>
-            <p class="text-muted" style="margin:0; font-size:0.8rem;">Auto-dispatch to client and log directly in GHL Conversation thread</p>
+            <h3 class="modal-title">Send via GoHighLevel Conversation</h3>
+            <p class="modal-subtitle">Auto-dispatch to client and log directly in GHL Conversation thread</p>
           </div>
+          <button type="button" class="btn-modal-close" @click="showSendModal = false">✕</button>
         </div>
 
         <div style="background:var(--color-bg-secondary, #f8fafc); border:1px solid var(--color-border); border-radius:8px; padding:14px; margin-bottom:16px;">
@@ -114,7 +115,7 @@
         </div>
 
         <div style="margin-bottom:16px;">
-          <label style="font-size:0.82rem; font-weight:600; display:block; margin-bottom:8px;">GHL Delivery Channels:</label>
+          <label class="section-micro-label">GHL DELIVERY CHANNELS:</label>
           <div style="display:flex; flex-direction:column; gap:8px;">
             <label style="display:flex; align-items:center; gap:10px; padding:10px 12px; background:var(--color-surface); border:1px solid var(--color-border); border-radius:6px; cursor:pointer;" :style="!(contract.recipient_phone || ghlContact?.phone) ? 'opacity:0.6;' : ''">
               <input type="checkbox" v-model="sendChannels.sms" :disabled="!(contract.recipient_phone || ghlContact?.phone)" />
@@ -143,7 +144,7 @@
         </div>
 
         <div style="margin-bottom:18px;">
-          <label style="font-size:0.82rem; font-weight:600; display:block; margin-bottom:6px;">Signing Link Expiry:</label>
+          <label class="section-micro-label">SIGNING LINK VALIDITY:</label>
           <div class="extend-pills">
             <button v-for="d in [1,3,7,14,30]" :key="d"
               type="button" class="validity-chip" :class="{ active: sendDays === d }"
@@ -153,7 +154,7 @@
           </div>
         </div>
 
-        <div class="modal-actions" style="display:flex; justify-content:flex-end; gap:8px;">
+        <div class="modal-actions">
           <button type="button" class="btn btn-secondary" @click="showSendModal = false" :disabled="sending">
             Cancel
           </button>
@@ -167,27 +168,60 @@
 
     <!-- Extend Expiry Modal -->
     <div v-if="showExtendModal" class="modal-backdrop" @click.self="showExtendModal = false">
-      <div class="modal-card glass-card">
-        <h3>Extend Contract Expiry</h3>
-        <p class="text-muted" style="margin-bottom:16px;">Select how many additional days to extend the signing link.</p>
-
-        <div class="extend-pills">
-          <button v-for="d in [1,3,7,14,30]" :key="d"
-            type="button" class="validity-chip" :class="{ active: extendDays === d }"
-            @click="extendDays = d">
-            +{{ d }} Day{{ d !== 1 ? 's' : '' }}
-          </button>
+      <div class="modal-card">
+        <div class="modal-header-row">
+          <div class="modal-icon-badge">
+            ⏱️
+          </div>
+          <div>
+            <h3 class="modal-title">Extend Contract Expiry</h3>
+            <p class="modal-subtitle">Contract #{{ contract.id }} • {{ contract.template_name || 'Legal Agreement' }}</p>
+          </div>
+          <button type="button" class="btn-modal-close" @click="showExtendModal = false">✕</button>
         </div>
 
-        <div class="form-group" style="margin-top:12px;">
-          <label>Custom days</label>
-          <input type="number" v-model.number="extendDays" min="1" max="365" class="form-input" style="max-width:100px;"/>
+        <div class="modal-body-section">
+          <!-- Live Expiry Comparison Card -->
+          <div class="expiry-compare-box">
+            <div class="compare-col">
+              <span class="compare-label">CURRENT EXPIRY</span>
+              <span class="compare-val text-muted">{{ contract.token_expires_at ? formatDate(contract.token_expires_at) : 'Not Dispatched' }}</span>
+            </div>
+            <div class="compare-arrow">➔</div>
+            <div class="compare-col">
+              <span class="compare-label">NEW EXPIRY DATE</span>
+              <span class="compare-val text-primary font-bold">
+                {{ formatProjectedDate(extendDays) }}
+                <span class="badge badge-primary badge-sm" style="margin-left: 6px;">+{{ extendDays }}d</span>
+              </span>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 16px;">
+            <label class="section-micro-label">SELECT ADDITIONAL VALIDITY DAYS:</label>
+            <div class="extend-pills">
+              <button v-for="d in [1, 3, 7, 14, 30]" :key="d"
+                type="button" class="validity-chip" :class="{ active: extendDays === d }"
+                @click="extendDays = d">
+                +{{ d }} Day{{ d !== 1 ? 's' : '' }}
+              </button>
+            </div>
+          </div>
+
+          <div class="form-group custom-days-block">
+            <label class="section-micro-label">OR ENTER CUSTOM DAYS:</label>
+            <div class="custom-days-row">
+              <input type="number" v-model.number="extendDays" min="1" max="365" class="form-control custom-days-input" />
+              <span class="custom-days-hint">Day(s) from right now</span>
+            </div>
+          </div>
         </div>
 
         <div class="modal-actions">
-          <button class="btn btn-secondary" @click="showExtendModal = false">Cancel</button>
-          <button class="btn btn-primary" @click="extendExpiry" :disabled="extending">
-            {{ extending ? 'Extending…' : 'Extend Expiry' }}
+          <button type="button" class="btn btn-secondary" @click="showExtendModal = false">Cancel</button>
+          <button type="button" class="btn btn-primary" @click="extendExpiry" :disabled="extending">
+            <span v-if="extending">Extending…</span>
+            <span v-else>✓ Save &amp; Extend Link</span>
           </button>
         </div>
       </div>
@@ -662,13 +696,37 @@ function onFormInput() {
 }
 
 function openSendModal() {
-  sendDays.value = contract.value?.validity_days || 7
+  let defaultDays = 7
+  if (contract.value?.validity_days) {
+    defaultDays = contract.value.validity_days
+  } else if (contract.value?.token_expires_at) {
+    const diffMs = new Date(contract.value.token_expires_at).getTime() - Date.now()
+    if (diffMs > 0) {
+      defaultDays = Math.max(1, Math.round(diffMs / (24 * 60 * 60 * 1000)))
+    }
+  }
+  sendDays.value = defaultDays
   sendChannels.value = {
     sms: !!(contract.value?.recipient_phone || ghlContact.value?.phone),
     email: !!(contract.value?.recipient_email || ghlContact.value?.email),
     note: true,
   }
   showSendModal.value = true
+}
+
+function openExtendModal() {
+  extendDays.value = 7
+  showExtendModal.value = true
+}
+
+function formatProjectedDate(days) {
+  const num = parseInt(days) || 1
+  const d = new Date(Date.now() + num * 24 * 60 * 60 * 1000)
+  return d.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
 }
 
 async function executeSendContract() {
@@ -1488,4 +1546,208 @@ onMounted(() => {
 .badge-purple { background: #faf5ff; color: #6b21a8; }
 .badge-rose   { background: #fff1f2; color: #be123c; }
 .badge-neutral{ background: #f1f5f9; color: #475569; }
+
+/* ── Modern Modal & Validity Controls ── */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1050;
+  padding: 16px;
+  animation: modalFadeIn 0.15s ease-out;
+}
+
+.modal-card {
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.06);
+  width: 100%;
+  max-width: 520px;
+  padding: 24px;
+  position: relative;
+  animation: modalScaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modalScaleIn {
+  from { opacity: 0; transform: scale(0.96) translateY(6px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.modal-header-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.modal-icon-badge {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #fdf2f8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.modal-subtitle {
+  margin: 2px 0 0;
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.btn-modal-close {
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 1.15rem;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.btn-modal-close:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.expiry-compare-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 18px;
+  gap: 12px;
+}
+
+.compare-col {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.compare-label {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.compare-val {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.compare-arrow {
+  color: #94a3b8;
+  font-size: 1.2rem;
+}
+
+.section-micro-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #475569;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.extend-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.validity-chip {
+  padding: 8px 16px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1.5px solid #e2e8f0;
+  background: #ffffff;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.validity-chip:hover {
+  border-color: #94a3b8;
+  color: #0f172a;
+  background: #f8fafc;
+  transform: translateY(-1px);
+}
+
+.validity-chip.active {
+  border-color: #4f46e5;
+  background: #eef2ff;
+  color: #4338ca;
+  font-weight: 700;
+  box-shadow: 0 2px 4px rgba(79, 70, 229, 0.15);
+}
+
+.custom-days-block {
+  margin-top: 14px;
+}
+
+.custom-days-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.custom-days-input {
+  max-width: 100px;
+  height: 38px;
+  border-radius: 8px;
+  font-weight: 700;
+  text-align: center;
+  font-size: 0.95rem;
+}
+
+.custom-days-hint {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #f1f5f9;
+}
 </style>
