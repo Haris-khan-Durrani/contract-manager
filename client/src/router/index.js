@@ -66,7 +66,7 @@ router.beforeEach(async (to) => {
   const auth = useAuthStore()
 
   // Check URL query parameters for userId, locationId, privateToken
-  if (to.query.userId || to.query.userid || to.query.user_id) {
+  if (to.query.userId || to.query.userid || to.query.user_id || to.query.locationId || to.query.locationid || to.query.location_id) {
     const success = await auth.checkUrlParams(to.query)
     if (success) {
       // Remove sensitive tokens from URL query for security & clean URL
@@ -81,8 +81,13 @@ router.beforeEach(async (to) => {
       delete cleanQuery.privatetoken
       delete cleanQuery.token
       delete cleanQuery.private_token
+      delete cleanQuery.redirect
 
-      return { path: to.path, query: cleanQuery, replace: true }
+      const targetPath = (to.name === 'Login' || to.path === '/login' || to.path === '/')
+        ? (to.query.redirect || '/dashboard')
+        : to.path
+
+      return { path: targetPath, query: cleanQuery, replace: true }
     }
   }
 

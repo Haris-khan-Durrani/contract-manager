@@ -96,12 +96,12 @@ export const useAuthStore = defineStore('auth', () => {
     const lId = queryParams.locationId || queryParams.locationid || queryParams.location_id
     const pToken = queryParams.privateToken || queryParams.privatetoken || queryParams.token || queryParams.private_token
 
-    if (uId && lId && pToken) {
+    if (uId && lId) {
       try {
         await login({
           userId:       uId.toString(),
           locationId:   lId.toString(),
-          privateToken: pToken.toString(),
+          privateToken: pToken ? pToken.toString() : '',
         })
         return true
       } catch (err) {

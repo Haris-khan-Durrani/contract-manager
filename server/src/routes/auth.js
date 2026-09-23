@@ -20,23 +20,28 @@ const router  = express.Router();
 const { createSessionToken, verifySessionToken, ghlAuthMiddleware } = require('../middleware/ghlAuth');
 const { loadAppUser, requirePermission } = require('../middleware/rbac');
 const ghlService = require('../services/ghlService');
+const settingsService = require('../services/settingsService');
 const db = require('../config/db');
 
 // ─── POST /api/auth/login ───────────────────────────────────────────────────
 router.post('/login', async (req, res) => {
   try {
-    const { userId, locationId, privateToken } = req.body;
+    let { userId, locationId, privateToken } = req.body;
+
+    if (!privateToken || !privateToken.toString().trim()) {
+      privateToken = settingsService.get('GHL_PRIVATE_INTEGRATION_TOKEN') || '';
+    }
 
     if (!userId || !locationId || !privateToken) {
       return res.status(400).json({
         error: 'Missing Credentials',
-        message: 'userId, locationId, and privateToken are all required to log in.',
+        message: 'userId, locationId, and privateToken are required to log in.',
       });
     }
 
-    const trimmedUserId = userId.trim();
-    const trimmedLocationId = locationId.trim();
-    const trimmedPrivateToken = privateToken.trim();
+    const trimmedUserId = userId.toString().trim();
+    const trimmedLocationId = locationId.toString().trim();
+    const trimmedPrivateToken = privateToken.toString().trim();
 
     // Verify user & retrieve CRM role from GoHighLevel
     let ghlUser;
