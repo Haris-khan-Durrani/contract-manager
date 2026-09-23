@@ -661,6 +661,7 @@ async function initMysqlTables(pool) {
       `ALTER TABLE contract_instances ADD COLUMN completed_at TIMESTAMP NULL`,
       `ALTER TABLE contract_instances ADD COLUMN revoked_at TIMESTAMP NULL`,
       `ALTER TABLE contract_instances ADD COLUMN assigned_user_name VARCHAR(255) NULL`,
+      `ALTER TABLE contract_instances ADD COLUMN validity_days INT NULL DEFAULT 7`,
     ];
     for (const stmt of [...formAlters, ...instanceAlters]) {
       try { await pool.execute(stmt); } catch (e) { /* column already exists — skip */ }

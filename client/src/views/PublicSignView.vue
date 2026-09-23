@@ -140,6 +140,31 @@
               <span class="doc-nav-title">{{ contract?.snapshot?.documentTitle || contract?.templateName }}</span>
             </div>
             <div class="doc-nav-actions">
+              <!-- Mobile A4 Fit / Zoom Controls -->
+              <div v-if="isMobileScreen" class="mobile-zoom-pill-group">
+                <button
+                  type="button"
+                  class="doc-nav-btn"
+                  :class="{ 'doc-nav-btn-active': Math.abs(mobileZoom - autoFitScale) < 0.05 }"
+                  @click="setZoomFit"
+                  title="Fit Full A4 Page to Screen"
+                >
+                  📱 Fit A4
+                </button>
+                <button
+                  type="button"
+                  class="doc-nav-btn"
+                  :class="{ 'doc-nav-btn-active': Math.abs(mobileZoom - 1.0) < 0.05 }"
+                  @click="setZoom100"
+                  title="Zoom to 100% Actual Size"
+                >
+                  🔍 100%
+                </button>
+                <button type="button" class="doc-nav-btn btn-step" @click="changeZoom(-0.1)" title="Zoom Out">−</button>
+                <span class="zoom-pct-label">{{ Math.round(mobileZoom * 100) }}%</span>
+                <button type="button" class="doc-nav-btn btn-step" @click="changeZoom(0.1)" title="Zoom In">+</button>
+              </div>
+
               <button type="button" class="doc-nav-btn" @click="scrollToSection('.page-4, .page:nth-of-type(4)')" title="Jump to Terms of Business">
                 📜 Terms
               </button>
@@ -156,10 +181,11 @@
         <!-- Document Paper Canvas -->
         <div class="doc-paper-wrap" :class="{ 'html-mode-paper-wrap': isHtmlTemplate }">
 
-          <!-- MULTI-PAGE HTML/CSS TEMPLATE CANVAS -->
+          <!-- MULTI-PAGE HTML/CSS TEMPLATE CANVAS WITH MOBILE A4 SCALER -->
           <div
             v-if="isHtmlTemplate"
             class="html-contract-render-host"
+            :style="mobileA4Style"
             v-html="renderedHtmlContent"
           ></div>
 
@@ -441,7 +467,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import axios from 'axios'
 import SignaturePad from '../components/signing/SignaturePad.vue'
@@ -449,6 +475,52 @@ import SignaturePad from '../components/signing/SignaturePad.vue'
 const route = useRoute()
 const token = route.params.token
 const apiBase = import.meta.env.VITE_API_BASE_URL || (typeof window !== 'undefined' && (window.location.protocol === 'https:' || (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')) ? '/api' : 'http://localhost:3001/api')
+
+// ─── Mobile A4 Fit & Zoom State ───────────────────────────────────────────────
+const isMobileScreen = ref(false)
+const mobileZoom = ref(1)
+const autoFitScale = ref(1)
+
+function updateScreenDimensions() {
+  if (typeof window === 'undefined') return
+  const w = window.innerWidth
+  isMobileScreen.value = w < 840
+
+  if (w < 840) {
+    // 794px is standard 210mm A4 width at 96dpi
+    const availableWidth = Math.max(260, w - 24)
+    const fit = Math.min(1, Math.round((availableWidth / 800) * 100) / 100)
+    autoFitScale.value = fit
+    if (mobileZoom.value === 1 || mobileZoom.value < 0.3) {
+      mobileZoom.value = fit
+    }
+  } else {
+    autoFitScale.value = 1
+    mobileZoom.value = 1
+  }
+}
+
+function setZoomFit() {
+  mobileZoom.value = autoFitScale.value
+}
+
+function setZoom100() {
+  mobileZoom.value = 1.0
+}
+
+function changeZoom(delta) {
+  const next = Math.round((mobileZoom.value + delta) * 100) / 100
+  if (next >= 0.35 && next <= 1.5) {
+    mobileZoom.value = next
+  }
+}
+
+const mobileA4Style = computed(() => {
+  if (!isMobileScreen.value) return {}
+  return {
+    zoom: mobileZoom.value,
+  }
+})
 
 // ─── State ───────────────────────────────────────────────────────────────────
 const loading            = ref(true)
@@ -643,12 +715,14 @@ const renderedHtmlContent = computed(() => {
     }
     .sign-html-canvas-pages .page {
       width: 210mm !important;
-      max-width: 100% !important;
+      min-width: 210mm !important;
+      max-width: 210mm !important;
       min-height: 297mm !important;
       background: #ffffff !important;
       color: #202629 !important;
       margin: 0 auto 28px auto !important;
-      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45) !important;
+      box-shadow: 0 14px 40px rgba(15, 23, 42, 0.12), 0 1px 3px rgba(15, 23, 42, 0.08) !important;
+      border: 1px solid #e2e8f0 !important;
       position: relative !important;
       overflow: hidden !important;
       box-sizing: border-box !important;
@@ -669,6 +743,9 @@ const renderedHtmlContent = computed(() => {
       table-layout: fixed !important;
     }
     .sign-html-canvas-pages .bilingual-table td {
+      width: 50% !important;
+      max-width: 50% !important;
+      box-sizing: border-box !important;
       color: #202629 !important;
       padding: 1.35mm 6mm !important;
       vertical-align: top !important;
@@ -881,6 +958,12 @@ async function fetchContract() {
 
 onMounted(() => {
   fetchContract()
+  updateScreenDimensions()
+  window.addEventListener('resize', updateScreenDimensions)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', updateScreenDimensions)
 })
 
 // ─── Signature Change Handler ─────────────────────────────────────────────────
@@ -1210,12 +1293,14 @@ async function downloadSignedPdf() {
 
 .html-contract-render-host :deep(.page) {
   width: 210mm;
-  max-width: 100%;
+  min-width: 210mm;
+  max-width: 210mm;
   min-height: 297mm;
   background: #ffffff;
   color: #202629;
   margin: 0 auto 28px auto;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 14px 40px rgba(15, 23, 42, 0.12), 0 1px 3px rgba(15, 23, 42, 0.08);
+  border: 1px solid #e2e8f0;
   position: relative;
   overflow: hidden;
   box-sizing: border-box;
@@ -1838,12 +1923,63 @@ async function downloadSignedPdf() {
   box-shadow: 0 6px 16px rgba(79, 70, 229, 0.4);
 }
 
+.mobile-zoom-pill-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: #f1f5f9;
+  padding: 3px 6px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+}
+
+.mobile-zoom-pill-group .doc-nav-btn {
+  padding: 4px 8px;
+  font-size: 0.76rem;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  color: #334155;
+  line-height: 1.2;
+}
+
+.mobile-zoom-pill-group .doc-nav-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.mobile-zoom-pill-group .doc-nav-btn.doc-nav-btn-active {
+  background: #4f46e5;
+  color: #ffffff;
+  border-color: #4338ca;
+  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25);
+}
+
+.mobile-zoom-pill-group .btn-step {
+  padding: 2px 7px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  min-width: 24px;
+  justify-content: center;
+}
+
+.zoom-pct-label {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #475569;
+  min-width: 34px;
+  text-align: center;
+  user-select: none;
+}
+
 /* ── HTML Multi-Page Contract Container ───────────────────────────────────── */
 .html-mode-paper-wrap {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: safe center;
   width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .html-contract-render-host {
@@ -1862,7 +1998,10 @@ async function downloadSignedPdf() {
 }
 
 .html-contract-render-host :deep(.page) {
-  max-width: 100%;
+  width: 210mm !important;
+  min-width: 210mm !important;
+  max-width: 210mm !important;
+  min-height: 297mm !important;
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.04);
   border: 1px solid #e2e8f0;
   border-radius: 4px;
@@ -1962,6 +2101,9 @@ async function downloadSignedPdf() {
 }
 
 @media (max-width: 768px) {
+  .portal-main {
+    padding: 16px 8px 60px 8px;
+  }
   .document-paper {
     padding: 24px 20px;
   }
@@ -1973,17 +2115,50 @@ async function downloadSignedPdf() {
   }
   .contract-hero-banner {
     flex-direction: column;
+    padding: 18px 16px;
+    gap: 16px;
+  }
+  .html-mode-paper-wrap {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    align-items: safe center;
+    padding-bottom: 20px;
   }
   .html-contract-render-host {
-    overflow-x: auto;
-    width: 100%;
+    width: fit-content;
+    max-width: none;
+    margin: 0 auto;
   }
   .doc-nav-sticky-bar {
-    top: 60px;
-    padding: 8px 12px;
+    top: 56px;
+    padding: 8px 10px;
+  }
+  .doc-nav-bar-inner {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .doc-nav-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
   }
   .doc-nav-title {
     display: none;
+  }
+  .doc-nav-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    width: 100%;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .mobile-zoom-pill-group {
+    display: inline-flex;
+    gap: 2px;
   }
 }
 </style>

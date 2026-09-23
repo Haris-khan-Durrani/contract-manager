@@ -338,14 +338,13 @@ router.post('/:id/extend', requirePermission('contract:send'), async (req, res) 
         customFields: [
           { id: 'contract_expiry_date', value: newExpiry.toISOString() },
         ],
-        privateToken: req.ghlUser?.privateToken,
-      }).catch(err => console.warn('[Contracts] GHL expiry sync note:', err.message));
+      }, req.ghlUser?.privateToken).catch(err => console.warn('[Contracts] GHL expiry sync note:', err.message));
     }
 
     await db.execute(
       `INSERT INTO contract_audit_logs (contract_instance_id, actor_type, actor_id, actor_name, action, from_state, to_state, metadata_json)
        VALUES (?, 'USER', ?, ?, 'EXPIRY_EXTENDED', ?, ?, ?)`,
-      [contract.id, userId, req.ghlUser.name, previousState, newState, JSON.stringify({ extraDays, newExpiry, newToken: isExpired })]
+      [contract.id, userId, req.ghlUser.name || 'User', previousState, newState, JSON.stringify({ extraDays, newExpiry, newToken: isExpired })]
     );
 
     await db.execute(
