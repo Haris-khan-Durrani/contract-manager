@@ -31,7 +31,7 @@
                 v-model="form.locationId"
                 type="text"
                 class="form-control with-icon"
-                placeholder="e.g. loc_default_001 or GHL Location ID"
+                placeholder="Enter your GoHighLevel Location ID"
                 required
                 autocomplete="off"
               />
@@ -50,7 +50,7 @@
                 v-model="form.userId"
                 type="text"
                 class="form-control with-icon"
-                placeholder="e.g. user_admin_001 or GHL User ID"
+                placeholder="Enter your GoHighLevel User ID"
                 required
                 autocomplete="off"
               />
@@ -69,7 +69,7 @@
                 v-model="form.privateToken"
                 :type="showToken ? 'text' : 'password'"
                 class="form-control with-icon"
-                placeholder="pit_..."
+                placeholder="Enter your Private Integration Token (pit_...)"
                 required
                 autocomplete="off"
               />
@@ -102,30 +102,6 @@
           </button>
         </form>
 
-        <!-- Divider -->
-        <div class="login-divider">
-          <span>or Quick Dev Test</span>
-        </div>
-
-        <!-- Dev Quick Buttons -->
-        <div class="dev-quick-actions">
-          <button
-            type="button"
-            class="btn btn-secondary btn-sm"
-            @click="fillDemo('ADMIN')"
-            :disabled="auth.loading"
-          >
-            Fill Admin Demo
-          </button>
-          <button
-            type="button"
-            class="btn btn-secondary btn-sm"
-            @click="fillDemo('SALES')"
-            :disabled="auth.loading"
-          >
-            Fill Sales Demo
-          </button>
-        </div>
       </div>
 
       <!-- Footer Info -->
@@ -154,9 +130,9 @@ const showToken = ref(false)
 const errorMessage = ref('')
 
 const form = ref({
-  locationId:   localStorage.getItem('last_location_id') || 'loc_default_001',
-  userId:       localStorage.getItem('last_user_id')     || 'user_admin_001',
-  privateToken: 'pit_dev_token_sample',
+  locationId:   localStorage.getItem('last_location_id') || '',
+  userId:       localStorage.getItem('last_user_id')     || '',
+  privateToken: '',
 })
 
 const isFormValid = computed(() => {
@@ -187,18 +163,6 @@ async function handleLogin() {
   }
 }
 
-function fillDemo(role) {
-  if (role === 'ADMIN') {
-    form.value.locationId   = 'loc_default_001'
-    form.value.userId       = 'user_superadmin_001'
-    form.value.privateToken = 'pit_dev_token_sample'
-  } else {
-    form.value.locationId   = 'loc_default_001'
-    form.value.userId       = 'user_sales_001'
-    form.value.privateToken = 'pit_dev_token_sample'
-  }
-  handleLogin()
-}
 </script>
 
 <style scoped>
@@ -344,34 +308,6 @@ function fillDemo(role) {
   line-height: 1.4;
 }
 
-.login-divider {
-  display: flex;
-  align-items: center;
-  text-align: center;
-  margin: 20px 0 14px;
-}
-
-.login-divider::before,
-.login-divider::after {
-  content: '';
-  flex: 1;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.login-divider span {
-  padding: 0 10px;
-  font-size: 0.75rem;
-  color: #94a3b8;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.dev-quick-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
 
 .login-footer {
   text-align: center;
