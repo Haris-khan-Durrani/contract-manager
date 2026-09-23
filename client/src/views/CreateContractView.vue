@@ -961,7 +961,19 @@ async function createContract() {
     }
 
     const res = await api.post('/contracts/manual', payload, { headers: getHeaders() })
-    createdContract.value = res.data
+    const data = res.data || {}
+    let sUrl = data.signingUrl || ''
+    if (data.signingToken) {
+      sUrl = `${window.location.origin}/sign/${data.signingToken}`
+    } else if (sUrl && typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+      try {
+        const parsed = new URL(sUrl)
+        if (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1') {
+          sUrl = `${window.location.origin}${parsed.pathname}${parsed.search}`
+        }
+      } catch (_) {}
+    }
+    createdContract.value = { ...data, signingUrl: sUrl }
   } catch (err) {
     createError.value = err.response?.data?.error || err.message || 'Failed to create contract.'
   } finally {

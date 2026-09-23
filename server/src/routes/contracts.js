@@ -279,7 +279,7 @@ router.post('/manual', requirePermission('contract:create'), async (req, res) =>
       privateToken: req.ghlUser?.privateToken,
     }).catch(err => console.warn('[Contracts] GHL creation note failed:', err.message));
 
-    const baseUrl    = await settingsService.get('SIGNING_BASE_URL', 'http://localhost:5173');
+    const baseUrl    = settingsService.getSigningBaseUrl(req);
     const signingUrl = `${baseUrl}/sign/${signingToken}`;
 
     res.status(201).json({
@@ -342,7 +342,7 @@ router.post('/:id/extend', requirePermission('contract:send'), async (req, res) 
       [contract.id, JSON.stringify({ extraDays, newExpiry: newExpiry.toISOString() }), req.ghlUser.name || userId]
     );
 
-    const baseUrl    = await settingsService.get('SIGNING_BASE_URL', 'http://localhost:5173');
+    const baseUrl    = settingsService.getSigningBaseUrl(req);
     const signingUrl = `${baseUrl}/sign/${newToken}`;
 
     res.json({ success: true, signingUrl, signingToken: newToken, expiresAt: newExpiry, newTokenGenerated: isExpired });
@@ -515,7 +515,7 @@ router.post('/:id/send', requirePermission('contract:send'), async (req, res) =>
     );
 
     // Build signing URL
-    const baseUrl = await settingsService.get('SIGNING_BASE_URL', 'http://localhost:5173');
+    const baseUrl = settingsService.getSigningBaseUrl(req);
     const signingUrl = `${baseUrl}/sign/${signingToken}`;
 
     // Deliver via GHL Conversation (SMS, Email, and Internal Conversation Thread)

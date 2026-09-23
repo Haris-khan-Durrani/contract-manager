@@ -94,6 +94,49 @@ class SettingsService {
   }
 
   /**
+   * Resolve public signing base URL dynamically.
+   * Prioritizes request origin / referer / host header if running on a live domain,
+   * otherwise falls back to configured SIGNING_BASE_URL.
+   */
+  getSigningBaseUrl(req = null) {
+    if (req) {
+      const origin = req.get('origin');
+      if (origin && !origin.includes('localhost') && !origin.includes('127.0.0.1')) {
+        return origin.replace(/\/+$/, '');
+      }
+
+      const referer = req.get('referer');
+      if (referer) {
+        try {
+          const parsed = new URL(referer);
+          if (!parsed.hostname.includes('localhost') && !parsed.hostname.includes('127.0.0.1')) {
+            return `${parsed.protocol}//${parsed.host}`;
+          }
+        } catch (_) {}
+      }
+
+      const forwardedHost = req.get('x-forwarded-host');
+      const forwardedProto = req.get('x-forwarded-proto') || 'https';
+      if (forwardedHost && !forwardedHost.includes('localhost') && !forwardedHost.includes('127.0.0.1')) {
+        return `${forwardedProto}://${forwardedHost}`.replace(/\/+$/, '');
+      }
+
+      const host = req.get('host');
+      if (host && !host.includes('localhost') && !host.includes('127.0.0.1')) {
+        const proto = req.protocol === 'https' || req.secure ? 'https' : 'https';
+        return `${proto}://${host}`.replace(/\/+$/, '');
+      }
+    }
+
+    const configured = this.get('SIGNING_BASE_URL');
+    if (configured && configured.trim() && !configured.includes('localhost')) {
+      return configured.trim().replace(/\/+$/, '');
+    }
+
+    return (configured || 'http://localhost:5173').replace(/\/+$/, '');
+  }
+
+  /**
    * Get a numeric setting.
    */
   getInt(key, fallback = 0) {
