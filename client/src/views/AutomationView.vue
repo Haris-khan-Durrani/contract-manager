@@ -1,0 +1,1 @@
+<template><div class="page-header"><h1>Automation</h1></div><div class="page-body animate-fade-in"><div class="glass-card" style="padding:var(--space-8); text-align:center; color:var(--color-text-muted);">Automation coming soon.</div></div></template>
