@@ -71,6 +71,11 @@ The **Contract Management System** provides high-conversion digital contract wor
   * Every executed agreement embeds a cryptographic QR verification stamp on each page.
   * Scanning the QR code opens a public verification screen confirming document integrity, SHA-256 fingerprint, signing timestamp, and authenticity.
 
+* **Auto-Dispatch via GoHighLevel Conversations**:
+  * One-click contract dispatch directly from the contract workspace and creation wizard.
+  * Sends text messages (SMS) and/or branded HTML invitation emails to the recipient through GoHighLevel's native `POST /conversations/messages` API.
+  * All outbound messages and internal contract dispatch notes are embedded directly into the contact's GoHighLevel Conversation stream.
+
 * **Role-Based Access Control (RBAC) & Sales Privacy**:
   * Three user tiers: `SUPER_ADMIN`, `ADMIN`, and `SALES`.
   * **Sales Data Isolation**: Sales representatives (e.g., Akram Mammeri) only view and generate contracts for leads assigned to their GHL account.

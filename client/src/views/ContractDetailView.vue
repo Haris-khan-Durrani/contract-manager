@@ -75,21 +75,95 @@
           {{ downloadingPdf ? '⏳ Downloading…' : '⬇️ Download PDF' }}
         </button>
 
-        <!-- Primary Action: SEND CONTRACT -->
+        <!-- Primary Action: SEND CONTRACT VIA GOHIGHLEVEL -->
         <button
           v-if="['READY', 'AWAITING_FORM'].includes(contract.state)"
           class="btn btn-primary"
-          @click="sendContract"
+          @click="openSendModal"
           :disabled="sending"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="22" y1="2" x2="11" y2="13"/>
             <polygon points="22 2 15 22 11 13 2 9 22 2"/>
           </svg>
-          {{ sending ? 'Sending…' : 'Send to Client' }}
+          {{ sending ? 'Sending…' : 'Send via GHL Conversation' }}
         </button>
       </div>
     </header>
+
+    <!-- Send via GHL Conversation Modal -->
+    <div v-if="showSendModal" class="modal-backdrop" @click.self="showSendModal = false">
+      <div class="modal-card glass-card" style="max-width: 520px;">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+          <div style="width:42px; height:42px; border-radius:10px; background:#eff6ff; display:flex; align-items:center; justify-content:center; font-size:22px; color:#2563eb;">
+            💬
+          </div>
+          <div>
+            <h3 style="margin:0; font-size:1.15rem;">Send via GoHighLevel Conversation</h3>
+            <p class="text-muted" style="margin:0; font-size:0.8rem;">Auto-dispatch to client and log directly in GHL Conversation thread</p>
+          </div>
+        </div>
+
+        <div style="background:var(--color-bg-secondary, #f8fafc); border:1px solid var(--color-border); border-radius:8px; padding:14px; margin-bottom:16px;">
+          <div style="font-size:0.75rem; font-weight:700; color:var(--color-text-secondary); margin-bottom:6px; letter-spacing:0.5px;">RECIPIENT CONTACT</div>
+          <div style="font-weight:700; font-size:0.95rem; color:var(--color-text);">{{ contract.recipient_name || ghlContact?.name || 'Client' }}</div>
+          <div style="display:flex; flex-wrap:wrap; gap:14px; margin-top:6px; font-size:0.82rem; color:var(--color-text-muted);">
+            <span>📱 {{ contract.recipient_phone || ghlContact?.phone || 'No phone number' }}</span>
+            <span>✉️ {{ contract.recipient_email || ghlContact?.email || 'No email' }}</span>
+          </div>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <label style="font-size:0.82rem; font-weight:600; display:block; margin-bottom:8px;">GHL Delivery Channels:</label>
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <label style="display:flex; align-items:center; gap:10px; padding:10px 12px; background:var(--color-surface); border:1px solid var(--color-border); border-radius:6px; cursor:pointer;" :style="!(contract.recipient_phone || ghlContact?.phone) ? 'opacity:0.6;' : ''">
+              <input type="checkbox" v-model="sendChannels.sms" :disabled="!(contract.recipient_phone || ghlContact?.phone)" />
+              <div style="font-size:0.85rem;">
+                <strong>Send via SMS</strong>
+                <span class="text-muted" style="display:block; font-size:0.75rem;">Direct text message from GHL to {{ contract.recipient_phone || ghlContact?.phone || 'client phone' }}</span>
+              </div>
+            </label>
+
+            <label style="display:flex; align-items:center; gap:10px; padding:10px 12px; background:var(--color-surface); border:1px solid var(--color-border); border-radius:6px; cursor:pointer;" :style="!(contract.recipient_email || ghlContact?.email) ? 'opacity:0.6;' : ''">
+              <input type="checkbox" v-model="sendChannels.email" :disabled="!(contract.recipient_email || ghlContact?.email)" />
+              <div style="font-size:0.85rem;">
+                <strong>Send via Email</strong>
+                <span class="text-muted" style="display:block; font-size:0.75rem;">Branded signing invitation from GHL to {{ contract.recipient_email || ghlContact?.email || 'client email' }}</span>
+              </div>
+            </label>
+
+            <label style="display:flex; align-items:center; gap:10px; padding:10px 12px; background:var(--color-surface); border:1px solid var(--color-border); border-radius:6px; cursor:pointer;">
+              <input type="checkbox" v-model="sendChannels.note" checked disabled />
+              <div style="font-size:0.85rem;">
+                <strong>GHL Internal Conversation Note</strong>
+                <span class="text-muted" style="display:block; font-size:0.75rem;">Permanent audit entry inside the contact's GHL conversation thread</span>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div style="margin-bottom:18px;">
+          <label style="font-size:0.82rem; font-weight:600; display:block; margin-bottom:6px;">Signing Link Expiry:</label>
+          <div class="extend-pills">
+            <button v-for="d in [1,3,7,14,30]" :key="d"
+              type="button" class="validity-chip" :class="{ active: sendDays === d }"
+              @click="sendDays = d">
+              {{ d }} Day{{ d !== 1 ? 's' : '' }}
+            </button>
+          </div>
+        </div>
+
+        <div class="modal-actions" style="display:flex; justify-content:flex-end; gap:8px;">
+          <button type="button" class="btn btn-secondary" @click="showSendModal = false" :disabled="sending">
+            Cancel
+          </button>
+          <button type="button" class="btn btn-primary" @click="executeSendContract" :disabled="sending">
+            <span v-if="sending" class="spinner-inline">Sending via GHL…</span>
+            <span v-else>🚀 Dispatch via GoHighLevel</span>
+          </button>
+        </div>
+      </div>
+    </div>
 
     <!-- Extend Expiry Modal -->
     <div v-if="showExtendModal" class="modal-backdrop" @click.self="showExtendModal = false">
@@ -492,6 +566,15 @@ const extending = ref(false)
 const revoking  = ref(false)
 const downloadingPdf = ref(false)
 
+// GHL Send Modal
+const showSendModal = ref(false)
+const sendDays = ref(7)
+const sendChannels = ref({
+  sms: true,
+  email: true,
+  note: true,
+})
+
 const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'
 
 function getHeaders() {
@@ -578,22 +661,39 @@ function onFormInput() {
   }, 600)
 }
 
-async function sendContract() {
-  if (!confirm('Are you sure you want to freeze this contract snapshot and dispatch it to the client?')) return
-  sending.value = true
+function openSendModal() {
+  sendDays.value = contract.value?.validity_days || 7
+  sendChannels.value = {
+    sms: !!(contract.value?.recipient_phone || ghlContact.value?.phone),
+    email: !!(contract.value?.recipient_email || ghlContact.value?.email),
+    note: true,
+  }
+  showSendModal.value = true
+}
 
+async function executeSendContract() {
+  sending.value = true
   try {
+    const selectedChannels = []
+    if (sendChannels.value.sms) selectedChannels.push('sms')
+    if (sendChannels.value.email) selectedChannels.push('email')
+
     const res = await axios.post(
       `${apiBase}/contracts/${contractId}/send`,
-      {},
+      {
+        validityDays: sendDays.value,
+        channels: selectedChannels,
+      },
       { headers: getHeaders() }
     )
 
-    alert(`Contract dispatched successfully! Signing link: ${res.data.signingLink}`)
+    showSendModal.value = false
+    const msg = res.data.message || 'Contract dispatched successfully via GoHighLevel Conversation!'
+    alert(`${msg}\n\nSigning Link:\n${res.data.signingUrl || res.data.signingLink}`)
     fetchContract()
   } catch (err) {
     console.error('Send contract error:', err)
-    alert(err.response?.data?.error || 'Failed to dispatch contract.')
+    alert(err.response?.data?.error || 'Failed to dispatch contract via GoHighLevel.')
   } finally {
     sending.value = false
   }

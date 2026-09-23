@@ -649,7 +649,16 @@
           </div>
 
           <!-- Actions -->
-          <div class="success-actions-row">
+          <div class="success-actions-row" style="display:flex; flex-wrap:wrap; gap:10px;">
+            <button
+              type="button"
+              class="btn btn-primary"
+              :disabled="sendingGhl"
+              @click="sendViaGhlNow"
+            >
+              <span v-if="sendingGhl" class="spinner-inline">Sending via GHL…</span>
+              <span v-else>💬 Auto-Send via GHL Conversation</span>
+            </button>
             <a
               :href="createdContract.signingUrl"
               target="_blank"
@@ -660,7 +669,7 @@
             <button type="button" class="btn btn-secondary" @click="resetForm">
               + Create Another Contract
             </button>
-            <router-link to="/contracts" class="btn btn-primary">
+            <router-link to="/contracts" class="btn btn-secondary">
               View All Contracts →
             </router-link>
           </div>
@@ -735,6 +744,7 @@ const creating         = ref(false)
 const createError      = ref('')
 const createdContract  = ref(null)
 const copied           = ref(false)
+const sendingGhl       = ref(false)
 
 const validityOptions = [
   { label: '1 Day',   value: 1  },
@@ -967,6 +977,28 @@ async function copyLink() {
     setTimeout(() => { copied.value = false }, 2500)
   } catch (e) {
     alert(createdContract.value.signingUrl)
+  }
+}
+
+async function sendViaGhlNow() {
+  const contractId = createdContract.value?.contractInstanceId || createdContract.value?.id
+  if (!contractId) return
+  sendingGhl.value = true
+  try {
+    const res = await api.post(
+      `/contracts/${contractId}/send`,
+      { channels: ['sms', 'email'] },
+      { headers: getHeaders() }
+    )
+    alert(res.data?.message || 'Contract dispatched successfully via GoHighLevel Conversation!')
+    if (createdContract.value) {
+      createdContract.value.state = 'SENT'
+    }
+  } catch (err) {
+    console.error('Send via GHL error:', err)
+    alert(err.response?.data?.error || 'Failed to dispatch contract via GoHighLevel.')
+  } finally {
+    sendingGhl.value = false
   }
 }
 

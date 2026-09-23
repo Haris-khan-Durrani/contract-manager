@@ -518,13 +518,23 @@ router.post('/:id/send', requirePermission('contract:send'), async (req, res) =>
     const baseUrl = await settingsService.get('SIGNING_BASE_URL', 'http://localhost:5173');
     const signingUrl = `${baseUrl}/sign/${signingToken}`;
 
-    // Deliver via GHL Conversation
-    ghlService.postConversationNote(locationId, {
+    // Deliver via GHL Conversation (SMS, Email, and Internal Conversation Thread)
+    const deliveryChannels = req.body.channels || (deliveryMethod === 'sms' ? ['sms'] : deliveryMethod === 'email' ? ['email'] : ['sms', 'email']);
+    const delivery = await ghlService.sendContractViaGHLConversation(locationId, {
       contactId: contract.ghl_contact_id,
+      recipientName: contract.recipient_name,
+      recipientEmail: contract.recipient_email,
+      recipientPhone: contract.recipient_phone,
+      contractName: template.name,
+      signingUrl,
+      expiryDays,
+      channels: deliveryChannels,
       userId,
-      message:   `📄 Your contract "${template.name}" is ready to sign. Please click the link below:\n\n${signingUrl}\n\nThis link expires in ${expiryDays} day(s).`,
       privateToken: req.ghlUser?.privateToken,
-    }).catch(err => console.warn('[Contracts] GHL delivery failed:', err.message));
+    }).catch(err => {
+      console.warn('[Contracts] GHL delivery note:', err.message);
+      return { smsSent: false, emailSent: false, notePosted: false, errors: [err.message] };
+    });
 
     // Sync GHL status
     ghlService.updateContact(locationId, contract.ghl_contact_id, {
@@ -535,7 +545,23 @@ router.post('/:id/send', requirePermission('contract:send'), async (req, res) =>
       ],
     }, req.ghlUser?.privateToken).catch(err => console.warn('[Contracts] GHL status sync failed:', err.message));
 
-    res.json({ success: true, state: 'SENT', signingUrl, expiresAt: tokenExpiresAt });
+    const channelsSentText = [
+      delivery?.smsSent ? 'SMS' : null,
+      delivery?.emailSent ? 'Email' : null,
+      delivery?.notePosted ? 'Conversation Note' : null,
+    ].filter(Boolean).join(' & ');
+
+    res.json({
+      success: true,
+      state: 'SENT',
+      signingUrl,
+      signingLink: signingUrl,
+      expiresAt: tokenExpiresAt,
+      delivery,
+      message: channelsSentText
+        ? `Contract sent successfully via GoHighLevel Conversation (${channelsSentText})!`
+        : 'Contract marked as sent and logged in GoHighLevel Conversation.',
+    });
   } catch (err) {
     console.error('[Contracts] Send error:', err.message);
     res.status(500).json({ error: 'Failed to send contract.' });

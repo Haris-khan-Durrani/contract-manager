@@ -437,6 +437,186 @@ async function syncAuditLogToGHL(locationId, { contactId, userId, title, details
   }
 }
 
+/**
+ * Send an outbound message to a contact via GoHighLevel Conversations (SMS, Email, or WhatsApp).
+ * Shows up natively in the GoHighLevel Conversation timeline and sends directly to the client.
+ */
+async function sendConversationMessage(locationId, {
+  contactId,
+  type = 'SMS', // 'SMS' | 'Email' | 'WhatsApp'
+  message,
+  subject = '',
+  html = '',
+  emailFrom = null,
+  attachments = [],
+  userId = null,
+  privateToken = null,
+}) {
+  if (!contactId || contactId.startsWith('contact_ghl_demo_')) {
+    console.log(`[GHL Conversation Mock] Sent ${type} to ${contactId}: ${message?.split('\n')[0]}`);
+    return { success: true, mock: true, type };
+  }
+
+  const payload = {
+    type,
+    contactId,
+    message,
+    ...(locationId ? { locationId } : {}),
+    ...(isValidGhlUserId(userId) ? { userId } : {}),
+    ...(subject ? { subject } : {}),
+    ...(html ? { html } : {}),
+    ...(emailFrom ? { emailFrom } : {}),
+    ...(attachments?.length ? { attachments } : {}),
+  };
+
+  return withRetry(
+    (client) => client.post('/conversations/messages', payload).then(r => r.data),
+    locationId,
+    privateToken
+  );
+}
+
+/**
+ * Auto-send contract signing link via GoHighLevel Conversations.
+ * Dispatches via SMS and/or Email through GHL's messaging engine,
+ * and posts an Internal Comment so the dispatch is immediately visible in the GHL conversation thread.
+ */
+async function sendContractViaGHLConversation(locationId, {
+  contactId,
+  recipientName = '',
+  recipientEmail = '',
+  recipientPhone = '',
+  contractName = 'Contract Agreement',
+  signingUrl,
+  expiryDays = 7,
+  channels = ['sms', 'email'],
+  userId = null,
+  privateToken = null,
+}) {
+  const results = {
+    smsSent: false,
+    emailSent: false,
+    notePosted: false,
+    errors: [],
+  };
+
+  if (!contactId || contactId.startsWith('contact_ghl_demo_')) {
+    console.log(`[GHL Delivery Mock] Dispatched contract to ${contactId} via GHL Conversation: ${signingUrl}`);
+    return { ...results, smsSent: true, emailSent: true, notePosted: true, mock: true };
+  }
+
+  const cleanChannels = Array.isArray(channels) ? channels.map(c => String(c).toLowerCase()) : ['sms', 'email'];
+  const shouldSendSms = cleanChannels.includes('sms') || cleanChannels.includes('all') || cleanChannels.includes('auto');
+  const shouldSendEmail = cleanChannels.includes('email') || cleanChannels.includes('all') || cleanChannels.includes('auto');
+
+  // Text message body for SMS
+  const smsBody = `Hello ${recipientName || 'there'},\n\nYour agreement "${contractName}" is ready for signature. Please review and electronically sign here:\n${signingUrl}\n\n⏱️ This secure link will expire in ${expiryDays} day(s).\n\nThank you!`;
+
+  // HTML email body for GHL Email conversation
+  const emailHtml = `
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #1e293b; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px;">
+  <div style="border-bottom: 2px solid #2563eb; padding-bottom: 16px; margin-bottom: 20px;">
+    <h2 style="color: #0f172a; margin: 0 0 6px; font-size: 20px;">Legal Agreement Ready for Signature</h2>
+    <p style="color: #64748b; margin: 0; font-size: 14px;">Document: <strong>${contractName}</strong></p>
+  </div>
+  
+  <p style="font-size: 15px; line-height: 1.6;">Hello <strong>${recipientName || 'Valued Client'}</strong>,</p>
+  <p style="font-size: 15px; line-height: 1.6;">Your agreement <strong>"${contractName}"</strong> has been prepared and is ready for your review and electronic signature.</p>
+  
+  <div style="text-align: center; margin: 28px 0;">
+    <a href="${signingUrl}" target="_blank" style="background-color: #2563eb; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 15px; display: inline-block;">
+      Review &amp; Sign Contract →
+    </a>
+  </div>
+  
+  <p style="font-size: 13px; color: #64748b; line-height: 1.5;">
+    If the button above does not work, open this link in your browser:<br/>
+    <a href="${signingUrl}" target="_blank" style="color: #2563eb; word-break: break-all;">${signingUrl}</a>
+  </p>
+  
+  <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
+  <p style="font-size: 12px; color: #94a3b8; margin: 0;">
+    ⏱️ This secure link will expire in <strong>${expiryDays} day(s)</strong>.
+  </p>
+</div>
+`;
+
+  // 1. Send SMS via GoHighLevel Conversations
+  if (shouldSendSms && recipientPhone) {
+    try {
+      await sendConversationMessage(locationId, {
+        contactId,
+        type: 'SMS',
+        message: smsBody,
+        userId,
+        privateToken,
+      });
+      results.smsSent = true;
+      console.log(`[GHL Delivery] Sent SMS via GHL Conversation to ${contactId} (${recipientPhone})`);
+    } catch (err) {
+      console.warn(`[GHL Delivery] SMS conversation dispatch note: ${err.message}`);
+      results.errors.push(`SMS: ${err.message}`);
+    }
+  }
+
+  // 2. Send Email via GoHighLevel Conversations
+  if (shouldSendEmail && recipientEmail) {
+    try {
+      await sendConversationMessage(locationId, {
+        contactId,
+        type: 'Email',
+        subject: `Your contract "${contractName}" is ready for signature`,
+        html: emailHtml,
+        message: smsBody,
+        userId,
+        privateToken,
+      });
+      results.emailSent = true;
+      console.log(`[GHL Delivery] Sent Email via GHL Conversation to ${contactId} (${recipientEmail})`);
+    } catch (err) {
+      console.warn(`[GHL Delivery] Email conversation dispatch note: ${err.message}`);
+      results.errors.push(`Email: ${err.message}`);
+    }
+  }
+
+  // 3. Post Internal Comment in GHL Conversation (always visible in conversation thread)
+  try {
+    const internalComment = [
+      `📄 [Contract Sent] Agreement "${contractName}" was dispatched to client.`,
+      recipientPhone ? `• Phone: ${recipientPhone}` : null,
+      recipientEmail ? `• Email: ${recipientEmail}` : null,
+      `• Signing Link: ${signingUrl}`,
+      `• Expiry: ${expiryDays} day(s)`,
+      results.smsSent ? '✓ Sent via SMS in GHL Conversations' : null,
+      results.emailSent ? '✓ Sent via Email in GHL Conversations' : null,
+    ].filter(Boolean).join('\n');
+
+    await postConversationNote(locationId, {
+      contactId,
+      userId,
+      message: internalComment,
+      privateToken,
+    });
+    results.notePosted = true;
+  } catch (err) {
+    console.warn(`[GHL Delivery] Internal conversation comment note: ${err.message}`);
+  }
+
+  // 4. Also record a Contact Note in GHL Contact activity/notes
+  try {
+    await createContactNote(locationId, {
+      contactId,
+      userId,
+      body: `📄 Contract "${contractName}" sent for signature. Signing Link: ${signingUrl} (Expires in ${expiryDays} days).`,
+      privateToken,
+    });
+  } catch (err) {
+    console.warn(`[GHL Delivery] Contact note creation note: ${err.message}`);
+  }
+
+  return results;
+}
+
 // ─── File Upload API ──────────────────────────────────────────────────────────
 
 /**
@@ -483,4 +663,6 @@ module.exports = {
   createContactNote,
   syncAuditLogToGHL,
   uploadContactFile,
+  sendConversationMessage,
+  sendContractViaGHLConversation,
 };
