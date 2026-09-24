@@ -1047,28 +1047,47 @@ async function downloadPdf() {
   if (downloadingPdf.value) return
   downloadingPdf.value = true
   try {
-    // Prefer the already-uploaded GHL file URL (direct download, no auth needed on that CDN URL)
-    if (contract.value.ghl_file_url) {
-      window.open(contract.value.ghl_file_url, '_blank')
-      return
-    }
-    // Fall back to authenticated PDF endpoint using the signing_token
-    const token = contract.value.signing_token
-    if (!token) throw new Error('No signing token available.')
+    // 1. Primary: Download via authenticated agent endpoint (works in any contract state)
     const res = await axios.get(
-      `${apiBase}/sign/${token}/pdf`,
+      `${apiBase}/contracts/${contractId}/pdf`,
       { headers: getHeaders(), responseType: 'blob' }
     )
     const blob = new Blob([res.data], { type: 'application/pdf' })
     const url  = URL.createObjectURL(blob)
     const a    = document.createElement('a')
     a.href     = url
-    a.download = `contract_${contractId}_signed.pdf`
+    a.download = `contract_${contractId}.pdf`
+    document.body.appendChild(a)
     a.click()
+    document.body.removeChild(a)
     URL.revokeObjectURL(url)
   } catch (err) {
     console.error('[Download PDF] Error:', err.message)
-    alert('Unable to download PDF. Please check your permissions or try again.')
+    // 2. Fallback: if signing_token is available, try signing endpoint
+    if (contract.value?.signing_token) {
+      try {
+        const res2 = await axios.get(
+          `${apiBase}/sign/${contract.value.signing_token}/pdf`,
+          { headers: getHeaders(), responseType: 'blob' }
+        )
+        const blob2 = new Blob([res2.data], { type: 'application/pdf' })
+        const url2  = URL.createObjectURL(blob2)
+        const a2    = document.createElement('a')
+        a2.href     = url2
+        a2.download = `contract_${contractId}.pdf`
+        document.body.appendChild(a2)
+        a2.click()
+        document.body.removeChild(a2)
+        URL.revokeObjectURL(url2)
+        return
+      } catch (e2) {}
+    }
+    // 3. Fallback: direct GHL file URL
+    if (contract.value?.ghl_file_url) {
+      window.open(contract.value.ghl_file_url, '_blank')
+      return
+    }
+    alert('Unable to download PDF. Please try again.')
   } finally {
     downloadingPdf.value = false
   }

@@ -98,7 +98,7 @@ function renderHtmlTemplate(html, css, context = {}, options = {}) {
   const currencyText = fees.currency_text || form.currency || 'THE GREAT BRITAIN POUND (GBP)';
   const paymentMode = fees.payment_mode || form.payment_terms || '100% Upfront';
   const additionalInfo = fees.additional_information || form.additional_information || form.visa_type || 'Standard Legal & Immigration Advisory';
-  const paymentBreakup = fees.payment_breakup || form.payment_breakup || '50% Initial Deposit upon signing, 50% upon Visa Approval';
+  const paymentBreakup = fees.payment_breakup || form.schedule_three_content || form.payment_breakup || '50% Initial Deposit upon signing, 50% upon Visa Approval';
   const initialAmount = fees.initial_amount || form.discounted_amount || form.initial_deposit || '—';
 
   const contractDate = formatDate(context.contractDate || form.contract_date || system.currentDate);
@@ -150,6 +150,8 @@ function renderHtmlTemplate(html, css, context = {}, options = {}) {
 
     'fees.payment_breakup': paymentBreakup,
     'payment_breakup': paymentBreakup,
+    'schedule_three_content': form.schedule_three_content || paymentBreakup,
+    'commercial_terms': form.schedule_three_content || paymentBreakup,
 
     'fees.initial_amount': initialAmount,
     'initial_amount': initialAmount,

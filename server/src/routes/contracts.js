@@ -18,12 +18,14 @@ const express          = require('express');
 const router           = express.Router();
 const { v4: uuidv4 }  = require('uuid');
 const crypto           = require('crypto');
+const axios            = require('axios');
 const db               = require('../config/db');
 const { ghlAuthMiddleware }              = require('../middleware/ghlAuth');
 const { loadAppUser, requirePermission, hasPermission } = require('../middleware/rbac');
 const ghlService       = require('../services/ghlService');
 const snapshotService  = require('../services/snapshotService');
 const settingsService  = require('../services/settingsService');
+const pdfService       = require('../services/pdfService');
 
 // Apply auth to all routes in this router
 router.use(ghlAuthMiddleware, loadAppUser);
@@ -628,6 +630,91 @@ router.patch('/:id/cancel', requirePermission('contract:cancel'), async (req, re
   } catch (err) {
     console.error('[Contracts] Cancel error:', err.message);
     res.status(500).json({ error: 'Failed to cancel contract.' });
+  }
+});
+
+// ─── GET /api/contracts/:id/pdf ──────────────────────────────────────────────
+// Agent-authenticated PDF download for any contract state (READY, SENT, SIGNED, COMPLETED)
+router.get('/:id/pdf', requirePermission('contract:view'), async (req, res) => {
+  try {
+    const { locationId } = req.ghlUser;
+    const [rows] = await db.execute(
+      `SELECT ci.*, ct.name AS template_name, ct.document_schema_json
+       FROM contract_instances ci
+       JOIN contract_templates ct ON ct.id = ci.template_id
+       WHERE ci.id = ? AND ci.location_id = ? LIMIT 1`,
+      [req.params.id, locationId]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Contract not found.' });
+    const contract = rows[0];
+
+    // If an uploaded GHL file URL exists and contract is completed, fetch and stream it directly
+    if (contract.ghl_file_url && ['COMPLETED', 'SIGNED'].includes(contract.state)) {
+      try {
+        const fileRes = await axios.get(contract.ghl_file_url, { responseType: 'arraybuffer', timeout: 8000 });
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="contract_${contract.id}_signed.pdf"`);
+        return res.send(Buffer.from(fileRes.data));
+      } catch (streamErr) {
+        console.warn('[Contracts] Streaming ghl_file_url failed, falling back to on-the-fly generation:', streamErr.message);
+      }
+    }
+
+    // Determine snapshot to render
+    let snapshot = null;
+    if (contract.snapshot_json) {
+      snapshot = typeof contract.snapshot_json === 'string'
+        ? JSON.parse(contract.snapshot_json)
+        : contract.snapshot_json;
+    }
+
+    // If no frozen snapshot yet (e.g. contract is in READY/DRAFT state like Contract 4), construct dynamic snapshot
+    if (!snapshot) {
+      const formData = typeof contract.form_data_json === 'string'
+        ? JSON.parse(contract.form_data_json || '{}')
+        : (contract.form_data_json || {});
+
+      const docSchema = typeof contract.document_schema_json === 'string'
+        ? JSON.parse(contract.document_schema_json || '{}')
+        : (contract.document_schema_json || {});
+
+      const rawHtml = docSchema.rawHtml || null;
+      const customCss = docSchema.customCss || '';
+      const activeBlocks = docSchema.blocks || [];
+
+      snapshot = {
+        contractInstanceId: contract.id,
+        templateId: contract.template_id,
+        templateName: contract.template_name,
+        documentTitle: contract.template_name,
+        rawHtml,
+        customCss,
+        isHtmlTemplate: !!rawHtml,
+        activeBlocks,
+        formData,
+        clientName: contract.recipient_name,
+        clientEmail: contract.recipient_email,
+        clientPhone: contract.recipient_phone,
+        recipient: {
+          name: contract.recipient_name,
+          email: contract.recipient_email,
+          phone: contract.recipient_phone,
+        },
+        frozenAt: contract.created_at || new Date().toISOString(),
+      };
+    }
+
+    const isSigned = ['SIGNED', 'COMPLETED'].includes(contract.state);
+    const { buffer } = isSigned
+      ? await pdfService.generateSigned(snapshot)
+      : await pdfService.generatePreview(snapshot);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="contract_${contract.id}_${isSigned ? 'signed' : 'draft'}.pdf"`);
+    return res.send(buffer);
+  } catch (err) {
+    console.error('[Contracts] Download PDF error:', err.message);
+    res.status(500).json({ error: 'Failed to generate contract PDF.' });
   }
 });
 

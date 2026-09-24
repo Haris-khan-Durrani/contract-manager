@@ -388,19 +388,43 @@
 
             <div class="section-divider"></div>
 
-            <!-- SECTION 5: Commercial Terms & Fees -->
+            <!-- SECTION 5: Commercial Terms & Fees (Rich Text Editor) -->
             <div class="card-section">
               <div class="section-title-wrap">
                 <span class="section-icon">💼</span>
                 <div>
-                  <h3 class="section-title">5. Commercial Terms & Fees (Schedule Three)</h3>
-                  <p class="section-sub">Fill in the program fees and payment schedule terms for this contract.</p>
+                  <h3 class="section-title">5. Commercial Terms &amp; Fees (Schedule Three)</h3>
+                  <p class="section-sub">Use the rich editor below to format professional fees, milestones, tables, and payment conditions.</p>
                 </div>
               </div>
 
-              <div class="form-grid-2">
+              <!-- Rich Text Editor with Extensive Formatting Options -->
+              <div class="rte-section-box">
+                <RichTextEditor
+                  v-model="formResponses['schedule_three_content']"
+                  @change="onScheduleThreeChange"
+                  placeholder="Draft program fees, payment schedule terms, discount details, or structured milestone table here…"
+                />
+              </div>
+
+              <!-- Optional Individual Variable Inputs Toggle -->
+              <div class="field-sync-hint-row">
+                <button
+                  type="button"
+                  class="btn-text-toggle"
+                  @click="showIndividualFields = !showIndividualFields"
+                >
+                  <span>{{ showIndividualFields ? '▲ Hide individual variable inputs' : '⚙️ Show individual variable inputs (optional)' }}</span>
+                </button>
+                <small class="text-hint">
+                  Your formatted terms will be rendered directly into the legal agreement &amp; PDF certificate.
+                </small>
+              </div>
+
+              <!-- Collapsible Individual Variable Overrides -->
+              <div v-if="showIndividualFields" class="form-grid-2 individual-fields-box">
                 <div class="form-group">
-                  <label class="field-label">Total Professional Fees <span class="req">*</span></label>
+                  <label class="field-label">Total Professional Fees</label>
                   <input
                     type="text"
                     v-model="formResponses['contract_value']"
@@ -418,7 +442,7 @@
                   />
                 </div>
                 <div class="form-group full-col">
-                  <label class="field-label">Payment Mode / Schedule <span class="req">*</span></label>
+                  <label class="field-label">Payment Mode / Schedule</label>
                   <input
                     type="text"
                     v-model="formResponses['payment_terms']"
@@ -686,10 +710,25 @@ import { useRouter } from 'vue-router'
 import axios from 'axios'
 import api from '../services/api'
 import { useAuthStore } from '../stores/auth'
+import RichTextEditor from '../components/common/RichTextEditor.vue'
 
 const router = useRouter()
 const auth   = useAuthStore()
 const apiBase = import.meta.env.VITE_API_BASE_URL || (typeof window !== 'undefined' && (window.location.protocol === 'https:' || (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')) ? '/api' : 'http://localhost:3001/api')
+
+const showIndividualFields = ref(false)
+
+const defaultScheduleHtml = `
+<p><strong>Total Professional Fees:</strong> 20,000 EUR</p>
+<p><strong>Amount after Exclusive Discount:</strong> 15,000 EUR</p>
+<p><strong>Agreed Payment Milestones:</strong></p>
+<ul>
+  <li><strong>First Milestone (50% Advance):</strong> 7,500 EUR payable upon signing this agreement.</li>
+  <li><strong>Second Milestone (50% Balance):</strong> 7,500 EUR payable upon formal file approval / visa issuance.</li>
+</ul>
+<p><strong>Payment Mode:</strong> International Bank Wire Transfer / Swift.</p>
+<p><em>All fees are net of third-party government charges and subject to standard terms of business.</em></p>
+`.trim()
 
 // ─── State ───────────────────────────────────────────────────────────────────
 const form = ref({
@@ -718,11 +757,29 @@ const formResponses = ref({
   nationality: '',
   address: '',
   date_of_birth: '',
-  contract_value: '',
-  discounted_amount: '',
-  payment_terms: '',
-  visa_type: '',
+  contract_value: '20,000 EUR',
+  discounted_amount: '15,000 EUR',
+  payment_terms: '50% Upon Signing, 50% on Approval',
+  visa_type: 'Cyprus Business Residence Visa',
+  schedule_three_content: defaultScheduleHtml,
 })
+
+function onScheduleThreeChange(html) {
+  formResponses.value.schedule_three_content = html
+  formResponses.value.payment_breakup = html
+  formResponses.value.commercial_terms = html
+
+  if (html) {
+    const feeMatch = html.match(/(?:Total(?: Professional)? Fees?:?\s*(?:<\/strong>)?\s*)([0-9,.]+\s*[A-Z]{3}|[0-9,.]+)/i)
+    if (feeMatch && feeMatch[1]) {
+      formResponses.value.contract_value = feeMatch[1].trim()
+    }
+    const discountMatch = html.match(/(?:Discount(?:ed)?:?\s*(?:<\/strong>)?\s*)([0-9,.]+\s*[A-Z]{3}|[0-9,.]+)/i)
+    if (discountMatch && discountMatch[1]) {
+      formResponses.value.discounted_amount = discountMatch[1].trim()
+    }
+  }
+}
 
 // Team members repeater (Applicant 2, 3, ...)
 const teamMembers = ref([])
@@ -1029,10 +1086,11 @@ function resetForm() {
     nationality: '',
     address: '',
     date_of_birth: '',
-    contract_value: '',
-    discounted_amount: '',
-    payment_terms: '',
-    visa_type: '',
+    contract_value: '20,000 EUR',
+    discounted_amount: '15,000 EUR',
+    payment_terms: '50% Upon Signing, 50% on Approval',
+    visa_type: 'Cyprus Business Residence Visa',
+    schedule_three_content: defaultScheduleHtml,
   }
   form.value = {
     templateId:               '',
@@ -1840,6 +1898,53 @@ onUnmounted(() => {
   justify-content: center;
   gap: 12px;
   margin-top: 10px;
+}
+
+/* ── Section 5 Rich Text Editor Styling ── */
+.rte-section-box {
+  margin-top: 14px;
+}
+
+.field-sync-hint-row {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.btn-text-toggle {
+  background: transparent;
+  border: none;
+  color: #4f46e5;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+.btn-text-toggle:hover {
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+.text-hint {
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.individual-fields-box {
+  margin-top: 14px;
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 10px;
+  border: 1px dashed #cbd5e1;
 }
 
 @media (max-width: 1024px) {
