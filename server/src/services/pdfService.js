@@ -58,7 +58,30 @@ async function getBrowser() {
     try {
       browser = await playwright.chromium.launch({ ...launchOptions, channel: 'msedge' });
     } catch (errEdge) {
-      browser = await playwright.chromium.launch(launchOptions);
+      try {
+        browser = await playwright.chromium.launch(launchOptions);
+      } catch (errDefault) {
+        // Try known system executable paths (e.g. Linux VPS or Windows paths)
+        const fs = require('fs');
+        const systemCandidates = [
+          '/usr/bin/google-chrome-stable',
+          '/usr/bin/google-chrome',
+          '/usr/bin/chromium',
+          '/usr/bin/chromium-browser',
+          '/snap/bin/chromium',
+          'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+          'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+          'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+        ];
+        let foundPath = systemCandidates.find(p => {
+          try { return fs.existsSync(p); } catch { return false; }
+        });
+        if (foundPath) {
+          browser = await playwright.chromium.launch({ ...launchOptions, executablePath: foundPath });
+        } else {
+          throw new Error(`Chromium browser could not be launched. ${errDefault.message}`);
+        }
+      }
     }
   }
 
@@ -80,7 +103,13 @@ async function htmlToPdf(html) {
   const page = await br.newPage();
 
   try {
-    await page.setContent(html, { waitUntil: 'networkidle' });
+    // Prefer 'load' with brief settle time to prevent networkidle from hanging on Google Fonts / CDN
+    try {
+      await page.setContent(html, { waitUntil: 'load', timeout: 15000 });
+      await page.waitForTimeout(400);
+    } catch {
+      await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 10000 });
+    }
 
     const pdfBuffer = await page.pdf({
       format:             'A4',

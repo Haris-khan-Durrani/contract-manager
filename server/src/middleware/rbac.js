@@ -23,6 +23,7 @@ const PERMISSIONS = {
   'contract:create':       ['SALES', 'ADMIN', 'SUPER_ADMIN'],
   'contract:form:submit':  ['SALES', 'ADMIN', 'SUPER_ADMIN'],
   'contract:send':         ['SALES', 'ADMIN', 'SUPER_ADMIN'],
+  'contract:view':         ['SALES', 'ADMIN', 'SUPER_ADMIN'],
   'contract:view:all':     ['ADMIN', 'SUPER_ADMIN'],
   'contract:view:own':     ['SALES', 'ADMIN', 'SUPER_ADMIN'],
   'contract:cancel':       ['ADMIN', 'SUPER_ADMIN'],

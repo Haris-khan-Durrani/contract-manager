@@ -637,7 +637,8 @@ router.patch('/:id/cancel', requirePermission('contract:cancel'), async (req, re
 // Agent-authenticated PDF download for any contract state (READY, SENT, SIGNED, COMPLETED)
 router.get('/:id/pdf', requirePermission('contract:view'), async (req, res) => {
   try {
-    const { locationId } = req.ghlUser;
+    const { userId, locationId } = req.ghlUser;
+    const { role } = req.appUser;
     const [rows] = await db.execute(
       `SELECT ci.*, ct.name AS template_name, ct.document_schema_json
        FROM contract_instances ci
@@ -648,10 +649,17 @@ router.get('/:id/pdf', requirePermission('contract:view'), async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'Contract not found.' });
     const contract = rows[0];
 
+    // Check ownership for SALES role if restricted
+    const restrictToAssigned = settingsService.get('RESTRICT_CONTACTS_TO_ASSIGNED', 'true') !== 'false';
+    const canViewAll = hasPermission(role, 'contract:view:all') || !restrictToAssigned;
+    if (!canViewAll && contract.assigned_user_id !== userId) {
+      return res.status(403).json({ error: 'Access denied to this contract.' });
+    }
+
     // If an uploaded GHL file URL exists and contract is completed, fetch and stream it directly
     if (contract.ghl_file_url && ['COMPLETED', 'SIGNED'].includes(contract.state)) {
       try {
-        const fileRes = await axios.get(contract.ghl_file_url, { responseType: 'arraybuffer', timeout: 8000 });
+        const fileRes = await axios.get(contract.ghl_file_url, { responseType: 'arraybuffer', timeout: 15000 });
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="contract_${contract.id}_signed.pdf"`);
         return res.send(Buffer.from(fileRes.data));

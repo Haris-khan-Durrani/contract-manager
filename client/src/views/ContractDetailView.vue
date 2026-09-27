@@ -1042,6 +1042,40 @@ function formatDateTime(d) {
   })
 }
 
+function printDocument() {
+  const content = renderedContractHtml.value || (document.querySelector('.paper-document')?.innerHTML || '')
+  const printWindow = window.open('', '_blank')
+  if (!printWindow) {
+    window.print()
+    return
+  }
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Contract #${contractId}</title>
+        <style>
+          @page { size: A4; margin: 0; }
+          body { margin: 0; padding: 0; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          ${documentSchema.value?.customCss || ''}
+        </style>
+      </head>
+      <body>
+        ${content}
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.focus();
+              window.print();
+            }, 300);
+          }
+        <\/script>
+      </body>
+    </html>
+  `)
+  printWindow.document.close()
+}
+
 // ─── Download PDF (Agent only) ────────────────────────────────────────────────
 async function downloadPdf() {
   if (downloadingPdf.value) return
@@ -1061,8 +1095,10 @@ async function downloadPdf() {
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
+    return
   } catch (err) {
-    console.error('[Download PDF] Error:', err.message)
+    console.warn('[Download PDF] Primary endpoint failed, attempting fallbacks…', err?.message)
+
     // 2. Fallback: if signing_token is available, try signing endpoint
     if (contract.value?.signing_token) {
       try {
@@ -1080,14 +1116,38 @@ async function downloadPdf() {
         document.body.removeChild(a2)
         URL.revokeObjectURL(url2)
         return
-      } catch (e2) {}
+      } catch (e2) {
+        console.warn('[Download PDF] Sign token endpoint fallback failed:', e2?.message)
+      }
     }
+
     // 3. Fallback: direct GHL file URL
     if (contract.value?.ghl_file_url) {
-      window.open(contract.value.ghl_file_url, '_blank')
+      try {
+        const fileRes = await axios.get(contract.value.ghl_file_url, { responseType: 'blob' })
+        const blob3 = new Blob([fileRes.data], { type: 'application/pdf' })
+        const url3 = URL.createObjectURL(blob3)
+        const a3 = document.createElement('a')
+        a3.href = url3
+        a3.download = `contract_${contractId}.pdf`
+        document.body.appendChild(a3)
+        a3.click()
+        document.body.removeChild(a3)
+        URL.revokeObjectURL(url3)
+        return
+      } catch (ghlErr) {
+        window.open(contract.value.ghl_file_url, '_blank')
+        return
+      }
+    }
+
+    // 4. Fallback: Client-side print / save to PDF
+    if (renderedContractHtml.value || isHtmlContract.value) {
+      printDocument()
       return
     }
-    alert('Unable to download PDF. Please try again.')
+
+    alert('Unable to download PDF. Please try again or use the browser print dialog.')
   } finally {
     downloadingPdf.value = false
   }

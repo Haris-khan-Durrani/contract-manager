@@ -86,7 +86,10 @@ async function attemptUpload(contract) {
     filename
   );
 
-  const ghlFileUrl = uploadResult?.fileUrl || uploadResult?.url || '';
+  const ghlFileUrl = uploadResult?.fileUrl || uploadResult?.url
+    || (uploadResult?.uploadedFiles ? (Array.isArray(uploadResult.uploadedFiles) ? uploadResult.uploadedFiles[0] : Object.values(uploadResult.uploadedFiles)[0]) : '')
+    || (Array.isArray(uploadResult?.urls) ? uploadResult.urls[0] : '')
+    || '';
 
   // Transition to COMPLETED
   await db.execute(

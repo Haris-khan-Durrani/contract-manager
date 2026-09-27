@@ -16,10 +16,27 @@
  */
 const express    = require('express');
 const router     = express.Router();
+const axios      = require('axios');
 const db         = require('../config/db');
 const pdfService = require('../services/pdfService');
 const { ghlAuthMiddleware } = require('../middleware/ghlAuth');
 const ghlService = require('../services/ghlService');
+
+function extractGhlFileUrl(result) {
+  if (!result) return '';
+  if (typeof result === 'string') return result;
+  if (result.fileUrl) return result.fileUrl;
+  if (result.url) return result.url;
+  if (result.uploadedFiles) {
+    if (Array.isArray(result.uploadedFiles) && result.uploadedFiles[0]) return result.uploadedFiles[0];
+    const vals = Object.values(result.uploadedFiles);
+    if (vals.length > 0 && typeof vals[0] === 'string') return vals[0];
+    if (vals.length > 0 && vals[0]?.url) return vals[0].url;
+  }
+  if (Array.isArray(result.urls) && result.urls[0]) return result.urls[0];
+  if (result.meta?.url) return result.meta.url;
+  return '';
+}
 
 // Allowed states where client can view/interact with the contract
 const INTERACTIVE_STATES = ['READY', 'SENT', 'VIEWED', 'OPENED', 'IN_PROGRESS', 'READY_TO_SIGN'];
@@ -536,7 +553,7 @@ async function generateAndUploadPdf(contract, snapshot) {
         buffer,
         filename
       );
-      ghlFileUrl = uploadResult?.fileUrl || uploadResult?.url || '';
+      ghlFileUrl = extractGhlFileUrl(uploadResult);
     } catch (uploadErr) {
       console.warn(`[Sign] GHL file upload notice for contract ${contract.id}:`, uploadErr.message);
     }
@@ -584,10 +601,9 @@ async function generateAndUploadPdf(contract, snapshot) {
   }
 }
 
-// ─── GET /api/sign/:token/pdf — Download signed PDF (Agent only) ─────────────
-// Requires a valid GHL session JWT. Clients on the public signing portal
-// are NOT allowed to download — only agents from the internal panel can.
-router.get('/:token/pdf', ghlAuthMiddleware, async (req, res) => {
+// ─── GET /api/sign/:token/pdf — Download signed PDF ──────────────────────────
+// Accessible by agent or signed client
+router.get('/:token/pdf', async (req, res) => {
   try {
     const { token } = req.params;
     const [rows] = await db.execute(
@@ -599,6 +615,28 @@ router.get('/:token/pdf', ghlAuthMiddleware, async (req, res) => {
     );
     if (!rows.length) return res.status(404).json({ error: 'Contract not found.' });
     const contract = rows[0];
+
+    const isSigned = ['SIGNED', 'SIGNED_PENDING_STORAGE', 'COMPLETED'].includes(contract.state);
+
+    // If not yet signed, require authenticated GHL agent session
+    if (!isSigned) {
+      const authHeader = req.headers['authorization'] || '';
+      if (!authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'Unauthorized: Contract is not yet signed and requires agent credentials.' });
+      }
+    }
+
+    // 1. If an uploaded GHL file URL exists and contract is completed, fetch and stream it directly
+    if (contract.ghl_file_url && ['COMPLETED', 'SIGNED'].includes(contract.state)) {
+      try {
+        const fileRes = await axios.get(contract.ghl_file_url, { responseType: 'arraybuffer', timeout: 15000 });
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename="contract_${contract.id}_signed.pdf"`);
+        return res.send(Buffer.from(fileRes.data));
+      } catch (streamErr) {
+        console.warn('[Sign] Streaming ghl_file_url failed, falling back to on-the-fly generation:', streamErr.message);
+      }
+    }
 
     const snapshot = typeof contract.snapshot_json === 'string'
       ? JSON.parse(contract.snapshot_json)
@@ -614,7 +652,7 @@ router.get('/:token/pdf', ghlAuthMiddleware, async (req, res) => {
     return res.send(buffer);
   } catch (err) {
     console.error('[Sign] Download PDF error:', err.message);
-    return res.status(500).json({ error: 'Failed to generate PDF.' });
+    return res.status(500).json({ error: 'Failed to generate PDF.', details: err.message });
   }
 });
 
