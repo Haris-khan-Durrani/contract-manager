@@ -190,6 +190,19 @@
           <span>{{ saving ? 'Saving…' : 'Save Draft' }}</span>
         </button>
 
+        <button
+          type="button"
+          class="btn btn-secondary btn-sm header-action-btn btn-danger-soft"
+          @click="confirmDeleteTemplateFromBuilder"
+          title="Delete this template"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"/>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+          </svg>
+          <span>Delete</span>
+        </button>
+
         <span v-if="saveStatus === 'saved'" class="status-pill text-success">
           ✓ Saved
         </span>
@@ -1714,20 +1727,36 @@
         <div class="preview-stage-container">
           <div class="preview-toolbar-box">
             <div class="preview-title-box">
-              <h4>Real-Time A4 Multi-Page Document Preview</h4>
-              <p class="text-muted small-text">Simulates the exact A4 layout rendered by the Playwright PDF engine.</p>
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <h4>Real-Time A4 Multi-Page Document Preview</h4>
+                <span v-if="documentSchema.rawHtml" class="badge badge-success badge-sm" style="font-size: 10px;">
+                  12-Page Bilingual Paired-Table
+                </span>
+                <span class="badge badge-primary badge-sm" style="font-size: 10px;">
+                  Playwright Engine Fidelity
+                </span>
+              </div>
+              <p class="text-muted small-text">Simulates the exact pixel-perfect A4 layout rendered by the backend PDF generator.</p>
             </div>
 
-            <div class="test-controls">
+            <div class="test-controls" style="display: flex; gap: 8px; align-items: center;">
+              <button type="button" class="btn btn-secondary btn-sm" @click="refreshPreviewFrame" title="Reload preview">
+                🔄 Reload
+              </button>
               <button type="button" class="btn btn-primary btn-sm" @click="exportPdf">
-                📥 Download / Export A4 PDF
+                🖨️ Print / Save Clean PDF
               </button>
             </div>
           </div>
 
-          <!-- A4 Multi-Page Render Stream -->
-          <div v-if="documentSchema.rawHtml" class="html-preview-stream" :style="{ transform: `scale(${zoomScale})`, transformOrigin: 'top center' }">
-            <div class="html-preview-inner" v-html="renderedRawDocument"></div>
+          <!-- High-Fidelity Sandboxed A4 Multi-Page Preview Iframe -->
+          <div v-if="documentSchema.rawHtml" class="preview-iframe-wrapper">
+            <iframe
+              ref="previewIframeRef"
+              class="preview-doc-iframe"
+              :srcdoc="previewIframeSrcdoc"
+              title="A4 Document Preview"
+            ></iframe>
           </div>
           <div v-else class="a4-preview-stream">
             <div
@@ -3677,7 +3706,9 @@ function applyImportedHtml() {
   activeTab.value = 'builder'
 }
 
-const renderedRawDocument = computed(() => {
+const previewIframeRef = ref(null)
+
+const previewIframeSrcdoc = computed(() => {
   const html = documentSchema.value.rawHtml
   if (!html) return ''
   const css = documentSchema.value.customCss || ''
@@ -3703,8 +3734,74 @@ const renderedRawDocument = computed(() => {
     .replace(/src=["'](?:assets\/)?logo-left\.png["']/gi, 'src="https://assets.cdn.filesafe.space/NJOPxsxylG8ulEPo9hX9/media/6ab2a26318891558b460bf74.png"')
     .replace(/src=["'](?:assets\/)?logo-right\.png["']/gi, 'src="https://assets.cdn.filesafe.space/NJOPxsxylG8ulEPo9hX9/media/6ab2a26318891558b460bf74.png"')
 
-  return `<style>${css}</style>\n${rendered}`
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>${documentSchema.value.title || 'Legal Document Preview'}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Cinzel:wght@600;700;800&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    ${css}
+
+    /* Screen Preview Multi-Page Workstation */
+    html {
+      background: #1e293b;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background: #1e293b;
+      margin: 0;
+      padding: 36px 16px 80px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 32px;
+      box-sizing: border-box;
+      -webkit-font-smoothing: antialiased;
+    }
+    .document {
+      width: var(--page-w, 210mm);
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 32px;
+    }
+    .page, section.page {
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.1);
+      background: #ffffff;
+      box-sizing: border-box;
+      margin: 0 auto;
+    }
+    @media print {
+      html, body {
+        background: transparent !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        gap: 0 !important;
+      }
+      .document {
+        gap: 0 !important;
+      }
+      .page, section.page {
+        box-shadow: none !important;
+        margin: 0 !important;
+        page-break-after: always !important;
+        break-after: page !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  ${rendered}
+</body>
+</html>`
 })
+
+const renderedRawDocument = previewIframeSrcdoc
 
 async function loadTemplate() {
   try {
@@ -3821,8 +3918,43 @@ async function publishNewVersion() {
   showPublishModal.value = false
 }
 
+function refreshPreviewFrame() {
+  if (previewIframeRef.value) {
+    const src = previewIframeRef.value.srcdoc
+    previewIframeRef.value.srcdoc = ''
+    setTimeout(() => {
+      if (previewIframeRef.value) previewIframeRef.value.srcdoc = src
+    }, 50)
+  }
+}
+
 function exportPdf() {
+  if (previewIframeRef.value?.contentWindow) {
+    try {
+      previewIframeRef.value.contentWindow.focus()
+      previewIframeRef.value.contentWindow.print()
+      return
+    } catch (e) {
+      console.warn('Iframe print notice:', e)
+    }
+  }
   window.print()
+}
+
+function confirmDeleteTemplateFromBuilder() {
+  if (confirm(`Are you sure you want to permanently delete "${templateName.value}" (Template #${templateId})? This action cannot be undone.`)) {
+    deleteTemplateFromBuilder()
+  }
+}
+
+async function deleteTemplateFromBuilder() {
+  try {
+    await axios.delete(`${apiBase}/templates/${templateId}`, { headers: getHeaders() })
+    router.push('/templates')
+  } catch (err) {
+    console.error('Failed to delete template:', err)
+    alert(err.response?.data?.error || 'Failed to delete template.')
+  }
 }
 
 function formatDate(d) {
@@ -5304,6 +5436,87 @@ watch(activeTab, (newTab, oldTab) => {
   padding: 40px 20px;
   text-align: center;
   color: var(--color-text-muted);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LIVE REAL-TIME CONTRACT PREVIEW WORKSPACE
+   ═══════════════════════════════════════════════════════════════════════════ */
+.live-preview-tab {
+  height: calc(100vh - 124px);
+  padding: 14px 20px 24px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.preview-stage-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  height: 100%;
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.4);
+}
+
+.preview-toolbar-box {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background: #1e293b;
+  border-bottom: 1px solid #334155;
+  flex-wrap: wrap;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.preview-title-box h4 {
+  color: #f8fafc;
+  font-size: 0.98rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.preview-title-box .small-text {
+  color: #94a3b8;
+  font-size: 0.8rem;
+  margin: 2px 0 0;
+}
+
+.preview-iframe-wrapper {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  background: #1e293b;
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  overflow: hidden;
+}
+
+.preview-doc-iframe {
+  width: 100%;
+  height: 100%;
+  flex: 1;
+  border: none;
+  background: #1e293b;
+  display: block;
+}
+
+.btn-danger-soft {
+  color: #ef4444 !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
+}
+
+.btn-danger-soft:hover {
+  background: rgba(239, 68, 68, 0.12) !important;
+  color: #dc2626 !important;
+  border-color: #ef4444 !important;
 }
 
 /* ── Live Preview Stream ── */
