@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS app_user_access (
   id                      INT AUTO_INCREMENT PRIMARY KEY,
   location_id             VARCHAR(64)  NOT NULL,
   ghl_user_id             VARCHAR(64)  NOT NULL,
+  user_name               VARCHAR(255) NULL,
+  user_email              VARCHAR(255) NULL,
   app_role                ENUM('SUPER_ADMIN','ADMIN','SALES') NOT NULL DEFAULT 'SALES',
   enabled                 BOOLEAN      NOT NULL DEFAULT TRUE,
   signature_png_url       MEDIUMTEXT   NULL,

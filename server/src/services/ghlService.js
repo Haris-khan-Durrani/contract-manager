@@ -257,7 +257,7 @@ async function searchWonOpportunities(locationId, query = '', pipelineId = null,
 // ─── User APIs ────────────────────────────────────────────────────────────────
 
 async function getLocationUsers(locationId, privateToken = null) {
-  let allUsers = [];
+  let rawList = [];
 
   // 1. Try standard /users/ with limit: 100
   try {
@@ -268,14 +268,14 @@ async function getLocationUsers(locationId, privateToken = null) {
       1
     );
     if (Array.isArray(res) && res.length > 0) {
-      allUsers = res;
+      rawList = res;
     }
   } catch (err) {
     console.warn('[GHL getLocationUsers] /users/ attempt notice:', err.message);
   }
 
-  // 2. If nothing returned or to ensure all location members, try /users/search
-  if (allUsers.length === 0) {
+  // 2. Try /users/search with locationId
+  if (rawList.length === 0) {
     try {
       const searchRes = await withRetry(
         (client) => client.get('/users/search', { params: { locationId, limit: 100 } }).then(r => r.data.users || r.data.data || r.data),
@@ -284,23 +284,73 @@ async function getLocationUsers(locationId, privateToken = null) {
         1
       );
       if (Array.isArray(searchRes) && searchRes.length > 0) {
-        allUsers = searchRes;
+        rawList = searchRes;
       }
     } catch (err2) {
       console.warn('[GHL getLocationUsers] /users/search attempt notice:', err2.message);
     }
   }
 
-  return allUsers;
+  // 3. Try /locations/{locationId}/users
+  if (rawList.length === 0) {
+    try {
+      const locRes = await withRetry(
+        (client) => client.get(`/locations/${locationId}/users`).then(r => r.data.users || r.data.data || r.data),
+        locationId,
+        privateToken,
+        1
+      );
+      if (Array.isArray(locRes) && locRes.length > 0) {
+        rawList = locRes;
+      }
+    } catch (err3) {
+      console.warn('[GHL getLocationUsers] /locations/users attempt notice:', err3.message);
+    }
+  }
+
+  // Standardize each user object
+  return (rawList || []).map(u => {
+    const id = u.id || u.userId || u._id || '';
+    const fullName = (u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email || '').trim();
+    const email = u.email || '';
+    const rawRole = (u.roles?.role || u.role || u.type || '').toString().toLowerCase();
+    const appRole = (rawRole.includes('admin') || rawRole.includes('agency') || rawRole.includes('owner')) ? 'ADMIN' : 'SALES';
+
+    return {
+      id,
+      name: fullName || 'HighLevel User',
+      firstName: u.firstName || '',
+      lastName: u.lastName || '',
+      email,
+      phone: u.phone || '',
+      role: appRole,
+      roles: u.roles || {},
+    };
+  });
 }
 
 async function getUser(locationId, userId, privateToken = null) {
-  const res = await withRetry(
-    (client) => client.get(`/users/${userId}`).then(r => r.data.user),
-    locationId,
-    privateToken
-  );
-  return res || { id: userId, name: 'Assigned Representative' };
+  try {
+    const res = await withRetry(
+      (client) => client.get(`/users/${userId}`).then(r => r.data.user || r.data),
+      locationId,
+      privateToken,
+      1
+    );
+    if (res && (res.id || res.name || res.email)) {
+      const fullName = (res.name || `${res.firstName || ''} ${res.lastName || ''}`.trim() || res.email || '').trim();
+      return {
+        id: res.id || userId,
+        name: fullName || 'HighLevel User',
+        email: res.email || '',
+        phone: res.phone || '',
+        role: res.roles?.role || res.role || res.type || 'SALES',
+      };
+    }
+  } catch (err) {
+    console.warn(`[GHL getUser] Failed to get user ${userId}:`, err.message);
+  }
+  return null;
 }
 
 async function verifyGHLUser(userId, locationId, privateToken) {

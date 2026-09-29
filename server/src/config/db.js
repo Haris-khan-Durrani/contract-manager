@@ -243,6 +243,14 @@ class SQLiteAdapter {
         ALTER TABLE app_user_access ADD COLUMN can_fill_client_summary INTEGER NOT NULL DEFAULT 0;
       `).catch(() => {});
 
+      // Migration: add user_name and user_email to app_user_access
+      await this.run(`
+        ALTER TABLE app_user_access ADD COLUMN user_name TEXT NULL;
+      `).catch(() => {});
+      await this.run(`
+        ALTER TABLE app_user_access ADD COLUMN user_email TEXT NULL;
+      `).catch(() => {});
+
       // Client summary table for completed contracts
       await this.run(`
         CREATE TABLE IF NOT EXISTS contract_client_summaries (
@@ -709,6 +717,8 @@ async function initMysqlTables(pool) {
       `ALTER TABLE contract_instances ADD COLUMN validity_days INT NULL DEFAULT 7`,
       `ALTER TABLE app_user_access ADD COLUMN signature_png_url MEDIUMTEXT NULL`,
       `ALTER TABLE app_user_access ADD COLUMN can_fill_client_summary TINYINT(1) NOT NULL DEFAULT 0`,
+      `ALTER TABLE app_user_access ADD COLUMN user_name VARCHAR(255) NULL`,
+      `ALTER TABLE app_user_access ADD COLUMN user_email VARCHAR(255) NULL`,
     ];
     for (const stmt of [...formAlters, ...instanceAlters]) {
       try { await pool.execute(stmt); } catch (e) { /* column already exists — skip */ }

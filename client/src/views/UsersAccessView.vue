@@ -108,8 +108,18 @@
                   <code>{{ u.ghl_user_id }}</code>
                 </td>
                 <td>
-                  <strong>{{ getUserName(u.ghl_user_id) }}</strong>
-                  <div class="text-muted small-text">{{ getUserEmail(u.ghl_user_id) }}</div>
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <strong>{{ u.user_name || getUserName(u.ghl_user_id) }}</strong>
+                    <button
+                      type="button"
+                      style="background: none; border: none; cursor: pointer; padding: 2px 4px; font-size: 12px; color: #94a3b8; transition: color 0.15s ease;"
+                      title="Edit member details"
+                      @click="openEditModal(u)"
+                    >
+                      ✏️
+                    </button>
+                  </div>
+                  <div class="text-muted small-text">{{ u.user_email || getUserEmail(u.ghl_user_id) || 'No email on file' }}</div>
                 </td>
                 <td>
                   <select
@@ -168,6 +178,15 @@
                     type="button"
                     class="btn btn-secondary btn-sm"
                     style="margin-right: var(--space-2);"
+                    title="Edit Name, Email, and Access"
+                    @click="openEditModal(u)"
+                  >
+                    ✏️ Edit
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-sm"
+                    style="margin-right: var(--space-2);"
                     @click="toggleUserStatus(u)"
                   >
                     {{ u.enabled ? 'Disable' : 'Enable' }}
@@ -218,12 +237,32 @@
               placeholder="e.g. bpk7VJffUlCMBDWWdZSf or user email"
               required
             />
-            <select v-else v-model="selectedGhlUserId" class="form-control" required>
+            <select v-else v-model="selectedGhlUserId" class="form-control" required @change="onDropdownUserSelected">
               <option value="">-- Choose team member ({{ ghlTeamMembers.length }} available) --</option>
               <option v-for="gu in ghlTeamMembers" :key="gu.id" :value="gu.id">
                 {{ gu.name || `${gu.firstName || ''} ${gu.lastName || ''}`.trim() || gu.email }} ({{ gu.email }})
               </option>
             </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Full Name</label>
+            <input
+              type="text"
+              v-model="grantUserName"
+              class="form-control"
+              placeholder="e.g. Sarah Jenkins"
+            />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Email Address</label>
+            <input
+              type="email"
+              v-model="grantUserEmail"
+              class="form-control"
+              placeholder="e.g. s.jenkins@company.com"
+            />
           </div>
 
           <div class="form-group">
@@ -314,6 +353,68 @@
         </div>
       </div>
     </div>
+
+    <!-- Edit Team Member Modal -->
+    <div v-if="showEditModal" class="modal-overlay" @click.self="showEditModal = false">
+      <div class="modal-card animate-fade-in" style="max-width: 480px;">
+        <div class="modal-header">
+          <div>
+            <h3 style="margin: 0; font-size: 1.15rem;">Edit Team Member</h3>
+            <p style="font-size: 12px; color: var(--color-text-muted); margin: 3px 0 0;">
+              HighLevel User ID: <code>{{ editingUser?.ghl_user_id }}</code>
+            </p>
+          </div>
+          <button class="btn-close" @click="showEditModal = false">✕</button>
+        </div>
+
+        <form @submit.prevent="submitEditUser" class="modal-form">
+          <div class="form-group">
+            <label class="form-label">Full Name <span class="req">*</span></label>
+            <input
+              type="text"
+              v-model="editUserName"
+              class="form-control"
+              placeholder="e.g. Michael Smith"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Email Address <span class="req">*</span></label>
+            <input
+              type="email"
+              v-model="editUserEmail"
+              class="form-control"
+              placeholder="e.g. michael@company.com"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Assigned Role</label>
+            <select v-model="editAppRole" class="form-control">
+              <option value="SALES">SALES — Manual contract creation & form completion</option>
+              <option value="ADMIN">ADMIN — Template & Form builder + full contracts access</option>
+              <option value="SUPER_ADMIN">SUPER_ADMIN — Full location ownership & user management</option>
+            </select>
+          </div>
+
+          <div class="form-group" v-if="!['ADMIN', 'SUPER_ADMIN'].includes(editAppRole)">
+            <label class="form-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-top: 6px;">
+              <input type="checkbox" v-model="editCanFillSummary" style="width: 16px; height: 16px; cursor: pointer;" />
+              <span style="font-weight: 500;">Allow filling Client Summary after signed contracts</span>
+            </label>
+          </div>
+
+          <div class="modal-actions" style="margin-top: 8px;">
+            <button type="button" class="btn btn-secondary" @click="showEditModal = false">Cancel</button>
+            <button type="submit" class="btn btn-primary" :disabled="savingEdit">
+              {{ savingEdit ? 'Saving…' : 'Save Changes' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -333,8 +434,18 @@ const userSearchQuery = ref('')
 const showGrantModal = ref(false)
 const granting = ref(false)
 const selectedGhlUserId = ref('')
+const grantUserName = ref('')
+const grantUserEmail = ref('')
 const selectedRole = ref('SALES')
 const manualUserIdMode = ref(false)
+
+const showEditModal = ref(false)
+const editingUser = ref(null)
+const editUserName = ref('')
+const editUserEmail = ref('')
+const editAppRole = ref('SALES')
+const editCanFillSummary = ref(false)
+const savingEdit = ref(false)
 
 const showSigModal = ref(false)
 const activeUser = ref(null)
@@ -347,8 +458,8 @@ const filteredUsers = computed(() => {
   if (!userSearchQuery.value.trim()) return users.value
   const q = userSearchQuery.value.toLowerCase().trim()
   return users.value.filter(u => {
-    const name = getUserName(u.ghl_user_id).toLowerCase()
-    const email = getUserEmail(u.ghl_user_id).toLowerCase()
+    const name = (u.user_name || getUserName(u.ghl_user_id)).toLowerCase()
+    const email = (u.user_email || getUserEmail(u.ghl_user_id)).toLowerCase()
     const id = (u.ghl_user_id || '').toLowerCase()
     return name.includes(q) || email.includes(q) || id.includes(q)
   })
@@ -458,20 +569,35 @@ async function syncGhlUsers() {
 }
 
 function getUserName(ghlUserId) {
+  const dbUser = users.value.find(u => u.ghl_user_id === ghlUserId)
+  if (dbUser?.user_name) return dbUser.user_name
   const match = ghlTeamMembers.value.find(m => m.id === ghlUserId)
   if (!match) return 'HighLevel User'
   return match.name || `${match.firstName || ''} ${match.lastName || ''}`.trim() || match.email
 }
 
 function getUserEmail(ghlUserId) {
+  const dbUser = users.value.find(u => u.ghl_user_id === ghlUserId)
+  if (dbUser?.user_email) return dbUser.user_email
   const match = ghlTeamMembers.value.find(m => m.id === ghlUserId)
   return match?.email || ''
 }
 
 function openGrantModal() {
   selectedGhlUserId.value = ''
+  grantUserName.value = ''
+  grantUserEmail.value = ''
   selectedRole.value = 'SALES'
+  manualUserIdMode.value = false
   showGrantModal.value = true
+}
+
+function onDropdownUserSelected() {
+  const match = ghlTeamMembers.value.find(m => m.id === selectedGhlUserId.value)
+  if (match) {
+    grantUserName.value = match.name || `${match.firstName || ''} ${match.lastName || ''}`.trim() || ''
+    grantUserEmail.value = match.email || ''
+  }
 }
 
 async function submitGrantAccess() {
@@ -483,6 +609,8 @@ async function submitGrantAccess() {
       `${apiBase}/auth/users`,
       {
         ghlUserId: selectedGhlUserId.value,
+        userName: grantUserName.value.trim() || undefined,
+        userEmail: grantUserEmail.value.trim() || undefined,
         appRole: selectedRole.value,
         enabled: true,
       },
@@ -493,9 +621,47 @@ async function submitGrantAccess() {
     fetchUsers()
   } catch (err) {
     console.error('Grant user error:', err)
-    alert('Failed to grant user access.')
+    alert(err.response?.data?.error || 'Failed to grant user access.')
   } finally {
     granting.value = false
+  }
+}
+
+function openEditModal(u) {
+  editingUser.value = u
+  const existingName = u.user_name || getUserName(u.ghl_user_id) || ''
+  editUserName.value = existingName === 'HighLevel User' ? '' : existingName
+  editUserEmail.value = u.user_email || getUserEmail(u.ghl_user_id) || ''
+  editAppRole.value = u.app_role || 'SALES'
+  editCanFillSummary.value = Boolean(u.can_fill_client_summary)
+  showEditModal.value = true
+}
+
+async function submitEditUser() {
+  if (!editingUser.value) return
+  savingEdit.value = true
+  try {
+    await axios.put(
+      `${apiBase}/auth/users/${editingUser.value.id}`,
+      {
+        userName: editUserName.value.trim(),
+        userEmail: editUserEmail.value.trim(),
+        appRole: editAppRole.value,
+        can_fill_client_summary: editCanFillSummary.value ? 1 : 0,
+      },
+      { headers: getHeaders() }
+    )
+
+    editingUser.value.user_name = editUserName.value.trim()
+    editingUser.value.user_email = editUserEmail.value.trim()
+    editingUser.value.app_role = editAppRole.value
+    editingUser.value.can_fill_client_summary = editCanFillSummary.value ? 1 : 0
+    showEditModal.value = false
+  } catch (err) {
+    console.error('Save user error:', err)
+    alert(err.response?.data?.error || 'Failed to update user.')
+  } finally {
+    savingEdit.value = false
   }
 }
 
