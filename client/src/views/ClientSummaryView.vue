@@ -146,19 +146,93 @@
 
     <!-- 9-Page Comprehensive Form (when contract is selected) -->
     <div v-if="selectedContract && !loadingContractData" class="form-container">
-      <!-- Section Tabs Navigation -->
-      <div class="form-nav-tabs">
-        <button
-          v-for="tab in formTabs"
-          :key="tab.id"
-          type="button"
-          class="tab-btn"
-          :class="{ active: currentTab === tab.id }"
-          @click="currentTab = tab.id"
-        >
-          <span class="tab-number">{{ tab.page }}</span>
-          <span class="tab-label">{{ tab.title }}</span>
-        </button>
+      <!-- Section Tabs Navigation & Stepper Header -->
+      <div class="stepper-header-card">
+        <!-- Progress bar line -->
+        <div class="stepper-progress-track">
+          <div class="stepper-progress-fill" :style="{ width: `${progressPercent}%` }"></div>
+        </div>
+
+        <div class="stepper-meta-bar">
+          <div class="stepper-title-area">
+            <span class="stepper-step-pill">Part {{ currentTabObj.step }} of {{ formTabs.length }}</span>
+            <span class="stepper-section-title">{{ currentTabObj.title }}</span>
+            <span class="stepper-page-tag">{{ currentTabObj.page }}</span>
+          </div>
+
+          <div class="stepper-controls-right">
+            <span class="stepper-progress-text">{{ progressPercent }}% Done</span>
+            <button
+              type="button"
+              class="btn-step-nav"
+              :disabled="currentTabIndex <= 0"
+              @click="goToPrevTab"
+              title="Previous Section"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M15 18l-6-6 6-6"/>
+              </svg>
+              <span>Prev</span>
+            </button>
+
+            <button
+              type="button"
+              class="btn-step-nav btn-step-nav-primary"
+              :disabled="currentTabIndex >= formTabs.length - 1"
+              @click="goToNextTab"
+              title="Next Section"
+            >
+              <span>Next</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M9 18l6-6-6-6"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Scrollable Tabs with sleek indicators & scroll arrows -->
+        <div class="tabs-scroll-wrapper">
+          <button 
+            type="button" 
+            class="tab-scroll-arrow arrow-left" 
+            @click="scrollTabs('left')"
+            aria-label="Scroll left"
+            title="Scroll sections left"
+          >
+            ‹
+          </button>
+
+          <div ref="tabsContainerRef" class="form-nav-tabs">
+            <button
+              v-for="tab in formTabs"
+              :key="tab.id"
+              type="button"
+              class="tab-btn"
+              :class="{ 
+                active: currentTab === tab.id,
+                completed: isTabCompleted(tab.id)
+              }"
+              @click="selectTab(tab.id)"
+            >
+              <span class="tab-number">
+                <span v-if="isTabCompleted(tab.id)" class="tab-check">✓</span>
+                <span v-else>{{ tab.step }}</span>
+              </span>
+              <span class="tab-label">{{ tab.title }}</span>
+              <span class="tab-page-hint">{{ tab.page }}</span>
+            </button>
+          </div>
+
+          <button 
+            type="button" 
+            class="tab-scroll-arrow arrow-right" 
+            @click="scrollTabs('right')"
+            aria-label="Scroll right"
+            title="Scroll sections right"
+          >
+            ›
+          </button>
+        </div>
       </div>
 
       <!-- Document Sheet Container (replicates official 9-page form layout) -->
@@ -1372,6 +1446,48 @@
           <div class="page-footer-mark">CLIENT SUMMARY FORM | Page 9</div>
         </section>
 
+        <!-- In-Sheet Bottom Page Navigation -->
+        <div class="page-bottom-nav">
+          <button
+            v-if="currentTabIndex > 0"
+            type="button"
+            class="btn-bottom-prev"
+            @click="goToPrevTab"
+          >
+            ‹ Back: {{ formTabs[currentTabIndex - 1]?.title }}
+          </button>
+          <div v-else></div>
+
+          <div class="page-bottom-actions">
+            <button
+              type="button"
+              class="btn-bottom-draft"
+              :disabled="saving"
+              @click="saveSummary('DRAFT')"
+            >
+              {{ saving && savingMode === 'DRAFT' ? 'Saving…' : '💾 Save Draft' }}
+            </button>
+
+            <button
+              v-if="currentTabIndex < formTabs.length - 1"
+              type="button"
+              class="btn-bottom-next"
+              @click="goToNextTab"
+            >
+              Next: {{ formTabs[currentTabIndex + 1]?.title }} ›
+            </button>
+            <button
+              v-else-if="summaryStatus !== 'COMPLETED'"
+              type="button"
+              class="btn-bottom-complete"
+              :disabled="saving"
+              @click="saveSummary('COMPLETED')"
+            >
+              ✓ Complete Summary Form
+            </button>
+          </div>
+        </div>
+
       </div>
 
       <!-- Bottom Floating / Sticky Save Toolbar -->
@@ -1452,16 +1568,99 @@ const isPrinting = ref(false)
 
 // Tabs navigation
 const currentTab = ref('page1')
+const tabsContainerRef = ref(null)
+
 const formTabs = [
-  { id: 'page1', page: 'P1', title: 'General Info' },
-  { id: 'page2', page: 'P2', title: 'Immigration History' },
-  { id: 'page3', page: 'P3-4', title: 'Business Background' },
-  { id: 'page4', page: 'P4-5', title: 'Employment Background' },
-  { id: 'page5', page: 'P5-6', title: 'Personal & Family' },
-  { id: 'page6', page: 'P6-7', title: 'Academic Background' },
-  { id: 'page7', page: 'P8', title: 'Financials' },
-  { id: 'page8', page: 'P9', title: 'Action Plan & Signatures' },
+  { id: 'page1', step: 1, page: 'Page 1', title: 'General Info' },
+  { id: 'page2', step: 2, page: 'Page 2', title: 'Immigration History' },
+  { id: 'page3', step: 3, page: 'Pages 3-4', title: 'Business Background' },
+  { id: 'page4', step: 4, page: 'Pages 4-5', title: 'Employment Background' },
+  { id: 'page5', step: 5, page: 'Pages 5-6', title: 'Personal & Family' },
+  { id: 'page6', step: 6, page: 'Pages 6-7', title: 'Academic Background' },
+  { id: 'page7', step: 7, page: 'Page 8', title: 'Financials' },
+  { id: 'page8', step: 8, page: 'Page 9', title: 'Action Plan & Signatures' },
 ]
+
+const currentTabIndex = computed(() => {
+  const idx = formTabs.findIndex(t => t.id === currentTab.value)
+  return idx >= 0 ? idx : 0
+})
+
+const currentTabObj = computed(() => {
+  return formTabs[currentTabIndex.value] || formTabs[0]
+})
+
+const progressPercent = computed(() => {
+  return Math.round(((currentTabIndex.value + 1) / formTabs.length) * 100)
+})
+
+function scrollTabs(direction) {
+  if (!tabsContainerRef.value) return
+  const amount = direction === 'left' ? -220 : 220
+  tabsContainerRef.value.scrollBy({ left: amount, behavior: 'smooth' })
+}
+
+function selectTab(tabId) {
+  currentTab.value = tabId
+  setTimeout(() => {
+    const activeEl = tabsContainerRef.value?.querySelector('.tab-btn.active')
+    if (activeEl) {
+      activeEl.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' })
+    }
+  }, 50)
+}
+
+function goToNextTab() {
+  const nextIdx = currentTabIndex.value + 1
+  if (nextIdx < formTabs.length) {
+    selectTab(formTabs[nextIdx].id)
+    scrollDocumentToTop()
+  }
+}
+
+function goToPrevTab() {
+  const prevIdx = currentTabIndex.value - 1
+  if (prevIdx >= 0) {
+    selectTab(formTabs[prevIdx].id)
+    scrollDocumentToTop()
+  }
+}
+
+function scrollDocumentToTop() {
+  const sheet = document.querySelector('.document-sheet')
+  if (sheet) {
+    sheet.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+}
+
+function isTabCompleted(tabId) {
+  if (!form.value) return false
+  if (tabId === 'page1') {
+    return Boolean(form.value.client_name && form.value.country_applying_for)
+  }
+  if (tabId === 'page2') {
+    return Boolean(form.value.q1_applied_countries?.length || form.value.q2_refused_visa !== null)
+  }
+  if (tabId === 'page3') {
+    return Boolean(form.value.q15_has_business !== null)
+  }
+  if (tabId === 'page4') {
+    return Boolean(form.value.q18_current_employment_status)
+  }
+  if (tabId === 'page5') {
+    return Boolean(form.value.q21_marital_status)
+  }
+  if (tabId === 'page6') {
+    return Boolean(form.value.q25_highest_qualification)
+  }
+  if (tabId === 'page7') {
+    return Boolean(form.value.q28_funds_available)
+  }
+  if (tabId === 'page8') {
+    return Boolean(summaryStatus.value === 'COMPLETED' || form.value.counselor_signature?.signed)
+  }
+  return false
+}
 
 // The reactive summary form data object
 const form = ref(getDefaultForm())
@@ -1915,13 +2114,181 @@ onMounted(async () => {
   to { transform: rotate(360deg); }
 }
 
-/* Tabs */
+/* Stepper & Section Navigation Header */
+.stepper-header-card {
+  background: var(--color-bg-card, #ffffff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 14px;
+  margin-bottom: 20px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05);
+  position: sticky;
+  top: 10px;
+  z-index: 30;
+  backdrop-filter: blur(12px);
+}
+
+.stepper-progress-track {
+  width: 100%;
+  height: 4px;
+  background: #f1f5f9;
+  position: relative;
+  overflow: hidden;
+}
+
+.stepper-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #2563eb, #3b82f6, #06b6d4);
+  transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stepper-meta-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 18px 8px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.stepper-title-area {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.stepper-step-pill {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  padding: 3px 9px;
+  border-radius: 9999px;
+}
+
+.stepper-section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text-base, #0f172a);
+}
+
+.stepper-page-tag {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  background: #f1f5f9;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.stepper-controls-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.stepper-progress-text {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #3b82f6;
+  margin-right: 4px;
+}
+
+.btn-step-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1px solid var(--color-border, #cbd5e1);
+  background: #ffffff;
+  color: var(--color-text-base, #1e293b);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-step-nav:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  transform: translateY(-1px);
+}
+
+.btn-step-nav:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-step-nav-primary {
+  background: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+}
+
+.btn-step-nav-primary:hover:not(:disabled) {
+  background: #1e293b;
+  border-color: #1e293b;
+  color: #ffffff;
+}
+
+/* Tabs Scroll Wrapper */
+.tabs-scroll-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 4px 10px 12px;
+}
+
+.tab-scroll-arrow {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border, #e2e8f0);
+  background: #ffffff;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+  z-index: 2;
+}
+
+.tab-scroll-arrow:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+
+.tab-scroll-arrow.arrow-left {
+  margin-right: 6px;
+}
+
+.tab-scroll-arrow.arrow-right {
+  margin-left: 6px;
+}
+
 .form-nav-tabs {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   overflow-x: auto;
-  padding-bottom: 8px;
-  margin-bottom: 16px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding: 4px 2px;
+  scroll-behavior: smooth;
+  flex: 1;
+}
+
+.form-nav-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .tab-btn {
@@ -1929,37 +2296,165 @@ onMounted(async () => {
   align-items: center;
   gap: 8px;
   padding: 8px 14px;
-  border-radius: 8px;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
+  border-radius: 9999px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  background: #f8fafc;
   font-size: 0.82rem;
   font-weight: 600;
-  color: var(--color-text-secondary);
+  color: #475569;
   cursor: pointer;
   white-space: nowrap;
-  transition: all 0.2s ease;
+  flex-shrink: 0;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.02);
 }
 
 .tab-btn:hover {
-  background: #f1f5f9;
+  background: #ffffff;
   color: #0f172a;
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
 .tab-btn.active {
-  background: #0f172a;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
   color: #ffffff;
   border-color: #0f172a;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
 }
 
 .tab-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
   font-size: 0.72rem;
-  padding: 2px 6px;
-  border-radius: 4px;
+  font-weight: 700;
+  border-radius: 50%;
   background: rgba(0, 0, 0, 0.08);
+  color: inherit;
 }
 
 .tab-btn.active .tab-number {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+.tab-btn.completed .tab-number {
+  background: #10b981;
+  color: #ffffff;
+}
+
+.tab-btn.completed:not(.active) {
+  border-color: #a7f3d0;
+  background: #f0fdf4;
+  color: #065f46;
+}
+
+.tab-check {
+  font-size: 0.75rem;
+  line-height: 1;
+}
+
+.tab-page-hint {
+  font-size: 0.7rem;
+  font-weight: 500;
+  opacity: 0.7;
+  margin-left: 2px;
+}
+
+.tab-btn.active .tab-page-hint {
+  opacity: 0.85;
+  color: #93c5fd;
+}
+
+/* Page Bottom Navigation */
+.page-bottom-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px dashed #cbd5e1;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.page-bottom-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-bottom-prev {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-bottom-prev:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+.btn-bottom-draft {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-bottom-draft:hover {
+  background: #f8fafc;
+}
+
+.btn-bottom-next {
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  border: 1px solid #0f172a;
+  background: #0f172a;
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.15);
+}
+
+.btn-bottom-next:hover {
+  background: #1e293b;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.25);
+}
+
+.btn-bottom-complete {
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  border: 1px solid #059669;
+  background: #059669;
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.2);
+}
+
+.btn-bottom-complete:hover {
+  background: #047857;
+  transform: translateY(-1px);
 }
 
 /* Document Sheet */
@@ -2335,7 +2830,9 @@ onMounted(async () => {
 @media print {
   .page-header,
   .selector-card,
+  .stepper-header-card,
   .form-nav-tabs,
+  .page-bottom-nav,
   .floating-save-toolbar {
     display: none !important;
   }
