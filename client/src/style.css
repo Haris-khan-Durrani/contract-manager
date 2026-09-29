@@ -772,3 +772,74 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* ─── Global Print Styles ────────────────────────────────────────────────── */
+@media print {
+  /* 1. Hide the entire application chrome: sidebar, top navigation, brand, headers, modals, and buttons */
+  .sidebar,
+  .top-nav,
+  .sidebar-collapse-toggle,
+  .sidebar-brand-row,
+  .sidebar-user-footer,
+  .page-header,
+  .selector-card,
+  .stepper-header-card,
+  .form-nav-tabs,
+  .page-bottom-nav,
+  .floating-save-toolbar,
+  .attachment-upload-zone,
+  .btn-att-delete,
+  .cp-actions,
+  .modal-overlay,
+  .btn,
+  button {
+    display: none !important;
+  }
+
+  /* 2. Reset layout containers to full page width with 0 padding & margins */
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  .app-layout {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  .main-wrapper {
+    margin-left: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    display: block !important;
+  }
+
+  .page-body {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+  }
+
+  .client-summary-page {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  .document-sheet {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    background: transparent !important;
+  }
+}
+

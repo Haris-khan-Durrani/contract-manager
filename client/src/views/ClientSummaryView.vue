@@ -3343,17 +3343,27 @@ onMounted(async () => {
 
 /* Print Styles */
 @media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm 12mm;
+  }
+
   .page-header,
   .selector-card,
   .stepper-header-card,
   .form-nav-tabs,
   .page-bottom-nav,
-  .floating-save-toolbar {
+  .floating-save-toolbar,
+  .attachment-upload-zone,
+  .btn-att-delete,
+  .cp-actions,
+  button {
     display: none !important;
   }
 
   .client-summary-page {
     padding: 0 !important;
+    margin: 0 !important;
     max-width: 100% !important;
   }
 
@@ -3361,19 +3371,64 @@ onMounted(async () => {
     box-shadow: none !important;
     border: none !important;
     padding: 0 !important;
+    margin: 0 !important;
   }
 
   .form-page {
-    page-break-after: always;
-    break-after: page;
-    margin-bottom: 40px;
+    page-break-after: always !important;
+    break-after: page !important;
+    margin: 0 0 20px 0 !important;
+    padding-bottom: 20px !important;
+  }
+
+  .form-page:last-child {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  /* Make inputs print cleanly like official text without borders or gray placeholder boxes */
+  .line-input, input, textarea, select {
+    border: none !important;
+    border-bottom: 1px solid #000000 !important;
+    background: transparent !important;
+    color: #000000 !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    box-shadow: none !important;
+    padding: 2px 4px !important;
+    resize: none !important;
+  }
+
+  /* Hide raw input placeholders in print */
+  input::placeholder,
+  textarea::placeholder {
+    color: transparent !important;
+    opacity: 0 !important;
   }
 
   .section-banner {
-    background: #254b68 !important;
-    color: #fff !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+    background: #1e3a8a !important;
+    color: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .col-num {
+    background: #f1f5f9 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .official-header {
+    border-bottom: 2px solid #000000 !important;
+  }
+
+  .page-footer-mark {
+    color: #64748b !important;
+    font-size: 9px !important;
+    margin-top: 15px !important;
+    border-top: 1px solid #cbd5e1 !important;
+    padding-top: 4px !important;
   }
 }
 
