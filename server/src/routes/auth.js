@@ -198,7 +198,28 @@ router.post('/dev-token', async (req, res) => {
 
 router.get('/users', ghlAuthMiddleware, loadAppUser, requirePermission('users:manage'), async (req, res) => {
   try {
-    const { locationId } = req.ghlUser;
+    const { locationId, privateToken } = req.ghlUser;
+
+    // Auto-discover and populate any new team members from GoHighLevel CRM
+    try {
+      const ghlUsers = await ghlService.getLocationUsers(locationId, privateToken);
+      if (Array.isArray(ghlUsers) && ghlUsers.length > 0) {
+        for (const gu of ghlUsers) {
+          if (!gu.id) continue;
+          const rawRole = (gu.roles?.role || gu.role || gu.type || '').toString().toLowerCase();
+          const defaultAppRole = (rawRole.includes('admin') || rawRole.includes('agency') || rawRole.includes('owner')) ? 'ADMIN' : 'SALES';
+          await db.execute(
+            `INSERT INTO app_user_access (location_id, ghl_user_id, app_role, enabled)
+             VALUES (?, ?, ?, TRUE)
+             ON DUPLICATE KEY UPDATE updated_at = NOW()`,
+            [locationId, gu.id, defaultAppRole]
+          ).catch(() => {});
+        }
+      }
+    } catch (syncErr) {
+      console.warn('[Auth Users] Auto-discovery notice:', syncErr.message);
+    }
+
     const [users] = await db.execute(
       `SELECT id, location_id, ghl_user_id, app_role, enabled, signature_png_url, created_at, updated_at
        FROM app_user_access
@@ -211,6 +232,42 @@ router.get('/users', ghlAuthMiddleware, loadAppUser, requirePermission('users:ma
   } catch (err) {
     console.error('[Auth Users] List error:', err.message);
     res.status(500).json({ error: 'Failed to list user permissions.' });
+  }
+});
+
+router.post('/users/sync', ghlAuthMiddleware, loadAppUser, requirePermission('users:manage'), async (req, res) => {
+  try {
+    const { locationId, privateToken } = req.ghlUser;
+    const ghlUsers = await ghlService.getLocationUsers(locationId, privateToken);
+    let addedCount = 0;
+
+    if (Array.isArray(ghlUsers) && ghlUsers.length > 0) {
+      for (const gu of ghlUsers) {
+        if (!gu.id) continue;
+        const rawRole = (gu.roles?.role || gu.role || gu.type || '').toString().toLowerCase();
+        const defaultAppRole = (rawRole.includes('admin') || rawRole.includes('agency') || rawRole.includes('owner')) ? 'ADMIN' : 'SALES';
+        const [res] = await db.execute(
+          `INSERT INTO app_user_access (location_id, ghl_user_id, app_role, enabled)
+           VALUES (?, ?, ?, TRUE)
+           ON DUPLICATE KEY UPDATE updated_at = NOW()`,
+          [locationId, gu.id, defaultAppRole]
+        ).catch(() => [{}]);
+        if (res.affectedRows === 1) addedCount++;
+      }
+    }
+
+    const [users] = await db.execute(
+      `SELECT id, location_id, ghl_user_id, app_role, enabled, signature_png_url, created_at, updated_at
+       FROM app_user_access
+       WHERE location_id = ?
+       ORDER BY created_at DESC`,
+      [locationId]
+    );
+
+    res.json({ success: true, count: users.length, addedCount, users });
+  } catch (err) {
+    console.error('[Auth Users] Sync error:', err.message);
+    res.status(500).json({ error: 'Failed to sync users with GoHighLevel CRM.' });
   }
 });
 

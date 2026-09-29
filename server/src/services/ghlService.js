@@ -257,12 +257,41 @@ async function searchWonOpportunities(locationId, query = '', pipelineId = null,
 // ─── User APIs ────────────────────────────────────────────────────────────────
 
 async function getLocationUsers(locationId, privateToken = null) {
-  const res = await withRetry(
-    (client) => client.get(`/users/`, { params: { locationId } }).then(r => r.data.users),
-    locationId,
-    privateToken
-  );
-  return res || [];
+  let allUsers = [];
+
+  // 1. Try standard /users/ with limit: 100
+  try {
+    const res = await withRetry(
+      (client) => client.get('/users/', { params: { locationId, limit: 100 } }).then(r => r.data.users || r.data.data || r.data),
+      locationId,
+      privateToken,
+      1
+    );
+    if (Array.isArray(res) && res.length > 0) {
+      allUsers = res;
+    }
+  } catch (err) {
+    console.warn('[GHL getLocationUsers] /users/ attempt notice:', err.message);
+  }
+
+  // 2. If nothing returned or to ensure all location members, try /users/search
+  if (allUsers.length === 0) {
+    try {
+      const searchRes = await withRetry(
+        (client) => client.get('/users/search', { params: { locationId, limit: 100 } }).then(r => r.data.users || r.data.data || r.data),
+        locationId,
+        privateToken,
+        1
+      );
+      if (Array.isArray(searchRes) && searchRes.length > 0) {
+        allUsers = searchRes;
+      }
+    } catch (err2) {
+      console.warn('[GHL getLocationUsers] /users/search attempt notice:', err2.message);
+    }
+  }
+
+  return allUsers;
 }
 
 async function getUser(locationId, userId, privateToken = null) {

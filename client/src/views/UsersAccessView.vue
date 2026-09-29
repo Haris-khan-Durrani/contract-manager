@@ -10,11 +10,21 @@
       </div>
 
       <div class="header-actions">
-        <button class="btn btn-secondary" @click="fetchUsers" :disabled="loading">
+        <button class="btn btn-secondary" @click="fetchUsers" :disabled="loading || syncing">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
           </svg>
           Refresh
+        </button>
+
+        <button class="btn btn-secondary" @click="syncGhlUsers" :disabled="syncing || loading" title="Fetch all team members directly from GoHighLevel CRM">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+          {{ syncing ? 'Syncing Team…' : '🔄 Sync HighLevel Team' }}
         </button>
 
         <button class="btn btn-primary" @click="openGrantModal">
@@ -51,23 +61,48 @@
         <p class="text-muted" style="margin-top: var(--space-4);">Loading user permissions…</p>
       </div>
 
-      <!-- Users Table -->
-      <div v-else class="glass-card table-card">
-        <div class="table-responsive">
-          <table class="users-table">
-            <thead>
-              <tr>
-                <th>HighLevel User ID</th>
-                <th>Team Member Name</th>
-                <th>Assigned Role</th>
-                <th>Official Signature</th>
-                <th>Status</th>
-                <th>Access Granted</th>
-                <th style="text-align: right;">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="u in users" :key="u.id">
+      <!-- Users Table & Filter -->
+      <div v-else>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 12px; flex-wrap: wrap;">
+          <div style="position: relative; flex: 1; max-width: 360px;">
+            <input
+              type="text"
+              v-model="userSearchQuery"
+              placeholder="Search team member by name or email…"
+              class="form-control"
+              style="font-size: 0.825rem; padding-left: 32px;"
+            />
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #94a3b8;">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+          </div>
+          <div style="font-size: 0.8rem; color: #64748b;">
+            Showing <strong>{{ filteredUsers.length }}</strong> of {{ users.length }} team members
+          </div>
+        </div>
+
+        <div class="glass-card table-card">
+          <div class="table-responsive">
+            <table class="users-table">
+              <thead>
+                <tr>
+                  <th>HighLevel User ID</th>
+                  <th>Team Member Name</th>
+                  <th>Assigned Role</th>
+                  <th>Official Signature</th>
+                  <th>Status</th>
+                  <th>Access Granted</th>
+                  <th style="text-align: right;">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="!filteredUsers.length">
+                  <td colspan="7" style="text-align: center; padding: 32px; color: #94a3b8;">
+                    No team members found matching "{{ userSearchQuery }}".
+                  </td>
+                </tr>
+                <tr v-for="u in filteredUsers" :key="u.id">
                 <td>
                   <code>{{ u.ghl_user_id }}</code>
                 </td>
@@ -143,9 +178,27 @@
 
         <form @submit.prevent="submitGrantAccess" class="modal-form">
           <div class="form-group">
-            <label class="form-label">Select HighLevel Team Member <span class="req">*</span></label>
-            <select v-model="selectedGhlUserId" class="form-control" required>
-              <option value="">-- Choose team member --</option>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+              <label class="form-label" style="margin: 0;">HighLevel Team Member <span class="req">*</span></label>
+              <button
+                type="button"
+                style="background: none; border: none; font-size: 11px; color: var(--color-primary); cursor: pointer; text-decoration: underline;"
+                @click="manualUserIdMode = !manualUserIdMode"
+              >
+                {{ manualUserIdMode ? '‹ Pick from Dropdown' : 'Or type User ID manually ›' }}
+              </button>
+            </div>
+
+            <input
+              v-if="manualUserIdMode"
+              type="text"
+              v-model="selectedGhlUserId"
+              class="form-control"
+              placeholder="e.g. bpk7VJffUlCMBDWWdZSf or user email"
+              required
+            />
+            <select v-else v-model="selectedGhlUserId" class="form-control" required>
+              <option value="">-- Choose team member ({{ ghlTeamMembers.length }} available) --</option>
               <option v-for="gu in ghlTeamMembers" :key="gu.id" :value="gu.id">
                 {{ gu.name || `${gu.firstName || ''} ${gu.lastName || ''}`.trim() || gu.email }} ({{ gu.email }})
               </option>
@@ -244,20 +297,23 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 import { useAuthStore } from '../stores/auth'
 
 const auth = useAuthStore()
 
 const loading = ref(true)
+const syncing = ref(false)
 const users   = ref([])
 const ghlTeamMembers = ref([])
+const userSearchQuery = ref('')
 
 const showGrantModal = ref(false)
 const granting = ref(false)
 const selectedGhlUserId = ref('')
 const selectedRole = ref('SALES')
+const manualUserIdMode = ref(false)
 
 const showSigModal = ref(false)
 const activeUser = ref(null)
@@ -265,6 +321,17 @@ const activeSigData = ref('')
 const savingSig = ref(false)
 const uploadingMedia = ref(false)
 const userSigFileInput = ref(null)
+
+const filteredUsers = computed(() => {
+  if (!userSearchQuery.value.trim()) return users.value
+  const q = userSearchQuery.value.toLowerCase().trim()
+  return users.value.filter(u => {
+    const name = getUserName(u.ghl_user_id).toLowerCase()
+    const email = getUserEmail(u.ghl_user_id).toLowerCase()
+    const id = (u.ghl_user_id || '').toLowerCase()
+    return name.includes(q) || email.includes(q) || id.includes(q)
+  })
+})
 
 function openSigModal(u) {
   activeUser.value = u
@@ -352,6 +419,20 @@ async function fetchUsers() {
     console.error('Fetch users error:', err)
   } finally {
     loading.value = false
+  }
+}
+
+async function syncGhlUsers() {
+  syncing.value = true
+  try {
+    const res = await axios.post(`${apiBase}/auth/users/sync`, {}, { headers: getHeaders() })
+    await fetchUsers()
+    alert(`✓ Successfully synced HighLevel team! Total active members: ${res.data?.count || users.value.length}`)
+  } catch (err) {
+    console.error('Sync error:', err)
+    alert('Failed to sync users with GoHighLevel CRM.')
+  } finally {
+    syncing.value = false
   }
 }
 
