@@ -444,4 +444,69 @@ router.post('/:contractId', async (req, res) => {
   }
 });
 
+// ─── GET /api/client-summary/:contractId/pdf ─────────────────────────────────
+// Download standalone Client Summary PDF
+router.get('/:contractId/pdf', async (req, res) => {
+  try {
+    const { locationId } = req.ghlUser;
+    const { contractId } = req.params;
+    const { generateSummaryPdf } = require('../services/clientSummaryPdfService');
+
+    const [contractRows] = await db.execute(
+      `SELECT ci.*, ct.name AS template_name, ct.contract_type
+       FROM contract_instances ci
+       JOIN contract_templates ct ON ct.id = ci.template_id
+       WHERE ci.id = ? AND ci.location_id = ? LIMIT 1`,
+      [contractId, locationId]
+    );
+
+    if (!contractRows.length) {
+      return res.status(404).json({ error: 'Contract not found.' });
+    }
+
+    const [summaryRows] = await db.execute(
+      `SELECT * FROM contract_client_summaries WHERE location_id = ? AND contract_id = ? LIMIT 1`,
+      [locationId, contractId]
+    );
+
+    let summaryData = {};
+    if (summaryRows.length) {
+      try {
+        summaryData = JSON.parse(summaryRows[0].summary_data_json || '{}');
+      } catch {
+        summaryData = {};
+      }
+    }
+
+    const pdfBuffer = await generateSummaryPdf(contractRows[0], summaryData);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="Client_Summary_Contract_${contractId}.pdf"`);
+    res.send(pdfBuffer);
+  } catch (err) {
+    console.error('[Client Summary] Download PDF error:', err.message);
+    res.status(500).json({ error: 'Failed to generate Client Summary PDF.' });
+  }
+});
+
+// ─── GET /api/client-summary/:contractId/package-zip ─────────────────────────
+// Download compiled Case Package ZIP (Contract PDF, Summary PDF, Attachments, Manifest)
+router.get('/:contractId/package-zip', async (req, res) => {
+  try {
+    const { locationId } = req.ghlUser;
+    const { contractId } = req.params;
+    const { compileClientPackageZip } = require('../services/clientSummaryZipService');
+
+    const { zipBuffer, zipFilename } = await compileClientPackageZip(contractId, locationId);
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${zipFilename}"`);
+    res.setHeader('Content-Length', zipBuffer.length);
+    res.send(zipBuffer);
+  } catch (err) {
+    console.error('[Client Summary] Package ZIP error:', err.message);
+    res.status(500).json({ error: 'Failed to compile Case Package ZIP.' });
+  }
+});
+
 module.exports = router;

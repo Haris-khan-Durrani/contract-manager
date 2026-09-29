@@ -26,12 +26,35 @@
         </div>
 
         <button
+          v-if="selectedContract"
+          type="button"
+          class="btn btn-secondary btn-sm"
+          :disabled="downloadingPdf"
+          @click="downloadSummaryPdf"
+          title="Download official Client Summary PDF"
+        >
+          {{ downloadingPdf ? '⏳ Generating…' : '📄 Summary PDF' }}
+        </button>
+
+        <button
+          v-if="selectedContract"
+          type="button"
+          class="btn btn-primary btn-sm"
+          :disabled="downloadingZip"
+          @click="downloadZipPackage"
+          title="Download Complete Compiled Package (Contract + Summary + Attached Files)"
+          style="background: linear-gradient(135deg, #1e3a8a, #2563eb); border: none; font-weight: 600;"
+        >
+          {{ downloadingZip ? '⏳ Compiling ZIP…' : '📦 Download Package (ZIP)' }}
+        </button>
+
+        <button
           type="button"
           class="btn btn-secondary btn-sm"
           @click="printDocument"
           title="Print or Save as PDF"
         >
-          🖨️ Print / PDF
+          🖨️ Print
         </button>
 
         <button
@@ -1446,6 +1469,154 @@
           <div class="page-footer-mark">CLIENT SUMMARY FORM | Page 9</div>
         </section>
 
+        <!-- ═══════════════ PAGE 9: SUPPORTING ATTACHMENTS & COMPILED PACKAGE ═══════════════ -->
+        <section v-show="currentTab === 'page9' || isPrinting" class="form-page" id="page-9">
+          <div class="official-header">
+            <h2 class="doc-main-title">SUPPORTING DOCUMENTS & CASE COMPILATION</h2>
+            <div style="font-size: 11px; color: #64748b; margin-top: 4px;">
+              Upload supporting client documents (Passport, CV, Bank Statements, Degrees). All files are hosted on HighLevel Media and compiled into a single download archive with the contract and summary.
+            </div>
+          </div>
+
+          <!-- Upload Dropzone Card -->
+          <div class="attachment-upload-zone" @click="triggerAttachmentUpload">
+            <input
+              ref="attachmentFileInput"
+              type="file"
+              multiple
+              accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx"
+              style="display: none;"
+              @change="onAttachmentSelected"
+            />
+            <div class="upload-zone-content">
+              <div class="upload-icon">📂</div>
+              <h4 style="margin: 4px 0; font-size: 0.95rem; font-weight: 700; color: #0f172a;">
+                {{ uploadingAttachment ? '⏳ Uploading file to HighLevel Media Library…' : 'Click to Upload Supporting Files or Drag & Drop' }}
+              </h4>
+              <p style="font-size: 11px; color: #64748b; margin: 2px 0 0;">
+                Supports PDF, JPG, PNG, DOCX, XLSX up to 25MB per file. Stored securely in GoHighLevel Media.
+              </p>
+              <button
+                type="button"
+                class="btn btn-secondary btn-sm"
+                style="margin-top: 10px;"
+                :disabled="uploadingAttachment"
+              >
+                {{ uploadingAttachment ? 'Uploading…' : '📁 Select Files from Device' }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Attachments List -->
+          <div style="margin-top: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <h3 style="font-size: 0.95rem; font-weight: 700; margin: 0; color: #1e293b;">
+                Attached Documents ({{ form.attachments?.length || 0 }})
+              </h3>
+              <span v-if="form.attachments?.length" style="font-size: 11px; color: #047857; font-weight: 600;">
+                ✓ Saved & Embedded with Summary Dossier
+              </span>
+            </div>
+
+            <div v-if="!form.attachments || !form.attachments.length" class="no-attachments-box">
+              <span>No documents uploaded yet. Click above to attach client identification, certificates, or financial records.</span>
+            </div>
+
+            <div v-else class="attachments-grid">
+              <div v-for="(att, idx) in form.attachments" :key="att.id || idx" class="attachment-card">
+                <div class="att-card-icon">
+                  <span v-if="att.mimeType?.includes('pdf')">📄</span>
+                  <span v-else-if="att.mimeType?.includes('image')">🖼️</span>
+                  <span v-else>📁</span>
+                </div>
+                <div class="att-card-info">
+                  <div class="att-card-name" :title="att.name">{{ att.name }}</div>
+                  <div class="att-card-meta">
+                    <span>{{ att.size ? Math.round(att.size / 1024) + ' KB' : 'Document' }}</span>
+                    <span>•</span>
+                    <span>{{ formatDate(att.uploadedAt) }}</span>
+                    <span class="badge badge-success" style="font-size: 9px; padding: 1px 6px;">☁️ HighLevel Media</span>
+                  </div>
+                </div>
+                <div class="att-card-actions">
+                  <a
+                    :href="att.url"
+                    target="_blank"
+                    class="btn-att-action btn-att-view"
+                    title="View file in new tab"
+                  >
+                    View ↗
+                  </a>
+                  <button
+                    type="button"
+                    class="btn-att-action btn-att-delete"
+                    title="Remove attachment"
+                    @click="removeAttachment(idx)"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Compiled Package Download Box -->
+          <div class="compiled-package-card">
+            <div class="cp-header">
+              <div class="cp-icon">📦</div>
+              <div>
+                <h3 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: #0f172a;">Compiled Case Package (ZIP Archive)</h3>
+                <p style="margin: 2px 0 0; font-size: 11.5px; color: #475569;">
+                  Download everything together in one complete, organized ZIP dossier:
+                </p>
+              </div>
+            </div>
+
+            <div class="cp-contents-list">
+              <div class="cp-item">
+                <span class="cp-check">✓</span>
+                <span><strong>1_Signed_Contract.pdf</strong> — Official Executed Legal Services Agreement</span>
+              </div>
+              <div class="cp-item">
+                <span class="cp-check">✓</span>
+                <span><strong>2_Client_Summary.pdf</strong> — Complete 9-Page Case Summary Assessment</span>
+              </div>
+              <div class="cp-item">
+                <span class="cp-check">✓</span>
+                <span><strong>3_Supporting_Attachments/</strong> — All {{ form.attachments?.length || 0 }} uploaded client files</span>
+              </div>
+              <div class="cp-item">
+                <span class="cp-check">✓</span>
+                <span><strong>0_Case_Dossier_Manifest.txt</strong> — Full audit index & verification timestamps</span>
+              </div>
+            </div>
+
+            <div class="cp-actions">
+              <button
+                type="button"
+                class="btn btn-primary btn-lg"
+                :disabled="downloadingZip"
+                @click="downloadZipPackage"
+                style="background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%); padding: 12px 24px; font-weight: 700;"
+              >
+                {{ downloadingZip ? '⏳ Generating Complete Package (ZIP)…' : '📦 Download Compiled Case Package (ZIP)' }}
+              </button>
+
+              <button
+                type="button"
+                class="btn btn-secondary btn-lg"
+                :disabled="downloadingPdf"
+                @click="downloadSummaryPdf"
+                style="padding: 12px 18px;"
+              >
+                {{ downloadingPdf ? '⏳ Generating…' : '📄 Download Summary PDF Only' }}
+              </button>
+            </div>
+          </div>
+
+          <div class="page-footer-mark">CLIENT SUMMARY FORM | Attachments & Compiled Dossier</div>
+        </section>
+
         <!-- In-Sheet Bottom Page Navigation -->
         <div class="page-bottom-nav">
           <button
@@ -1570,6 +1741,11 @@ const isPrinting = ref(false)
 const currentTab = ref('page1')
 const tabsContainerRef = ref(null)
 
+const attachmentFileInput = ref(null)
+const uploadingAttachment = ref(false)
+const downloadingZip = ref(false)
+const downloadingPdf = ref(false)
+
 const formTabs = [
   { id: 'page1', step: 1, page: 'Page 1', title: 'General Info' },
   { id: 'page2', step: 2, page: 'Page 2', title: 'Immigration History' },
@@ -1579,6 +1755,7 @@ const formTabs = [
   { id: 'page6', step: 6, page: 'Pages 6-7', title: 'Academic Background' },
   { id: 'page7', step: 7, page: 'Page 8', title: 'Financials' },
   { id: 'page8', step: 8, page: 'Page 9', title: 'Action Plan & Signatures' },
+  { id: 'page9', step: 9, page: 'Dossier', title: 'Attached Files & ZIP Package' },
 ]
 
 const currentTabIndex = computed(() => {
@@ -1658,6 +1835,9 @@ function isTabCompleted(tabId) {
   }
   if (tabId === 'page8') {
     return Boolean(summaryStatus.value === 'COMPLETED' || form.value.counselor_signature?.signed)
+  }
+  if (tabId === 'page9') {
+    return Boolean(form.value.attachments && form.value.attachments.length > 0)
   }
   return false
 }
@@ -1805,6 +1985,7 @@ function getDefaultForm() {
     course_of_action_application: '',
     applicant_signature: { signed: false, name: '', date: '' },
     counselor_signature: { signed: false, name: '', date: '' },
+    attachments: [],
   }
 }
 
@@ -1860,7 +2041,11 @@ async function loadSelectedContract() {
     lastSavedAt.value = data.updated_at || null
 
     if (data.summary && Object.keys(data.summary).length > 0) {
-      form.value = { ...getDefaultForm(), ...data.summary }
+      form.value = {
+        ...getDefaultForm(),
+        ...data.summary,
+        attachments: Array.isArray(data.summary.attachments) ? data.summary.attachments : [],
+      }
     } else {
       form.value = getDefaultForm()
     }
@@ -1907,6 +2092,133 @@ async function saveSummary(mode = 'DRAFT') {
     alert(err.response?.data?.error || 'Failed to save Client Summary.')
   } finally {
     saving.value = false
+  }
+}
+
+function triggerAttachmentUpload() {
+  attachmentFileInput.value?.click()
+}
+
+async function onAttachmentSelected(e) {
+  const files = e.target.files
+  if (!files || !files.length) return
+
+  for (const file of Array.from(files)) {
+    if (file.size > 25 * 1024 * 1024) {
+      alert(`File "${file.name}" exceeds the 25MB limit.`)
+      continue
+    }
+
+    uploadingAttachment.value = true
+    try {
+      const base64Data = await readFileAsBase64(file)
+      // Upload directly to GoHighLevel Media Library
+      const res = await axios.post(
+        `${apiBase}/ghl/media/upload`,
+        {
+          dataBase64: base64Data,
+          filename: `summary_${selectedContractId.value || 'case'}_${Date.now()}_${file.name}`,
+          mimeType: file.type || 'application/octet-stream',
+        },
+        { headers: getHeaders() }
+      )
+
+      const uploadedUrl = res.data?.url || res.data?.fileUrl || ''
+
+      if (!form.value.attachments) {
+        form.value.attachments = []
+      }
+
+      form.value.attachments.push({
+        id: `att_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        name: file.name,
+        size: file.size,
+        mimeType: file.type || 'application/octet-stream',
+        url: uploadedUrl,
+        uploadedAt: new Date().toISOString(),
+      })
+
+      // Auto save draft after uploading
+      await saveSummary('DRAFT')
+    } catch (err) {
+      console.error('Upload attachment error:', err)
+      alert(`Failed to upload ${file.name} to HighLevel Media Library.`)
+    } finally {
+      uploadingAttachment.value = false
+    }
+  }
+  if (attachmentFileInput.value) attachmentFileInput.value.value = ''
+}
+
+function readFileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
+async function removeAttachment(index) {
+  if (!confirm(`Are you sure you want to remove "${form.value.attachments[index]?.name}"?`)) return
+  form.value.attachments.splice(index, 1)
+  await saveSummary('DRAFT')
+}
+
+async function downloadZipPackage() {
+  if (!selectedContractId.value) return
+  downloadingZip.value = true
+  try {
+    const res = await axios.get(
+      `${apiBase}/client-summary/${selectedContractId.value}/package-zip`,
+      {
+        headers: getHeaders(),
+        responseType: 'blob',
+      }
+    )
+    const clientSlug = (selectedContract.value?.recipient_name || 'Client').replace(/[^a-zA-Z0-9]+/g, '_')
+    const filename = `Case_Package_Contract_${selectedContractId.value}_${clientSlug}.zip`
+    const blob = new Blob([res.data], { type: 'application/zip' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(link.href)
+  } catch (err) {
+    console.error('Download ZIP error:', err)
+    alert(err.response?.data?.error || 'Failed to download compiled Case Package ZIP.')
+  } finally {
+    downloadingZip.value = false
+  }
+}
+
+async function downloadSummaryPdf() {
+  if (!selectedContractId.value) return
+  downloadingPdf.value = true
+  try {
+    const res = await axios.get(
+      `${apiBase}/client-summary/${selectedContractId.value}/pdf`,
+      {
+        headers: getHeaders(),
+        responseType: 'blob',
+      }
+    )
+    const filename = `Client_Summary_Contract_${selectedContractId.value}.pdf`
+    const blob = new Blob([res.data], { type: 'application/pdf' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(link.href)
+  } catch (err) {
+    console.error('Download PDF error:', err)
+    alert(err.response?.data?.error || 'Failed to generate Client Summary PDF.')
+  } finally {
+    downloadingPdf.value = false
   }
 }
 
@@ -2824,6 +3136,209 @@ onMounted(async () => {
 .toolbar-right {
   display: flex;
   gap: 10px;
+}
+
+/* Attachment Upload Zone */
+.attachment-upload-zone {
+  border: 2px dashed #94a3b8;
+  border-radius: 12px;
+  padding: 30px 20px;
+  background: #f8fafc;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  margin-top: 14px;
+}
+
+.attachment-upload-zone:hover {
+  border-color: #2563eb;
+  background: #eff6ff;
+  transform: translateY(-1px);
+}
+
+.upload-zone-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.upload-icon {
+  font-size: 2.4rem;
+  margin-bottom: 6px;
+}
+
+.no-attachments-box {
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+.attachments-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.attachment-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  transition: all 0.2s ease;
+}
+
+.attachment-card:hover {
+  border-color: #94a3b8;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+}
+
+.att-card-icon {
+  font-size: 1.8rem;
+  flex-shrink: 0;
+}
+
+.att-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.att-card-name {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.att-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: #64748b;
+  margin-top: 3px;
+  flex-wrap: wrap;
+}
+
+.att-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.btn-att-action {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.btn-att-view {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+
+.btn-att-view:hover {
+  background: #dbeafe;
+}
+
+.btn-att-delete {
+  background: none;
+  color: #ef4444;
+  border: none;
+  font-size: 0.9rem;
+  padding: 4px 6px;
+}
+
+.btn-att-delete:hover {
+  background: #fee2e2;
+  border-radius: 4px;
+}
+
+/* Compiled Package Card */
+.compiled-package-card {
+  margin-top: 32px;
+  padding: 24px;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05);
+}
+
+.cp-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.cp-icon {
+  font-size: 2.2rem;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+
+.cp-contents-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+  background: #ffffff;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.cp-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.85rem;
+  color: #334155;
+}
+
+.cp-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ecfdf5;
+  color: #059669;
+  font-size: 11px;
+  font-weight: 700;
+  border: 1px solid #a7f3d0;
+}
+
+.cp-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 /* Print Styles */
