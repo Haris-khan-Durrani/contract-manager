@@ -21,6 +21,7 @@ const DEFAULT_SETTINGS = {
   RETRY_WORKER_CRON:             '*/2 * * * *',
   MAX_UPLOAD_RETRIES:            '5',
   RESTRICT_CONTACTS_TO_ASSIGNED: 'true',
+  COMPANY_STAMP_URL:             '',
 };
 
 class SettingsService {

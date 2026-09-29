@@ -223,6 +223,7 @@ router.post('/manual', requirePermission('contract:create'), async (req, res) =>
         ghlContactId,
         ghlOpportunityId: ghlOpportunityId || null,
         assignedUserName: req.ghlUser?.name || '',
+        assignedUserId:   assignedUserId || req.ghlUser?.userId,
         privateToken: req.ghlUser?.privateToken,
       });
       snapshot = built.snapshot;
@@ -503,6 +504,7 @@ router.post('/:id/send', requirePermission('contract:send'), async (req, res) =>
       ghlContactId:     contract.ghl_contact_id,
       ghlOpportunityId: contract.ghl_opportunity_id,
       assignedUserName: assignedUser?.name || '',
+      assignedUserId:   contract.assigned_user_id || req.ghlUser?.userId,
       privateToken:     req.ghlUser?.privateToken,
     });
 

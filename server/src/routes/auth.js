@@ -200,7 +200,7 @@ router.get('/users', ghlAuthMiddleware, loadAppUser, requirePermission('users:ma
   try {
     const { locationId } = req.ghlUser;
     const [users] = await db.execute(
-      `SELECT id, location_id, ghl_user_id, app_role, enabled, created_at, updated_at
+      `SELECT id, location_id, ghl_user_id, app_role, enabled, signature_png_url, created_at, updated_at
        FROM app_user_access
        WHERE location_id = ?
        ORDER BY created_at DESC`,
@@ -217,7 +217,7 @@ router.get('/users', ghlAuthMiddleware, loadAppUser, requirePermission('users:ma
 router.post('/users', ghlAuthMiddleware, loadAppUser, requirePermission('users:manage'), async (req, res) => {
   try {
     const { locationId } = req.ghlUser;
-    const { ghlUserId, appRole = 'SALES', enabled = true } = req.body;
+    const { ghlUserId, appRole = 'SALES', enabled = true, signature_png_url = null } = req.body;
 
     if (!ghlUserId) {
       return res.status(400).json({ error: 'ghlUserId is required.' });
@@ -227,10 +227,10 @@ router.post('/users', ghlAuthMiddleware, loadAppUser, requirePermission('users:m
     }
 
     const [result] = await db.execute(
-      `INSERT INTO app_user_access (location_id, ghl_user_id, app_role, enabled)
-       VALUES (?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE app_role = VALUES(app_role), enabled = VALUES(enabled), updated_at = NOW()`,
-      [locationId, ghlUserId, appRole, enabled]
+      `INSERT INTO app_user_access (location_id, ghl_user_id, app_role, enabled, signature_png_url)
+       VALUES (?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE app_role = VALUES(app_role), enabled = VALUES(enabled), signature_png_url = COALESCE(VALUES(signature_png_url), signature_png_url), updated_at = NOW()`,
+      [locationId, ghlUserId, appRole, enabled, signature_png_url]
     );
 
     res.status(201).json({ success: true, id: result.insertId });
@@ -243,21 +243,44 @@ router.post('/users', ghlAuthMiddleware, loadAppUser, requirePermission('users:m
 router.put('/users/:id', ghlAuthMiddleware, loadAppUser, requirePermission('users:manage'), async (req, res) => {
   try {
     const { locationId } = req.ghlUser;
-    const { appRole, enabled } = req.body;
+    const { appRole, enabled, signature_png_url } = req.body;
 
     await db.execute(
       `UPDATE app_user_access
        SET app_role = COALESCE(?, app_role),
            enabled = COALESCE(?, enabled),
+           signature_png_url = CASE WHEN ? = 1 THEN ? ELSE signature_png_url END,
            updated_at = NOW()
        WHERE id = ? AND location_id = ?`,
-      [appRole || null, enabled !== undefined ? enabled : null, req.params.id, locationId]
+      [
+        appRole || null,
+        enabled !== undefined ? enabled : null,
+        signature_png_url !== undefined ? 1 : 0,
+        signature_png_url !== undefined ? signature_png_url : null,
+        req.params.id,
+        locationId
+      ]
     );
 
     res.json({ success: true });
   } catch (err) {
     console.error('[Auth Users] Update error:', err.message);
     res.status(500).json({ error: 'Failed to update user access.' });
+  }
+});
+
+router.post('/users/:id/signature', ghlAuthMiddleware, loadAppUser, requirePermission('users:manage'), async (req, res) => {
+  try {
+    const { locationId } = req.ghlUser;
+    const { signaturePng } = req.body;
+    await db.execute(
+      'UPDATE app_user_access SET signature_png_url = ?, updated_at = NOW() WHERE id = ? AND location_id = ?',
+      [signaturePng || null, req.params.id, locationId]
+    );
+    res.json({ success: true, signature_png_url: signaturePng || null });
+  } catch (err) {
+    console.error('[Auth Users] Signature upload error:', err.message);
+    res.status(500).json({ error: 'Failed to save user signature.' });
   }
 });
 

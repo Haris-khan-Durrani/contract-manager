@@ -233,6 +233,11 @@ class SQLiteAdapter {
         ALTER TABLE contract_instances ADD COLUMN validity_days INTEGER NULL DEFAULT 7;
       `).catch(() => {}); // Silently ignore if column already exists
 
+      // Migration: add signature_png_url to app_user_access
+      await this.run(`
+        ALTER TABLE app_user_access ADD COLUMN signature_png_url TEXT NULL;
+      `).catch(() => {});
+
       await this.run(`
         CREATE TABLE IF NOT EXISTS webhook_idempotency_keys (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -662,6 +667,7 @@ async function initMysqlTables(pool) {
       `ALTER TABLE contract_instances ADD COLUMN revoked_at TIMESTAMP NULL`,
       `ALTER TABLE contract_instances ADD COLUMN assigned_user_name VARCHAR(255) NULL`,
       `ALTER TABLE contract_instances ADD COLUMN validity_days INT NULL DEFAULT 7`,
+      `ALTER TABLE app_user_access ADD COLUMN signature_png_url MEDIUMTEXT NULL`,
     ];
     for (const stmt of [...formAlters, ...instanceAlters]) {
       try { await pool.execute(stmt); } catch (e) { /* column already exists — skip */ }

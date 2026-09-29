@@ -287,6 +287,19 @@ async function buildSnapshot(opts) {
   const customCss = docSchema.customCss || template.customCss;
   let renderedRawHtml = null;
 
+  let companySignature = opts.companySignature || '';
+  if (!companySignature && opts.assignedUserId && locationId) {
+    const [uRows] = await db.execute(
+      'SELECT signature_png_url FROM app_user_access WHERE location_id = ? AND ghl_user_id = ? LIMIT 1',
+      [locationId, opts.assignedUserId]
+    ).catch(() => [[]]);
+    if (uRows.length && uRows[0].signature_png_url) {
+      companySignature = uRows[0].signature_png_url;
+    }
+  }
+  const settingsService = require('./settingsService');
+  const companyStamp = opts.companyStamp || settingsService.get('COMPANY_STAMP_URL', '');
+
   if (rawHtml) {
     const htmlTemplateService = require('./htmlTemplateService');
     renderedRawHtml = htmlTemplateService.renderHtmlTemplate(rawHtml, customCss, {
@@ -295,6 +308,8 @@ async function buildSnapshot(opts) {
       system: systemValues,
       teamMembers: formResponse?.teamMembers,
       contractDate: new Date().toLocaleDateString('en-GB'),
+      companySignature,
+      companyStamp,
       applicant: {
         full_name: formResponse.client_name || primaryApplicant.name,
         passport_or_eid: formResponse.passport_number || primaryApplicant.passport,
@@ -333,6 +348,8 @@ async function buildSnapshot(opts) {
     activeBlocks:       renderedBlocks,
     rawHtml:            renderedRawHtml || rawHtml,
     customCss:          customCss,
+    companySignature,
+    companyStamp,
     documentTitle:      resolveTokens(docSchema?.title || template.name, context),
   };
 

@@ -466,10 +466,29 @@ router.post('/:token/submit', async (req, res) => {
       },
     ];
 
+    // Retrieve assigned user's signature PNG and company stamp
+    let companySignature = snapshot.companySignature || '';
+    if (!companySignature && contract.assigned_user_id) {
+      const [uRows] = await connection.execute(
+        'SELECT signature_png_url FROM app_user_access WHERE location_id = ? AND ghl_user_id = ? LIMIT 1',
+        [contract.location_id, contract.assigned_user_id]
+      ).catch(() => [[]]);
+      if (uRows.length && uRows[0].signature_png_url) {
+        companySignature = uRows[0].signature_png_url;
+      }
+    }
+    const settingsService = require('../services/settingsService');
+    const companyStamp = snapshot.companyStamp || settingsService.get('COMPANY_STAMP_URL', '');
+
+    snapshot.companySignature = companySignature;
+    snapshot.companyStamp = companyStamp;
+
     if (snapshot.rawHtml) {
       const htmlTemplateService = require('../services/htmlTemplateService');
       snapshot.rawHtml = htmlTemplateService.renderHtmlTemplate(snapshot.rawHtml, snapshot.customCss, {
         clientSignature: signatureDataUrl,
+        companySignature,
+        companyStamp,
         contractDate: signedAt,
       });
     }

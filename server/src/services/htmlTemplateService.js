@@ -230,13 +230,23 @@ function renderHtmlTemplate(html, css, context = {}, options = {}) {
     );
   }
 
-  // Handle Company Signature
-  const companySignature = context.companySignature || options.companySignature;
-  if (companySignature) {
-    const compSigImg = `<img src="${companySignature}" alt="Company Signature" style="max-height: 12mm; max-width: 90%; display: block; margin: auto;" />`;
+  // Handle Company Signature & Stamp Injection
+  const settingsService = require('./settingsService');
+  const companySignature = context.companySignature || options.companySignature || '';
+  const companyStamp = context.companyStamp || options.companyStamp || settingsService.get('COMPANY_STAMP_URL', '');
+
+  if (companySignature || companyStamp) {
+    let innerHtml = '';
+    if (companySignature) {
+      innerHtml += `<img src="${companySignature}" alt="Company Signature" class="comp-sig-img" style="max-height: 13mm; max-width: 82%; display: block; position: relative; z-index: 2;" />`;
+    }
+    if (companyStamp) {
+      innerHtml += `<img src="${companyStamp}" alt="Company Seal" class="comp-stamp-img" style="max-height: 22mm; position: absolute; right: 2mm; top: -5mm; opacity: 0.88; transform: rotate(-5deg); z-index: 1; pointer-events: none;" />`;
+    }
+
     rendered = rendered.replace(
       /<div class=["']signature-line["'] data-field=["']signature\.company["']>[\s\S]*?<\/div>/gi,
-      `<div class="signature-line signed" data-field="signature.company" style="display:flex;align-items:center;justify-content:center;background:#fff;">${compSigImg}</div>`
+      `<div class="signature-line signed" data-field="signature.company" style="display:flex;align-items:center;justify-content:center;position:relative;background:#fff;overflow:visible;">${innerHtml}</div>`
     );
   }
 

@@ -60,6 +60,7 @@
                 <th>HighLevel User ID</th>
                 <th>Team Member Name</th>
                 <th>Assigned Role</th>
+                <th>Official Signature</th>
                 <th>Status</th>
                 <th>Access Granted</th>
                 <th style="text-align: right;">Actions</th>
@@ -84,6 +85,21 @@
                     <option value="ADMIN">ADMIN</option>
                     <option value="SUPER_ADMIN">SUPER_ADMIN</option>
                   </select>
+                </td>
+                <td>
+                  <div v-if="u.signature_png_url" style="display: flex; align-items: center; gap: 6px;">
+                    <div style="background: #fff; border: 1px solid var(--color-border); border-radius: 4px; padding: 2px 6px; display: inline-flex; align-items: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                      <img :src="u.signature_png_url" alt="Signature" style="max-height: 22px; max-width: 65px; object-fit: contain;" />
+                    </div>
+                    <button type="button" class="btn btn-secondary" style="padding: 2px 6px; font-size: 11px;" @click="openSigModal(u)">
+                      Edit
+                    </button>
+                  </div>
+                  <div v-else>
+                    <button type="button" class="btn btn-secondary" style="padding: 3px 8px; font-size: 11px;" @click="openSigModal(u)">
+                      ✍️ Upload PNG
+                    </button>
+                  </div>
                 </td>
                 <td>
                   <span v-if="u.enabled" class="badge badge-success">Active</span>
@@ -154,6 +170,68 @@
         </form>
       </div>
     </div>
+
+    <!-- Official Signature Upload Modal -->
+    <div v-if="showSigModal" class="modal-overlay" @click.self="showSigModal = false">
+      <div class="modal-card animate-fade-in" style="max-width: 480px;">
+        <div class="modal-header">
+          <div>
+            <h3 style="margin: 0; font-size: 1.15rem;">Official Signature PNG</h3>
+            <p style="font-size: 12px; color: var(--color-text-muted); margin: 3px 0 0;">
+              {{ getUserName(activeUser?.ghl_user_id) }} ({{ getUserEmail(activeUser?.ghl_user_id) }})
+            </p>
+          </div>
+          <button class="btn-close" @click="showSigModal = false">✕</button>
+        </div>
+
+        <div style="padding: 16px 0;">
+          <p style="font-size: 12px; color: var(--color-text-secondary); margin-bottom: 14px;">
+            Upload an official signature with a transparent background. When agreements assigned to this team member are sealed, this signature and the company stamp will automatically be embedded.
+          </p>
+
+          <!-- Signature Preview Box -->
+          <div style="border: 1px dashed var(--color-border); border-radius: 8px; padding: 20px; background: #fff; text-align: center; min-height: 110px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative;">
+            <div v-if="activeSigData" style="position: relative; width: 100%;">
+              <img :src="activeSigData" alt="Signature Preview" style="max-height: 60px; max-width: 80%; object-fit: contain;" />
+              <div style="border-top: 1px solid #cbd5e1; width: 75%; margin: 8px auto 0;"></div>
+              <div style="font-size: 10px; color: #94a3b8; margin-top: 4px;">Authorized Company Signature</div>
+            </div>
+            <div v-else style="color: #94a3b8; font-size: 12px;">
+              <span>No signature uploaded for this user yet</span>
+            </div>
+          </div>
+
+          <!-- File Upload Controls -->
+          <div style="margin-top: 14px; display: flex; gap: 8px; align-items: center;">
+            <button type="button" class="btn btn-secondary" style="flex: 1;" @click="triggerUserSigUpload">
+              📁 Choose PNG File
+            </button>
+            <input 
+              ref="userSigFileInput" 
+              type="file" 
+              accept="image/png,image/jpeg,image/webp" 
+              style="display: none;" 
+              @change="onUserSigFileSelected" 
+            />
+            <button 
+              v-if="activeSigData" 
+              type="button" 
+              class="btn btn-danger" 
+              @click="activeSigData = ''"
+            >
+              🗑️ Clear
+            </button>
+          </div>
+        </div>
+
+        <div class="modal-actions" style="margin-top: 8px;">
+          <button type="button" class="btn btn-secondary" @click="showSigModal = false">Cancel</button>
+          <button type="button" class="btn btn-primary" :disabled="savingSig" @click="saveUserSignature">
+            {{ savingSig ? 'Saving…' : 'Save Signature' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -172,6 +250,55 @@ const showGrantModal = ref(false)
 const granting = ref(false)
 const selectedGhlUserId = ref('')
 const selectedRole = ref('SALES')
+
+const showSigModal = ref(false)
+const activeUser = ref(null)
+const activeSigData = ref('')
+const savingSig = ref(false)
+const userSigFileInput = ref(null)
+
+function openSigModal(u) {
+  activeUser.value = u
+  activeSigData.value = u.signature_png_url || ''
+  showSigModal.value = true
+}
+
+function triggerUserSigUpload() {
+  userSigFileInput.value?.click()
+}
+
+function onUserSigFileSelected(e) {
+  const file = e.target.files?.[0]
+  if (!file) return
+  if (file.size > 2 * 1024 * 1024) {
+    alert('File size exceeds 2MB limit.')
+    return
+  }
+  const reader = new FileReader()
+  reader.onload = (event) => {
+    activeSigData.value = event.target.result
+  }
+  reader.readAsDataURL(file)
+}
+
+async function saveUserSignature() {
+  if (!activeUser.value) return
+  savingSig.value = true
+  try {
+    await axios.post(
+      `${apiBase}/auth/users/${activeUser.value.id}/signature`,
+      { signaturePng: activeSigData.value || null },
+      { headers: getHeaders() }
+    )
+    activeUser.value.signature_png_url = activeSigData.value || null
+    showSigModal.value = false
+  } catch (err) {
+    console.error('Save signature error:', err)
+    alert(err.response?.data?.error || 'Failed to save signature.')
+  } finally {
+    savingSig.value = false
+  }
+}
 
 const apiBase = import.meta.env.VITE_API_BASE_URL || (typeof window !== 'undefined' && (window.location.protocol === 'https:' || (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')) ? '/api' : 'http://localhost:3001/api')
 

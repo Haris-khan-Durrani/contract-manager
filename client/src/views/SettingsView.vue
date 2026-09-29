@@ -228,6 +228,62 @@
           </div>
         </div>
       </div>
+
+      <!-- 5. Official Company Stamp / Seal -->
+      <div class="glass-card" style="padding: var(--space-6);">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: var(--space-4);">
+          <div style="font-size: 1.5rem;">🔴</div>
+          <div>
+            <h3 style="margin: 0; font-size: 1.1rem; font-family: var(--font-heading);">Official Company Stamp &amp; Seal</h3>
+            <p style="margin: 0; font-size: var(--text-xs); color: var(--color-text-muted);">
+              Upload your official company stamp / seal (transparent PNG recommended). It will automatically be overlaid with the authorized company signature on completed contracts.
+            </p>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 200px; gap: var(--space-6); align-items: start;">
+          <div>
+            <label class="form-label">Company Stamp Image (PNG or Image URL)</label>
+            <div style="display: flex; gap: 8px;">
+              <input 
+                v-model="form.COMPANY_STAMP_URL" 
+                type="text" 
+                class="form-control" 
+                placeholder="https://... or click Upload PNG below" 
+              />
+              <button type="button" class="btn btn-secondary" @click="triggerStampUpload">
+                📁 Upload PNG
+              </button>
+              <input 
+                ref="stampFileInput" 
+                type="file" 
+                accept="image/png,image/jpeg,image/webp" 
+                style="display: none;" 
+                @change="onStampFileSelected" 
+              />
+            </div>
+            <div v-if="form.COMPANY_STAMP_URL" style="margin-top: 10px;">
+              <button type="button" class="btn btn-danger btn-sm" @click="form.COMPANY_STAMP_URL = ''">
+                🗑️ Remove Stamp
+              </button>
+            </div>
+            <span style="font-size: var(--text-xs); color: var(--color-text-muted); display: block; margin-top: 6px;">
+              Tip: Use a transparent PNG (circular/rectangular company seal). Max size: 2MB.
+            </span>
+          </div>
+
+          <!-- Live Stamp Preview -->
+          <div style="border: 1px dashed var(--color-border); border-radius: 8px; padding: 12px; background: #fff; text-align: center; min-height: 120px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: inset 0 0 10px rgba(0,0,0,0.03);">
+            <div v-if="form.COMPANY_STAMP_URL" style="position: relative;">
+              <img :src="form.COMPANY_STAMP_URL" alt="Company Stamp Preview" style="max-height: 85px; max-width: 160px; object-fit: contain; transform: rotate(-5deg); filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));" />
+              <div style="font-size: 11px; font-weight: 600; color: #64748b; margin-top: 6px;">Live Stamp Preview</div>
+            </div>
+            <div v-else style="color: #94a3b8; font-size: var(--text-xs);">
+              <span>No stamp uploaded yet</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -240,6 +296,7 @@ const loading = ref(true)
 const saving = ref(false)
 const successMsg = ref('')
 const errorMsg = ref('')
+const stampFileInput = ref(null)
 
 const form = ref({
   GHL_SHARED_SECRET: '',
@@ -255,7 +312,26 @@ const form = ref({
   RETRY_WORKER_CRON: '*/2 * * * *',
   JWT_EXPIRES_IN: '8h',
   RESTRICT_CONTACTS_TO_ASSIGNED: 'true',
+  COMPANY_STAMP_URL: '',
 })
+
+function triggerStampUpload() {
+  stampFileInput.value?.click()
+}
+
+function onStampFileSelected(e) {
+  const file = e.target.files?.[0]
+  if (!file) return
+  if (file.size > 2 * 1024 * 1024) {
+    alert('File size exceeds 2MB limit.')
+    return
+  }
+  const reader = new FileReader()
+  reader.onload = (event) => {
+    form.value.COMPANY_STAMP_URL = event.target.result
+  }
+  reader.readAsDataURL(file)
+}
 
 const showSecret = ref({
   GHL_SHARED_SECRET: false,
