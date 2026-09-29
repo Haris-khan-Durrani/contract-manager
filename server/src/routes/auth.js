@@ -271,8 +271,33 @@ router.put('/users/:id', ghlAuthMiddleware, loadAppUser, requirePermission('user
 
 router.post('/users/:id/signature', ghlAuthMiddleware, loadAppUser, requirePermission('users:manage'), async (req, res) => {
   try {
-    const { locationId } = req.ghlUser;
-    const { signaturePng } = req.body;
+    const { locationId, privateToken } = req.ghlUser;
+    let { signaturePng } = req.body;
+
+    if (signaturePng && signaturePng.startsWith('data:image/')) {
+      try {
+        const matches = signaturePng.match(/^data:([A-Za-z0-9-+\/]+);base64,(.+)$/);
+        if (matches) {
+          const mimeType = matches[1];
+          const buffer = Buffer.from(matches[2], 'base64');
+          const ext = mimeType.includes('png') ? 'png' : 'jpg';
+          const filename = `sig_user_${req.params.id}_${Date.now()}.${ext}`;
+          const ghlUrl = await ghlService.uploadMediaFile({
+            locationId,
+            buffer,
+            filename,
+            mimeType,
+            privateToken,
+          });
+          if (ghlUrl) {
+            signaturePng = ghlUrl;
+          }
+        }
+      } catch (uploadErr) {
+        console.warn('[Auth Signature] GHL Media upload fallback notice:', uploadErr.message);
+      }
+    }
+
     await db.execute(
       'UPDATE app_user_access SET signature_png_url = ?, updated_at = NOW() WHERE id = ? AND location_id = ?',
       [signaturePng || null, req.params.id, locationId]

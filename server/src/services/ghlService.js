@@ -647,6 +647,53 @@ async function uploadContactFile(locationId, contactId, pdfBuffer, filename, pri
   );
 }
 
+/**
+ * Upload a media asset (signature PNG, company stamp, logos) directly to GoHighLevel Media Library.
+ * Endpoint: POST https://services.leadconnectorhq.com/medias/upload-file
+ * Scope: medias.write
+ *
+ * @param {Object} options
+ * @param {string} options.locationId
+ * @param {Buffer} options.buffer
+ * @param {string} options.filename
+ * @param {string} [options.mimeType]
+ * @param {string|null} [options.privateToken]
+ * @returns {Promise<string>} Hosted CDN file URL (e.g. https://assets.cdn.filesafe.space/...)
+ */
+async function uploadMediaFile({ locationId, buffer, filename = 'asset.png', mimeType = 'image/png', privateToken = null }) {
+  const token = privateToken || settingsService.get('GHL_PRIVATE_INTEGRATION_TOKEN') || process.env.GHL_PRIVATE_INTEGRATION_TOKEN;
+  const baseURL = settingsService.get('GHL_API_BASE_URL', 'https://services.leadconnectorhq.com');
+  const apiVersion = settingsService.get('GHL_API_VERSION', '2021-07-28');
+
+  if (isDevToken(token)) {
+    console.log(`[GHL Media Dev Mock] File ${filename} (${buffer?.length || 0} bytes) mock uploaded.`);
+    return `https://assets.cdn.filesafe.space/${locationId || 'default'}/media/${Date.now()}_${filename}`;
+  }
+
+  const FormData = require('form-data');
+  const form = new FormData();
+  form.append('file', buffer, { filename, contentType: mimeType });
+  form.append('name', filename);
+
+  const res = await axios.post(`${baseURL}/medias/upload-file`, form, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Version: apiVersion,
+      ...(locationId ? { 'X-GHL-Location': locationId } : {}),
+      ...form.getHeaders(),
+    },
+    timeout: 45000,
+  });
+
+  const fileUrl = res.data?.fileUrl || res.data?.url || res.data?.media?.url || res.data?.assetUrl;
+  if (!fileUrl) {
+    console.warn('[GHL Media Upload] No direct fileUrl in response, raw:', res.data);
+    throw new Error('GoHighLevel Media upload did not return a valid file URL.');
+  }
+
+  return fileUrl;
+}
+
 module.exports = {
   getContact,
   updateContact,
@@ -663,6 +710,8 @@ module.exports = {
   createContactNote,
   syncAuditLogToGHL,
   uploadContactFile,
+  uploadMediaFile,
   sendConversationMessage,
   sendContractViaGHLConversation,
 };
+

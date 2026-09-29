@@ -107,17 +107,30 @@
               <span v-else class="badge badge-danger">Draft</span>
             </div>
 
-            <button
-              type="button"
-              class="btn-icon-more"
-              @click.stop="duplicateTemplate(t.id)"
-              title="Duplicate Template"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-              </svg>
-            </button>
+            <div style="display: flex; gap: 4px; align-items: center;">
+              <button
+                type="button"
+                class="btn-icon-more"
+                @click.stop="duplicateTemplate(t.id)"
+                title="Duplicate Template"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+              </button>
+              <button
+                type="button"
+                class="btn-icon-more btn-icon-danger"
+                @click.stop="confirmDeleteTemplate(t)"
+                title="Delete Template"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                </svg>
+              </button>
+            </div>
           </div>
 
           <h3 class="template-name">{{ t.name }}</h3>
@@ -311,6 +324,37 @@
         </form>
       </div>
     </div>
+
+    <!-- Delete Template Confirmation Modal -->
+    <div v-if="showDeleteModal" class="modal-overlay" @click.self="showDeleteModal = false">
+      <div class="modal-card animate-fade-in" style="max-width: 440px;">
+        <div class="modal-header">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="width: 32px; height: 32px; border-radius: 50%; background: #fee2e2; color: #dc2626; display: flex; align-items: center; justify-content: center; font-size: 16px;">
+              ⚠️
+            </div>
+            <h3 style="margin: 0; color: #0f172a;">Delete Contract Template?</h3>
+          </div>
+          <button class="btn-close" @click="showDeleteModal = false">✕</button>
+        </div>
+
+        <div style="padding: 16px 0 6px;">
+          <p style="font-size: 13.5px; color: #475569; line-height: 1.5; margin: 0 0 12px;">
+            Are you sure you want to permanently delete <strong>"{{ templateToDelete?.name }}"</strong> (Template #{{ templateToDelete?.id }})?
+          </p>
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; font-size: 12px; color: #64748b;">
+            ⚠️ This will remove the document blueprint and all its version history. Contracts already signed or dispatched will remain securely sealed in the audit repository.
+          </div>
+        </div>
+
+        <div class="modal-actions" style="margin-top: 14px;">
+          <button type="button" class="btn btn-secondary" @click="showDeleteModal = false">Cancel</button>
+          <button type="button" class="btn btn-danger" :disabled="deleting" @click="deleteTemplate">
+            {{ deleting ? 'Deleting…' : '🗑️ Delete Template' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -348,6 +392,10 @@ const importForm = ref({
   html: '',
   css: '',
 })
+
+const showDeleteModal = ref(false)
+const templateToDelete = ref(null)
+const deleting = ref(false)
 
 const apiBase = import.meta.env.VITE_API_BASE_URL || (typeof window !== 'undefined' && (window.location.protocol === 'https:' || (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')) ? '/api' : 'http://localhost:3001/api')
 
@@ -518,6 +566,27 @@ async function duplicateTemplate(id) {
   }
 }
 
+function confirmDeleteTemplate(t) {
+  templateToDelete.value = t
+  showDeleteModal.value = true
+}
+
+async function deleteTemplate() {
+  if (!templateToDelete.value) return
+  deleting.value = true
+  try {
+    await axios.delete(`${apiBase}/templates/${templateToDelete.value.id}`, { headers: getHeaders() })
+    showDeleteModal.value = false
+    templateToDelete.value = null
+    fetchTemplates()
+  } catch (err) {
+    console.error('Failed to delete template:', err)
+    alert(err.response?.data?.error || 'Failed to delete template.')
+  } finally {
+    deleting.value = false
+  }
+}
+
 function openBuilder(id) {
   router.push(`/templates/${id}/builder`)
 }
@@ -634,6 +703,11 @@ onMounted(() => {
 .btn-icon-more:hover {
   color: var(--color-text-base);
   background: var(--color-bg-base);
+}
+
+.btn-icon-more.btn-icon-danger:hover {
+  color: #dc2626;
+  background: #fee2e2;
 }
 
 .template-name {

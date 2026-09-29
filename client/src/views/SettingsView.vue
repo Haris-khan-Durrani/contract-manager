@@ -277,6 +277,14 @@
             <div v-if="form.COMPANY_STAMP_URL" style="position: relative;">
               <img :src="form.COMPANY_STAMP_URL" alt="Company Stamp Preview" style="max-height: 85px; max-width: 160px; object-fit: contain; transform: rotate(-5deg); filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));" />
               <div style="font-size: 11px; font-weight: 600; color: #64748b; margin-top: 6px;">Live Stamp Preview</div>
+              <div style="margin-top: 4px;">
+                <span v-if="uploadingStampMedia" class="badge badge-warning" style="font-size: 9px; padding: 2px 6px;">
+                  ⏳ Uploading to HighLevel Media…
+                </span>
+                <span v-else-if="form.COMPANY_STAMP_URL && (form.COMPANY_STAMP_URL.includes('filesafe.space') || form.COMPANY_STAMP_URL.startsWith('http'))" class="badge badge-success" style="font-size: 9px; padding: 2px 6px;">
+                  ☁️ Stored in HighLevel Media
+                </span>
+              </div>
             </div>
             <div v-else style="color: #94a3b8; font-size: var(--text-xs);">
               <span>No stamp uploaded yet</span>
@@ -315,6 +323,8 @@ const form = ref({
   COMPANY_STAMP_URL: '',
 })
 
+const uploadingStampMedia = ref(false)
+
 function triggerStampUpload() {
   stampFileInput.value?.click()
 }
@@ -322,13 +332,29 @@ function triggerStampUpload() {
 function onStampFileSelected(e) {
   const file = e.target.files?.[0]
   if (!file) return
-  if (file.size > 2 * 1024 * 1024) {
-    alert('File size exceeds 2MB limit.')
+  if (file.size > 5 * 1024 * 1024) {
+    alert('File size exceeds 5MB limit.')
     return
   }
   const reader = new FileReader()
-  reader.onload = (event) => {
-    form.value.COMPANY_STAMP_URL = event.target.result
+  reader.onload = async (event) => {
+    const dataBase64 = event.target.result
+    form.value.COMPANY_STAMP_URL = dataBase64
+    uploadingStampMedia.value = true
+    try {
+      const res = await api.post('/ghl/media/upload', {
+        dataBase64,
+        filename: `stamp_${Date.now()}.png`,
+        mimeType: file.type || 'image/png',
+      })
+      if (res.data?.url) {
+        form.value.COMPANY_STAMP_URL = res.data.url
+      }
+    } catch (err) {
+      console.warn('GHL direct stamp upload notice (will sync on save):', err)
+    } finally {
+      uploadingStampMedia.value = false
+    }
   }
   reader.readAsDataURL(file)
 }

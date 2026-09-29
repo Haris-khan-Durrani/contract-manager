@@ -140,4 +140,54 @@ router.get('/users', async (req, res) => {
   }
 });
 
+// ─── POST /api/ghl/media/upload — Upload asset directly to GHL Media Library ──
+router.post('/media/upload', async (req, res) => {
+  try {
+    const { locationId, privateToken } = req.ghlUser;
+    const { dataBase64, filename = 'asset.png', mimeType: customMime } = req.body;
+
+    if (!dataBase64) {
+      return res.status(400).json({ error: 'dataBase64 payload is required.' });
+    }
+
+    let buffer;
+    let mimeType = customMime || 'image/png';
+
+    const matches = dataBase64.match(/^data:([A-Za-z0-9-+\/]+);base64,(.+)$/);
+    if (matches) {
+      mimeType = matches[1];
+      buffer = Buffer.from(matches[2], 'base64');
+    } else {
+      buffer = Buffer.from(dataBase64, 'base64');
+    }
+
+    if (buffer.length > 10 * 1024 * 1024) {
+      return res.status(400).json({ error: 'File size exceeds 10MB limit.' });
+    }
+
+    const fileUrl = await ghlService.uploadMediaFile({
+      locationId,
+      buffer,
+      filename: filename.replace(/[^a-zA-Z0-9._-]/g, '_'),
+      mimeType,
+      privateToken,
+    });
+
+    res.json({
+      success: true,
+      url: fileUrl,
+      fileUrl,
+      filename,
+      sizeBytes: buffer.length,
+    });
+  } catch (err) {
+    console.error('[GHL Route] Media upload error:', err.response?.data || err.message);
+    res.status(500).json({
+      error: 'Failed to upload file to GoHighLevel Media Library.',
+      details: err.response?.data?.message || err.message,
+    });
+  }
+});
+
 module.exports = router;
+

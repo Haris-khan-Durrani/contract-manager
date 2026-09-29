@@ -195,6 +195,14 @@
               <img :src="activeSigData" alt="Signature Preview" style="max-height: 60px; max-width: 80%; object-fit: contain;" />
               <div style="border-top: 1px solid #cbd5e1; width: 75%; margin: 8px auto 0;"></div>
               <div style="font-size: 10px; color: #94a3b8; margin-top: 4px;">Authorized Company Signature</div>
+              <div style="margin-top: 6px;">
+                <span v-if="uploadingMedia" class="badge badge-warning" style="font-size: 10px; padding: 2px 8px;">
+                  ⏳ Uploading to HighLevel Media…
+                </span>
+                <span v-else-if="activeSigData && (activeSigData.includes('filesafe.space') || activeSigData.startsWith('http'))" class="badge badge-success" style="font-size: 10px; padding: 2px 8px;">
+                  ☁️ Hosted on HighLevel Media
+                </span>
+              </div>
             </div>
             <div v-else style="color: #94a3b8; font-size: 12px;">
               <span>No signature uploaded for this user yet</span>
@@ -255,6 +263,7 @@ const showSigModal = ref(false)
 const activeUser = ref(null)
 const activeSigData = ref('')
 const savingSig = ref(false)
+const uploadingMedia = ref(false)
 const userSigFileInput = ref(null)
 
 function openSigModal(u) {
@@ -270,13 +279,33 @@ function triggerUserSigUpload() {
 function onUserSigFileSelected(e) {
   const file = e.target.files?.[0]
   if (!file) return
-  if (file.size > 2 * 1024 * 1024) {
-    alert('File size exceeds 2MB limit.')
+  if (file.size > 5 * 1024 * 1024) {
+    alert('File size exceeds 5MB limit.')
     return
   }
   const reader = new FileReader()
-  reader.onload = (event) => {
-    activeSigData.value = event.target.result
+  reader.onload = async (event) => {
+    const dataBase64 = event.target.result
+    activeSigData.value = dataBase64
+    uploadingMedia.value = true
+    try {
+      const res = await axios.post(
+        `${apiBase}/ghl/media/upload`,
+        {
+          dataBase64,
+          filename: `sig_${activeUser.value?.ghl_user_id || 'user'}_${Date.now()}.png`,
+          mimeType: file.type || 'image/png',
+        },
+        { headers: getHeaders() }
+      )
+      if (res.data?.url) {
+        activeSigData.value = res.data.url
+      }
+    } catch (err) {
+      console.warn('GHL direct media upload notice (will sync on save):', err)
+    } finally {
+      uploadingMedia.value = false
+    }
   }
   reader.readAsDataURL(file)
 }

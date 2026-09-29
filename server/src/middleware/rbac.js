@@ -15,7 +15,7 @@ const db = require('../config/db');
 const PERMISSIONS = {
   'template:create':       ['ADMIN', 'SUPER_ADMIN'],
   'template:edit':         ['ADMIN', 'SUPER_ADMIN'],
-  'template:delete':       ['SUPER_ADMIN'],
+  'template:delete':       ['ADMIN', 'SUPER_ADMIN'],
   'form:create':           ['ADMIN', 'SUPER_ADMIN'],
   'form:edit':             ['ADMIN', 'SUPER_ADMIN'],
   'ghl:field:map':         ['ADMIN', 'SUPER_ADMIN'],
