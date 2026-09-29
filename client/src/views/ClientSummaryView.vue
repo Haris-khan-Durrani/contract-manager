@@ -1,0 +1,2381 @@
+<template>
+  <div class="client-summary-page">
+    <!-- Top Action Bar -->
+    <div class="page-header glass-card">
+      <div class="header-left">
+        <div class="title-row">
+          <span class="header-icon">📋</span>
+          <div>
+            <h1 class="page-title">Client Summary Form</h1>
+            <p class="page-subtitle">Official post-contract immigration onboarding & compliance dossier</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-right" v-if="selectedContract">
+        <div class="summary-status-badge">
+          <span v-if="summaryStatus === 'COMPLETED'" class="badge badge-success">
+            ✓ Completed by {{ completedByName || 'Staff' }}
+          </span>
+          <span v-else-if="summaryStatus === 'DRAFT'" class="badge badge-warning">
+            📝 In Progress (Draft)
+          </span>
+          <span v-else class="badge badge-neutral">
+            ⏳ Not Started
+          </span>
+        </div>
+
+        <button
+          type="button"
+          class="btn btn-secondary btn-sm"
+          @click="printDocument"
+          title="Print or Save as PDF"
+        >
+          🖨️ Print / PDF
+        </button>
+
+        <button
+          type="button"
+          class="btn btn-secondary btn-sm"
+          :disabled="saving"
+          @click="saveSummary('DRAFT')"
+        >
+          {{ saving && savingMode === 'DRAFT' ? 'Saving…' : '💾 Save Draft' }}
+        </button>
+
+        <button
+          v-if="summaryStatus !== 'COMPLETED'"
+          type="button"
+          class="btn btn-primary btn-sm"
+          :disabled="saving"
+          @click="saveSummary('COMPLETED')"
+        >
+          {{ saving && savingMode === 'COMPLETED' ? 'Completing…' : '✓ Mark as Completed' }}
+        </button>
+        <button
+          v-else
+          type="button"
+          class="btn btn-secondary btn-sm"
+          :disabled="saving"
+          @click="saveSummary('DRAFT')"
+        >
+          🔓 Reopen Draft
+        </button>
+      </div>
+    </div>
+
+    <!-- Contract Search & Selector Section -->
+    <div class="selector-card glass-card">
+      <div class="selector-grid">
+        <div class="search-input-col">
+          <label class="section-label">SEARCH COMPLETED CONTRACT CLIENTS</label>
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input
+              type="text"
+              v-model="searchQuery"
+              @input="onSearchInput"
+              placeholder="Search by client name, email, phone, or contract #..."
+              class="form-control"
+            />
+            <button
+              v-if="searchQuery"
+              type="button"
+              class="btn-clear"
+              @click="clearSearch"
+            >✕</button>
+          </div>
+        </div>
+
+        <div class="contract-pick-col">
+          <label class="section-label">SELECT COMPLETED CONTRACT ({{ completedContracts.length }} AVAILABLE)</label>
+          <select
+            v-model="selectedContractId"
+            @change="loadSelectedContract"
+            class="form-control select-contract"
+            :disabled="loadingContracts"
+          >
+            <option value="" disabled>-- Select a completed contract client --</option>
+            <option v-for="c in completedContracts" :key="c.id" :value="c.id">
+              #{{ c.id }} — {{ c.recipient_name || 'Client' }} ({{ c.template_name }}) — {{ c.summary_status || 'NOT STARTED' }}
+            </option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Quick summary of selected contract info -->
+      <div v-if="selectedContract" class="selected-contract-banner">
+        <div class="scb-item">
+          <span class="scb-label">CLIENT</span>
+          <strong>{{ selectedContract.recipient_name || 'Client' }}</strong>
+        </div>
+        <div class="scb-item">
+          <span class="scb-label">CONTRACT</span>
+          <span>#{{ selectedContract.id }} ({{ selectedContract.template_name }})</span>
+        </div>
+        <div class="scb-item">
+          <span class="scb-label">SIGNED DATE</span>
+          <span>{{ formatDate(selectedContract.signed_at) }}</span>
+        </div>
+        <div class="scb-item">
+          <span class="scb-label">COUNSELLOR</span>
+          <span>{{ selectedContract.assigned_user_name || 'Assigned Agent' }}</span>
+        </div>
+        <div class="scb-actions">
+          <router-link :to="`/contracts/${selectedContract.id}`" class="link-subtle" target="_blank">
+            View Contract ↗
+          </router-link>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty State if no contract selected -->
+    <div v-if="!selectedContract && !loadingContractData" class="empty-state-card glass-card">
+      <div class="empty-icon">📁</div>
+      <h3>No Contract Selected</h3>
+      <p class="text-muted">
+        Select a completed contract from the dropdown or search above to view and fill the official Client Summary Form.
+      </p>
+    </div>
+
+    <!-- Loading State -->
+    <div v-if="loadingContractData" class="loading-state-card glass-card">
+      <div class="spinner"></div>
+      <p>Loading Client Summary details…</p>
+    </div>
+
+    <!-- 9-Page Comprehensive Form (when contract is selected) -->
+    <div v-if="selectedContract && !loadingContractData" class="form-container">
+      <!-- Section Tabs Navigation -->
+      <div class="form-nav-tabs">
+        <button
+          v-for="tab in formTabs"
+          :key="tab.id"
+          type="button"
+          class="tab-btn"
+          :class="{ active: currentTab === tab.id }"
+          @click="currentTab = tab.id"
+        >
+          <span class="tab-number">{{ tab.page }}</span>
+          <span class="tab-label">{{ tab.title }}</span>
+        </button>
+      </div>
+
+      <!-- Document Sheet Container (replicates official 9-page form layout) -->
+      <div class="document-sheet glass-card print-target">
+        
+        <!-- ═══════════════ PAGE 1: GENERAL INFORMATION ═══════════════ -->
+        <section v-show="currentTab === 'page1' || isPrinting" class="form-page" id="page-1">
+          <div class="official-header">
+            <h2 class="doc-main-title">CLIENT SUMMARY FORM</h2>
+          </div>
+
+          <div class="grid-two-col">
+            <div class="form-row-line">
+              <span class="line-label">Registration Number:</span>
+              <input type="text" v-model="form.reg_number" class="line-input" placeholder="Registration No." />
+            </div>
+            <div class="form-row-line">
+              <span class="line-label">Registration Date:</span>
+              <input type="date" v-model="form.reg_date" class="line-input" />
+            </div>
+          </div>
+
+          <div class="grid-two-col">
+            <div class="form-row-line">
+              <span class="line-label">Registered at:</span>
+              <input type="text" v-model="form.registered_at" class="line-input" placeholder="e.g. Dubai / Abu Dhabi" />
+            </div>
+            <div class="form-row-line">
+              <span class="line-label">Counsellor Name:</span>
+              <input type="text" v-model="form.counsellor_name" class="line-input" placeholder="Counsellor Name" />
+            </div>
+          </div>
+
+          <div class="form-row-line full-width">
+            <span class="line-label">Country Applying From:</span>
+            <input type="text" v-model="form.country_applying_from" class="line-input" placeholder="Country Applying From" />
+          </div>
+
+          <div class="form-row-line full-width">
+            <span class="line-label">Country Applying For:</span>
+            <input type="text" v-model="form.country_applying_for" class="line-input" placeholder="Country Applying For" />
+          </div>
+
+          <div class="form-row-line full-width">
+            <span class="line-label">Applying Category:</span>
+            <input type="text" v-model="form.applying_category" class="line-input" placeholder="e.g. Innovator Founder, Skilled Worker, Golden Visa" />
+          </div>
+
+          <div class="form-row-line full-width">
+            <span class="line-label">Client Name:</span>
+            <input type="text" v-model="form.client_name" class="line-input" placeholder="Full Legal Client Name" />
+          </div>
+
+          <div class="grid-two-col">
+            <div class="form-row-line">
+              <span class="line-label">Nationality:</span>
+              <input type="text" v-model="form.nationality" class="line-input" placeholder="Nationality" />
+            </div>
+            <div class="form-row-line">
+              <span class="line-label">Date of Birth:</span>
+              <input type="date" v-model="form.dob" class="line-input" />
+            </div>
+          </div>
+
+          <div class="grid-two-col">
+            <div class="form-row-line">
+              <span class="line-label">Contact Number (Landline):</span>
+              <input type="text" v-model="form.contact_landline" class="line-input" placeholder="Landline" />
+            </div>
+            <div class="form-row-line">
+              <span class="line-label">(Mobile):</span>
+              <input type="text" v-model="form.contact_mobile" class="line-input" placeholder="Mobile Number" />
+            </div>
+          </div>
+
+          <div class="form-row-line full-width">
+            <span class="line-label">Email:</span>
+            <input type="email" v-model="form.email" class="line-input" placeholder="Client Email" />
+          </div>
+
+          <div class="form-row-line full-width" style="align-items: flex-start;">
+            <span class="line-label" style="padding-top: 6px;">Residential Address:</span>
+            <textarea v-model="form.residential_address" class="line-input" rows="2" placeholder="Full Residential Address"></textarea>
+          </div>
+
+          <div class="submission-time-box">
+            <span class="bold-text">Expected Time of Submission after registration:</span>
+            <div class="checkbox-group inline-group">
+              <label class="cb-label">
+                <input type="radio" value="8_weeks" v-model="form.expected_submission" />
+                <span>8 Weeks</span>
+              </label>
+              <label class="cb-label">
+                <input type="radio" value="12_weeks" v-model="form.expected_submission" />
+                <span>12 Weeks</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="page-footer-mark">CLIENT SUMMARY FORM | Page 1</div>
+        </section>
+
+        <!-- ═══════════════ PAGE 2: IMMIGRATION HISTORY ═══════════════ -->
+        <section v-show="currentTab === 'page2' || isPrinting" class="form-page" id="page-2">
+          <div class="section-banner">
+            <h3>Immigration Background/History</h3>
+          </div>
+
+          <table class="bordered-table">
+            <tbody>
+              <!-- 1 -->
+              <tr>
+                <td class="col-num">1</td>
+                <td class="col-content">
+                  <div class="q-title">Have you ever applied for any of the following Countries?</div>
+                  <div class="countries-checkbox-row">
+                    <label v-for="c in ['UK', 'Canada', 'USA', 'Australia', 'Europe']" :key="c" class="cb-label">
+                      <input type="checkbox" :value="c" v-model="form.q1_applied_countries" />
+                      <span>{{ c }}</span>
+                    </label>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- 2 -->
+              <tr>
+                <td class="col-num">2</td>
+                <td class="col-content">
+                  <div class="q-header-row">
+                    <span class="q-title">Have you ever been refused a visa for any country?</span>
+                    <div class="yes-no-group">
+                      <label class="cb-label"><input type="radio" value="yes" v-model="form.q2_refused_visa" /> Yes</label>
+                      <label class="cb-label"><input type="radio" value="no" v-model="form.q2_refused_visa" /> No</label>
+                    </div>
+                  </div>
+                  <div v-if="form.q2_refused_visa === 'yes'" class="q-subdetails animate-fade-in">
+                    <p class="sub-instruction">If yes – provide details:</p>
+                    <div class="grid-two-col">
+                      <div class="form-row-line">
+                        <span class="line-label">• Country of visa application:</span>
+                        <input type="text" v-model="form.q2_details.country" class="line-input" />
+                      </div>
+                      <div class="form-row-line">
+                        <span class="line-label">• Type of Visa refused:</span>
+                        <input type="text" v-model="form.q2_details.visa_type" class="line-input" />
+                      </div>
+                    </div>
+                    <div class="grid-two-col">
+                      <div class="form-row-line">
+                        <span class="line-label">• Date of Refusal:</span>
+                        <input type="date" v-model="form.q2_details.refusal_date" class="line-input" />
+                      </div>
+                      <div class="form-row-line">
+                        <span class="line-label">• Reason for Refusal:</span>
+                        <input type="text" v-model="form.q2_details.refusal_reason" class="line-input" />
+                      </div>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- 3 -->
+              <tr>
+                <td class="col-num">3</td>
+                <td class="col-content">
+                  <div class="q-header-row">
+                    <span class="q-title">Have you ever been overstayed in any country?</span>
+                    <div class="yes-no-group">
+                      <label class="cb-label"><input type="radio" value="yes" v-model="form.q3_overstayed" /> Yes</label>
+                      <label class="cb-label"><input type="radio" value="no" v-model="form.q3_overstayed" /> No</label>
+                    </div>
+                  </div>
+                  <div v-if="form.q3_overstayed === 'yes'" class="q-subdetails animate-fade-in">
+                    <div class="form-row-line full-width">
+                      <span class="line-label">If yes – provide the reason:</span>
+                      <input type="text" v-model="form.q3_details.reason" class="line-input" />
+                    </div>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- 4 -->
+              <tr>
+                <td class="col-num">4</td>
+                <td class="col-content">
+                  <div class="q-header-row">
+                    <span class="q-title">Have you been deported, removed, or otherwise required to leave any country in the last 10 years?</span>
+                    <div class="yes-no-group">
+                      <label class="cb-label"><input type="radio" value="yes" v-model="form.q4_deported" /> Yes</label>
+                      <label class="cb-label"><input type="radio" value="no" v-model="form.q4_deported" /> No</label>
+                    </div>
+                  </div>
+                  <div v-if="form.q4_deported === 'yes'" class="q-subdetails animate-fade-in">
+                    <p class="sub-instruction">If yes – provide details:</p>
+                    <div class="grid-two-col">
+                      <div class="form-row-line">
+                        <span class="line-label">• Country:</span>
+                        <input type="text" v-model="form.q4_details.country" class="line-input" />
+                      </div>
+                      <div class="form-row-line">
+                        <span class="line-label">• Date of deportation/removal:</span>
+                        <input type="date" v-model="form.q4_details.deportation_date" class="line-input" />
+                      </div>
+                    </div>
+                    <div class="grid-two-col">
+                      <div class="form-row-line">
+                        <span class="line-label">• The port or airport:</span>
+                        <input type="text" v-model="form.q4_details.port_airport" class="line-input" />
+                      </div>
+                      <div class="form-row-line">
+                        <span class="line-label">• Reason for deportation/removal:</span>
+                        <input type="text" v-model="form.q4_details.deportation_reason" class="line-input" />
+                      </div>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- 5 -->
+              <tr>
+                <td class="col-num">5</td>
+                <td class="col-content">
+                  <div class="q-header-row">
+                    <span class="q-title">Have you ever voluntarily elected to depart from any country?</span>
+                    <div class="yes-no-group">
+                      <label class="cb-label"><input type="radio" value="yes" v-model="form.q5_voluntary_depart" /> Yes</label>
+                      <label class="cb-label"><input type="radio" value="no" v-model="form.q5_voluntary_depart" /> No</label>
+                    </div>
+                  </div>
+                  <div v-if="form.q5_voluntary_depart === 'yes'" class="q-subdetails animate-fade-in">
+                    <p class="sub-instruction">If yes – provide details:</p>
+                    <div class="grid-two-col">
+                      <div class="form-row-line">
+                        <span class="line-label">• Date of departure (DD/MM/YYYY):</span>
+                        <input type="date" v-model="form.q5_details.departure_date" class="line-input" />
+                      </div>
+                      <div class="form-row-line">
+                        <span class="line-label">• Airport or port of departure:</span>
+                        <input type="text" v-model="form.q5_details.airport_port" class="line-input" />
+                      </div>
+                    </div>
+                    <div class="grid-two-col">
+                      <div class="form-row-line">
+                        <span class="line-label">• Immigration decision / served papers:</span>
+                        <input type="text" v-model="form.q5_details.decision_papers" class="line-input" />
+                      </div>
+                      <div class="form-row-line">
+                        <span class="line-label">• Reference number:</span>
+                        <input type="text" v-model="form.q5_details.ref_number" class="line-input" />
+                      </div>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- 6 -->
+              <tr>
+                <td class="col-num">6</td>
+                <td class="col-content">
+                  <div class="q-header-row">
+                    <span class="q-title">Are you, or have you been subject to, an exclusion order from any Country?</span>
+                    <div class="yes-no-group">
+                      <label class="cb-label"><input type="radio" value="yes" v-model="form.q6_exclusion_order" /> Yes</label>
+                      <label class="cb-label"><input type="radio" value="no" v-model="form.q6_exclusion_order" /> No</label>
+                    </div>
+                  </div>
+                  <div v-if="form.q6_exclusion_order === 'yes'" class="q-subdetails animate-fade-in">
+                    <p class="sub-instruction">If yes – provide details:</p>
+                    <div class="grid-three-col">
+                      <div class="form-row-line">
+                        <span class="line-label">• Date:</span>
+                        <input type="date" v-model="form.q6_details.date" class="line-input" />
+                      </div>
+                      <div class="form-row-line">
+                        <span class="line-label">• Reference Number:</span>
+                        <input type="text" v-model="form.q6_details.ref_number" class="line-input" />
+                      </div>
+                      <div class="form-row-line">
+                        <span class="line-label">• Reason:</span>
+                        <input type="text" v-model="form.q6_details.reason" class="line-input" />
+                      </div>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- 7 -->
+              <tr>
+                <td class="col-num">7</td>
+                <td class="col-content">
+                  <div class="q-header-row">
+                    <span class="q-title">Have you ever held work permit/UK National Insurance Number?</span>
+                    <div class="yes-no-group">
+                      <label class="cb-label"><input type="radio" value="yes" v-model="form.q7_work_permit_ni" /> Yes</label>
+                      <label class="cb-label"><input type="radio" value="no" v-model="form.q7_work_permit_ni" /> No</label>
+                    </div>
+                  </div>
+                  <div v-if="form.q7_work_permit_ni === 'yes'" class="q-subdetails animate-fade-in">
+                    <div class="form-row-line full-width">
+                      <span class="line-label">• National Insurance number:</span>
+                      <input type="text" v-model="form.q7_details.ni_number" class="line-input" placeholder="e.g. QQ 12 34 56 A" />
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="page-footer-mark">CLIENT SUMMARY FORM | Page 2</div>
+        </section>
+
+        <!-- ═══════════════ PAGE 3 & 4: BUSINESS BACKGROUND ═══════════════ -->
+        <section v-show="currentTab === 'page3' || isPrinting" class="form-page" id="page-3">
+          <div class="section-banner">
+            <h3>Business Background</h3>
+            <span class="banner-sub">(If any provide details, in case none - mark N/A. If the applicant going to use this business for visa application)</span>
+          </div>
+
+          <table class="bordered-table">
+            <tbody>
+              <!-- 8 -->
+              <tr>
+                <td class="col-num">8</td>
+                <td class="col-content">
+                  <div class="q-header-row">
+                    <span class="q-title">Do you own a business?</span>
+                    <div class="yes-no-group">
+                      <label class="cb-label"><input type="radio" value="yes" v-model="form.q8_own_business" /> Yes</label>
+                      <label class="cb-label"><input type="radio" value="no" v-model="form.q8_own_business" /> No</label>
+                    </div>
+                  </div>
+                  <div v-if="form.q8_own_business === 'yes'" class="q-subdetails animate-fade-in">
+                    <div class="sub-instruction">Legal Status of the Business:</div>
+                    <div class="checkbox-group inline-group" style="margin-top: 6px;">
+                      <label v-for="st in ['Sole Trader', 'Partnership', 'Limited Liability Company']" :key="st" class="cb-label">
+                        <input type="radio" :value="st" v-model="form.q8_legal_status" />
+                        <span>{{ st }}</span>
+                      </label>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- 9 & 10 -->
+              <tr>
+                <td class="col-num">9</td>
+                <td class="col-content">
+                  <div class="form-row-line full-width">
+                    <span class="line-label bold-text">Name of The Business:</span>
+                    <input type="text" v-model="form.q9_business_name" class="line-input" placeholder="Business name" />
+                  </div>
+                </td>
+              </tr>
+
+              <tr>
+                <td class="col-num">10</td>
+                <td class="col-content">
+                  <div class="form-row-line full-width">
+                    <span class="line-label bold-text">Business Establishment Date:</span>
+                    <input type="date" v-model="form.q10_est_date" class="line-input" />
+                  </div>
+                </td>
+              </tr>
+
+              <!-- 11 -->
+              <tr>
+                <td class="col-num">11</td>
+                <td class="col-content">
+                  <div class="q-title" style="margin-bottom: 8px;">List the name of Partners/Directors and their Shares</div>
+                  <div class="subtable-wrapper">
+                    <table class="nested-table">
+                      <thead>
+                        <tr>
+                          <th style="width: 50px;">#</th>
+                          <th>Partners / Directors</th>
+                          <th style="width: 140px;">Shares (%)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="(p, idx) in form.q11_partners_shares" :key="idx">
+                          <td style="text-align: center; color: #64748b;">{{ idx + 1 }}.</td>
+                          <td>
+                            <input type="text" v-model="p.partner" class="table-cell-input" placeholder="Partner / Director Name" />
+                          </td>
+                          <td>
+                            <input type="text" v-model="p.shares" class="table-cell-input" placeholder="e.g. 50%" />
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- 12 -->
+              <tr>
+                <td class="col-num">12</td>
+                <td class="col-content">
+                  <div class="form-row-line full-width">
+                    <span class="line-label bold-text">Nature Of Business:</span>
+                    <input type="text" v-model="form.q12_nature_of_business" class="line-input" placeholder="e.g. Software Development / E-commerce / Consulting" />
+                  </div>
+                </td>
+              </tr>
+
+              <!-- 13 -->
+              <tr>
+                <td class="col-num">13</td>
+                <td class="col-content">
+                  <div class="q-title" style="margin-bottom: 8px;">Business Documents Available / Provided:</div>
+                  <div class="grid-two-col checklist-grid">
+                    <label class="cb-label"><input type="checkbox" v-model="form.q13_business_docs.company_profile" /> Company Profile</label>
+                    <label class="cb-label"><input type="checkbox" v-model="form.q13_business_docs.ntn_license" /> NTN/Professional License Number</label>
+                    <label class="cb-label"><input type="checkbox" v-model="form.q13_business_docs.tax_returns" /> Tax Returns</label>
+                    <label class="cb-label"><input type="checkbox" v-model="form.q13_business_docs.audit_reports" /> Audit Reports</label>
+                    <label class="cb-label"><input type="checkbox" v-model="form.q13_business_docs.business_registration" /> Business Registration Documents</label>
+                    <label class="cb-label"><input type="checkbox" v-model="form.q13_business_docs.business_accreditation" /> Business Accreditation Documents</label>
+                    <label class="cb-label"><input type="checkbox" v-model="form.q13_business_docs.professional_membership" /> Professional Membership</label>
+                    <label class="cb-label"><input type="checkbox" v-model="form.q13_business_docs.premises_documents" /> Business Premises Documents</label>
+                    <label class="cb-label"><input type="checkbox" v-model="form.q13_business_docs.sales_purchase_invoices" /> Sales & Purchase Invoices</label>
+                    <label class="cb-label"><input type="checkbox" v-model="form.q13_business_docs.bank_confirmation_letter" /> Letter from Bank Confirming business</label>
+                    <label class="cb-label"><input type="checkbox" v-model="form.q13_business_docs.business_bank_statements" /> Business Bank Statements</label>
+                    <label class="cb-label"><input type="checkbox" v-model="form.q13_business_docs.appreciation_letter" /> Letter of appreciation</label>
+                    <label class="cb-label"><input type="checkbox" v-model="form.q13_business_docs.import_export_docs" /> Import/Export Documents</label>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- 14 -->
+              <tr>
+                <td class="col-num">14</td>
+                <td class="col-content">
+                  <div class="q-title">Any Other Related Business Documents:</div>
+                  <div class="sub-instruction" style="margin-bottom: 6px;">(Any other documents applicant may believe will be supporting for application)</div>
+                  <textarea v-model="form.q14_other_business_docs" class="form-control" rows="2" placeholder="List any other relevant documents..."></textarea>
+                </td>
+              </tr>
+
+              <!-- 15 -->
+              <tr>
+                <td class="col-num">15</td>
+                <td class="col-content">
+                  <div class="q-title" style="margin-bottom: 6px;">Brief Description of Products & Services:</div>
+                  <textarea v-model="form.q15_products_services_desc" class="form-control" rows="3" placeholder="Describe the products, services, value proposition, and customer base..."></textarea>
+                </td>
+              </tr>
+
+              <!-- 16 -->
+              <tr>
+                <td class="col-num">16</td>
+                <td class="col-content">
+                  <div class="q-title">If the applicant has multiple businesses, please provide details below:</div>
+                  <div class="sub-instruction" style="margin-bottom: 6px;">Please give details about business name, description, activity, AND shareholders.</div>
+                  <textarea v-model="form.q16_multiple_businesses" class="form-control" rows="3" placeholder="Additional businesses details..."></textarea>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="page-footer-mark">CLIENT SUMMARY FORM | Page 3 & 4</div>
+        </section>
+
+        <!-- ═══════════════ PAGE 4 & 5: EMPLOYMENT BACKGROUND ═══════════════ -->
+        <section v-show="currentTab === 'page4' || isPrinting" class="form-page" id="page-4">
+          <div class="section-banner">
+            <h3>Employment Background</h3>
+            <span class="banner-sub">(If any provide details, in case none - mark N/A)</span>
+          </div>
+
+          <!-- Current Employment -->
+          <div class="subsection-header">Current Employment</div>
+          <table class="bordered-table">
+            <tbody>
+              <tr>
+                <td class="col-num">17</td>
+                <td class="col-content">
+                  <div class="form-row-line full-width">
+                    <span class="line-label bold-text">Name of the Current Employer:</span>
+                    <input type="text" v-model="form.q17_current_employer" class="line-input" />
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td class="col-num">18</td>
+                <td class="col-content">
+                  <div class="form-row-line full-width">
+                    <span class="line-label bold-text">Current Designation:</span>
+                    <input type="text" v-model="form.q18_current_designation" class="line-input" />
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td class="col-num">19</td>
+                <td class="col-content">
+                  <div class="form-row-line full-width">
+                    <span class="line-label bold-text">Number of years of Employment at this company:</span>
+                    <input type="text" v-model="form.q19_current_years" class="line-input" placeholder="e.g. 4 years (2020 - Present)" />
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td class="col-num">20</td>
+                <td class="col-content">
+                  <div class="q-title" style="margin-bottom: 6px;">Brief Job Description:</div>
+                  <textarea v-model="form.q20_current_job_desc" class="form-control" rows="2" placeholder="Key responsibilities and day-to-day duties..."></textarea>
+                </td>
+              </tr>
+              <tr>
+                <td class="col-num">21</td>
+                <td class="col-content">
+                  <div class="form-row-line full-width">
+                    <span class="line-label bold-text">Area of Expertise:</span>
+                    <input type="text" v-model="form.q21_current_expertise" class="line-input" placeholder="e.g. Strategic Management, Operations, AI Development" />
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- Previous Employment 1 -->
+          <div class="subsection-header" style="margin-top: 20px;">Previous Employment (Role 1)</div>
+          <table class="bordered-table">
+            <tbody>
+              <tr>
+                <td class="col-num">22</td>
+                <td class="col-content">
+                  <div class="form-row-line full-width">
+                    <span class="line-label bold-text">Name of the Previous Employer:</span>
+                    <input type="text" v-model="form.q22_prev1_employer" class="line-input" />
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td class="col-num">23</td>
+                <td class="col-content">
+                  <div class="form-row-line full-width">
+                    <span class="line-label bold-text">Designation:</span>
+                    <input type="text" v-model="form.q23_prev1_designation" class="line-input" />
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td class="col-num">24</td>
+                <td class="col-content">
+                  <div class="form-row-line full-width">
+                    <span class="line-label bold-text">Number of years of Employment / Worked Since-Till:</span>
+                    <input type="text" v-model="form.q24_prev1_years_worked" class="line-input" placeholder="e.g. 2017 - 2020 (3 years)" />
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td class="col-num">25</td>
+                <td class="col-content">
+                  <div class="q-title" style="margin-bottom: 6px;">Brief Job Description:</div>
+                  <textarea v-model="form.q25_prev1_job_desc" class="form-control" rows="2" placeholder="Responsibilities..."></textarea>
+                </td>
+              </tr>
+              <tr>
+                <td class="col-num">26</td>
+                <td class="col-content">
+                  <div class="form-row-line full-width">
+                    <span class="line-label bold-text">Area of Expertise:</span>
+                    <input type="text" v-model="form.q26_prev1_expertise" class="line-input" />
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- Previous Employment 2 -->
+          <div class="subsection-header" style="margin-top: 20px;">Previous Employment (Role 2)</div>
+          <table class="bordered-table">
+            <tbody>
+              <tr>
+                <td class="col-num">27</td>
+                <td class="col-content">
+                  <div class="form-row-line full-width">
+                    <span class="line-label bold-text">Name of the Previous Employer:</span>
+                    <input type="text" v-model="form.q27_prev2_employer" class="line-input" />
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td class="col-num">28</td>
+                <td class="col-content">
+                  <div class="form-row-line full-width">
+                    <span class="line-label bold-text">Designation:</span>
+                    <input type="text" v-model="form.q28_prev2_designation" class="line-input" />
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td class="col-num">29</td>
+                <td class="col-content">
+                  <div class="form-row-line full-width">
+                    <span class="line-label bold-text">Number of years of Employment / Worked Since-Till:</span>
+                    <input type="text" v-model="form.q29_prev2_years_worked" class="line-input" />
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td class="col-num">30</td>
+                <td class="col-content">
+                  <div class="q-title" style="margin-bottom: 6px;">Brief Job Description:</div>
+                  <textarea v-model="form.q30_prev2_job_desc" class="form-control" rows="2" placeholder="Responsibilities..."></textarea>
+                </td>
+              </tr>
+              <tr>
+                <td class="col-num">31</td>
+                <td class="col-content">
+                  <div class="form-row-line full-width">
+                    <span class="line-label bold-text">Area of Expertise:</span>
+                    <input type="text" v-model="form.q31_prev2_expertise" class="line-input" />
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="page-footer-mark">CLIENT SUMMARY FORM | Page 4 & 5</div>
+        </section>
+
+        <!-- ═══════════════ PAGE 5 & 6: PERSONAL & FAMILY BACKGROUND ═══════════════ -->
+        <section v-show="currentTab === 'page5' || isPrinting" class="form-page" id="page-5">
+          <div class="section-banner">
+            <h3>Personal/Family Background</h3>
+          </div>
+
+          <table class="bordered-table">
+            <tbody>
+              <!-- 32 -->
+              <tr>
+                <td class="col-num">32</td>
+                <td class="col-content">
+                  <div class="q-header-row">
+                    <span class="q-title">Do you currently hold, or have you ever held, any other Nationality/Nationalities?</span>
+                    <div class="yes-no-group">
+                      <label class="cb-label"><input type="radio" value="yes" v-model="form.q32_other_nationality" /> Yes</label>
+                      <label class="cb-label"><input type="radio" value="no" v-model="form.q32_other_nationality" /> No</label>
+                    </div>
+                  </div>
+                  <div v-if="form.q32_other_nationality === 'yes'" class="q-subdetails animate-fade-in">
+                    <div class="form-row-line full-width">
+                      <span class="line-label">• Name of the Country:</span>
+                      <input type="text" v-model="form.q32_details.country" class="line-input" />
+                    </div>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- 33 -->
+              <tr>
+                <td class="col-num">33</td>
+                <td class="col-content">
+                  <div class="form-row-line full-width">
+                    <span class="line-label bold-text">Place of issue of your Passport:</span>
+                    <input type="text" v-model="form.q33_passport_issue_place" class="line-input" placeholder="e.g. London / Dubai / Islamabad" />
+                  </div>
+                </td>
+              </tr>
+
+              <!-- 34 -->
+              <tr>
+                <td class="col-num">34</td>
+                <td class="col-content">
+                  <div class="form-row-line full-width">
+                    <span class="line-label bold-text">How long have you lived at your current address?</span>
+                    <input type="text" v-model="form.q34_address_duration" class="line-input" placeholder="e.g. 5 Years" />
+                  </div>
+                </td>
+              </tr>
+
+              <!-- 35 -->
+              <tr>
+                <td class="col-num">35</td>
+                <td class="col-content">
+                  <div class="q-header-row">
+                    <span class="q-title">Do you have any criminal convictions in any country (including spent/unspent convictions and traffic offences)?</span>
+                    <div class="yes-no-group">
+                      <label class="cb-label"><input type="radio" value="yes" v-model="form.q35_criminal_convictions" /> Yes</label>
+                      <label class="cb-label"><input type="radio" value="no" v-model="form.q35_criminal_convictions" /> No</label>
+                    </div>
+                  </div>
+                  <div v-if="form.q35_criminal_convictions === 'yes'" class="q-subdetails animate-fade-in">
+                    <textarea v-model="form.q35_details" class="form-control" rows="2" placeholder="Provide full details of convictions..."></textarea>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- 36 -->
+              <tr>
+                <td class="col-num">36</td>
+                <td class="col-content">
+                  <div class="q-header-row">
+                    <span class="q-title">Have you ever been charged in any country with a criminal offence for which you have not yet been tried in the court (including traffic offences)?</span>
+                    <div class="yes-no-group">
+                      <label class="cb-label"><input type="radio" value="yes" v-model="form.q36_criminal_charges" /> Yes</label>
+                      <label class="cb-label"><input type="radio" value="no" v-model="form.q36_criminal_charges" /> No</label>
+                    </div>
+                  </div>
+                  <div v-if="form.q36_criminal_charges === 'yes'" class="q-subdetails animate-fade-in">
+                    <textarea v-model="form.q36_details" class="form-control" rows="2" placeholder="Provide full details of charges..."></textarea>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- 37 -->
+              <tr>
+                <td class="col-num">37</td>
+                <td class="col-content">
+                  <div class="q-header-row">
+                    <span class="q-title">Will your spouse/partner/dependent be applying with you?</span>
+                    <div class="yes-no-group">
+                      <label class="cb-label"><input type="radio" value="yes" v-model="form.q37_spouse_dependents_applying" /> Yes</label>
+                      <label class="cb-label"><input type="radio" value="no" v-model="form.q37_spouse_dependents_applying" /> No</label>
+                    </div>
+                  </div>
+                  <div v-if="form.q37_spouse_dependents_applying === 'yes'" class="q-subdetails animate-fade-in">
+                    <div class="form-row-line full-width">
+                      <span class="line-label">• Name of the Spouse:</span>
+                      <input type="text" v-model="form.q37_details.spouse_name" class="line-input" />
+                    </div>
+                    <div class="form-row-line full-width" style="margin-top: 6px;">
+                      <span class="line-label">• Number of Dependents and Names:</span>
+                      <input type="text" v-model="form.q37_details.dependents_count_names" class="line-input" placeholder="e.g. 2 Dependents: Sarah (daughter, age 6), Adam (son, age 4)" />
+                    </div>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- 38 -->
+              <tr>
+                <td class="col-num">38</td>
+                <td class="col-content">
+                  <div class="q-header-row">
+                    <span class="q-title">Does your spouse / partner currently live with you?</span>
+                    <div class="yes-no-group">
+                      <label class="cb-label"><input type="radio" value="yes" v-model="form.q38_spouse_live_with_you" /> Yes</label>
+                      <label class="cb-label"><input type="radio" value="no" v-model="form.q38_spouse_live_with_you" /> No</label>
+                    </div>
+                  </div>
+                  <div v-if="form.q38_spouse_live_with_you === 'no'" class="q-subdetails animate-fade-in">
+                    <div class="form-row-line full-width">
+                      <span class="line-label">• Address and contact details:</span>
+                      <input type="text" v-model="form.q38_details.address_contact" class="line-input" />
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- 39: Parents of Main Applicant -->
+          <div class="subsection-header" style="margin-top: 24px;">
+            39. Provide the following details of your parents (Father and Mother of the main applicant)
+          </div>
+          <table class="parents-table">
+            <thead>
+              <tr>
+                <th style="width: 25%;">Field</th>
+                <th style="width: 37.5%;">Father</th>
+                <th style="width: 37.5%;">Mother</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="field-title">Given Name</td>
+                <td><input type="text" v-model="form.q39_parents_details.father.given_name" class="table-cell-input" /></td>
+                <td><input type="text" v-model="form.q39_parents_details.mother.given_name" class="table-cell-input" /></td>
+              </tr>
+              <tr>
+                <td class="field-title">Family Name</td>
+                <td><input type="text" v-model="form.q39_parents_details.father.family_name" class="table-cell-input" /></td>
+                <td><input type="text" v-model="form.q39_parents_details.mother.family_name" class="table-cell-input" /></td>
+              </tr>
+              <tr>
+                <td class="field-title">Date of Birth</td>
+                <td><input type="date" v-model="form.q39_parents_details.father.dob" class="table-cell-input" /></td>
+                <td><input type="date" v-model="form.q39_parents_details.mother.dob" class="table-cell-input" /></td>
+              </tr>
+              <tr>
+                <td class="field-title">Place of Birth (City & Country)</td>
+                <td><input type="text" v-model="form.q39_parents_details.father.birth_place" class="table-cell-input" /></td>
+                <td><input type="text" v-model="form.q39_parents_details.mother.birth_place" class="table-cell-input" /></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- 40: Spouse's Parents -->
+          <div class="subsection-header" style="margin-top: 24px;">
+            40. Provide the following details of spouse’s parents (Father and Mother of the main applicant’s spouse)
+          </div>
+          <table class="parents-table">
+            <thead>
+              <tr>
+                <th style="width: 25%;">Field</th>
+                <th style="width: 37.5%;">Father</th>
+                <th style="width: 37.5%;">Mother</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="field-title">Given Name</td>
+                <td><input type="text" v-model="form.q40_spouse_parents_details.father.given_name" class="table-cell-input" /></td>
+                <td><input type="text" v-model="form.q40_spouse_parents_details.mother.given_name" class="table-cell-input" /></td>
+              </tr>
+              <tr>
+                <td class="field-title">Family Name</td>
+                <td><input type="text" v-model="form.q40_spouse_parents_details.father.family_name" class="table-cell-input" /></td>
+                <td><input type="text" v-model="form.q40_spouse_parents_details.mother.family_name" class="table-cell-input" /></td>
+              </tr>
+              <tr>
+                <td class="field-title">Date of Birth</td>
+                <td><input type="date" v-model="form.q40_spouse_parents_details.father.dob" class="table-cell-input" /></td>
+                <td><input type="date" v-model="form.q40_spouse_parents_details.mother.dob" class="table-cell-input" /></td>
+              </tr>
+              <tr>
+                <td class="field-title">Place of Birth (City & Country)</td>
+                <td><input type="text" v-model="form.q40_spouse_parents_details.father.birth_place" class="table-cell-input" /></td>
+                <td><input type="text" v-model="form.q40_spouse_parents_details.mother.birth_place" class="table-cell-input" /></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- 41: Medical Treatment -->
+          <div class="subsection-header" style="margin-top: 24px;">41. Medical Treatment</div>
+          <table class="bordered-table">
+            <tbody>
+              <tr>
+                <td class="col-num">41</td>
+                <td class="col-content">
+                  <div class="q-header-row">
+                    <span class="q-title">Have you ever received medical treatment in the UK or any other Country (out of your residence)?</span>
+                    <div class="yes-no-group">
+                      <label class="cb-label"><input type="radio" value="yes" v-model="form.q41_medical_treatment" /> Yes</label>
+                      <label class="cb-label"><input type="radio" value="no" v-model="form.q41_medical_treatment" /> No</label>
+                    </div>
+                  </div>
+                  <div v-if="form.q41_medical_treatment === 'yes'" class="q-subdetails animate-fade-in">
+                    <p class="sub-instruction">If yes – provide details:</p>
+                    <div class="q-header-row" style="margin-bottom: 8px;">
+                      <span>• Did you have to pay for the treatment?</span>
+                      <div class="yes-no-group">
+                        <label class="cb-label"><input type="radio" value="yes" v-model="form.q41_details.pay_for_treatment" /> Yes</label>
+                        <label class="cb-label"><input type="radio" value="no" v-model="form.q41_details.pay_for_treatment" /> No</label>
+                      </div>
+                    </div>
+                    <div class="form-row-line full-width">
+                      <span class="line-label">• Facility address and contact details:</span>
+                      <input type="text" v-model="form.q41_details.facility_address_contact" class="line-input" />
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="page-footer-mark">CLIENT SUMMARY FORM | Page 5 & 6</div>
+        </section>
+
+        <!-- ═══════════════ PAGE 6 & 7: ACADEMIC BACKGROUND ═══════════════ -->
+        <section v-show="currentTab === 'page6' || isPrinting" class="form-page" id="page-6">
+          <div class="section-banner">
+            <h3>Academic Background</h3>
+          </div>
+
+          <!-- 42: Education -->
+          <div class="subsection-header">42. Education</div>
+          <table class="bordered-table">
+            <tbody>
+              <!-- PHD -->
+              <tr>
+                <td class="col-num">
+                  <input type="checkbox" v-model="form.q42_education.phd.checked" />
+                </td>
+                <td class="col-content">
+                  <div class="grid-two-col">
+                    <div class="form-row-line">
+                      <span class="line-label bold-text">PHD — Name of Institute:</span>
+                      <input type="text" v-model="form.q42_education.phd.institute" class="line-input" />
+                    </div>
+                    <div class="form-row-line">
+                      <span class="line-label bold-text">Year of Award:</span>
+                      <input type="text" v-model="form.q42_education.phd.year" class="line-input" style="max-width: 140px;" />
+                    </div>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Masters -->
+              <tr>
+                <td class="col-num">
+                  <input type="checkbox" v-model="form.q42_education.masters.checked" />
+                </td>
+                <td class="col-content">
+                  <div class="grid-two-col">
+                    <div class="form-row-line">
+                      <span class="line-label bold-text">Masters — Name of Institute:</span>
+                      <input type="text" v-model="form.q42_education.masters.institute" class="line-input" />
+                    </div>
+                    <div class="form-row-line">
+                      <span class="line-label bold-text">Year of Award:</span>
+                      <input type="text" v-model="form.q42_education.masters.year" class="line-input" style="max-width: 140px;" />
+                    </div>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Post Graduate Diploma -->
+              <tr>
+                <td class="col-num">
+                  <input type="checkbox" v-model="form.q42_education.post_grad_diploma.checked" />
+                </td>
+                <td class="col-content">
+                  <div class="grid-two-col">
+                    <div class="form-row-line">
+                      <span class="line-label bold-text">Post Graduate Diploma — Name of Institute:</span>
+                      <input type="text" v-model="form.q42_education.post_grad_diploma.institute" class="line-input" />
+                    </div>
+                    <div class="form-row-line">
+                      <span class="line-label bold-text">Year of Award:</span>
+                      <input type="text" v-model="form.q42_education.post_grad_diploma.year" class="line-input" style="max-width: 140px;" />
+                    </div>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Bachelor's Degree -->
+              <tr>
+                <td class="col-num">
+                  <input type="checkbox" v-model="form.q42_education.bachelors.checked" />
+                </td>
+                <td class="col-content">
+                  <div class="grid-two-col">
+                    <div class="form-row-line">
+                      <span class="line-label bold-text">Bachelor’s Degree — Name of Institute:</span>
+                      <input type="text" v-model="form.q42_education.bachelors.institute" class="line-input" />
+                    </div>
+                    <div class="form-row-line">
+                      <span class="line-label bold-text">Year of Award:</span>
+                      <input type="text" v-model="form.q42_education.bachelors.year" class="line-input" style="max-width: 140px;" />
+                    </div>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Higher Secondary / A Levels -->
+              <tr>
+                <td class="col-num">
+                  <input type="checkbox" v-model="form.q42_education.higher_secondary.checked" />
+                </td>
+                <td class="col-content">
+                  <div class="grid-two-col">
+                    <div class="form-row-line">
+                      <span class="line-label bold-text">Higher Secondary / A Levels — Name of Institute:</span>
+                      <input type="text" v-model="form.q42_education.higher_secondary.institute" class="line-input" />
+                    </div>
+                    <div class="form-row-line">
+                      <span class="line-label bold-text">Year of Award:</span>
+                      <input type="text" v-model="form.q42_education.higher_secondary.year" class="line-input" style="max-width: 140px;" />
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- 43: Professional Courses/Certificates -->
+          <div class="subsection-header" style="margin-top: 24px;">43. Professional Courses/Certificates</div>
+          <table class="bordered-table">
+            <tbody>
+              <tr>
+                <td class="col-num">43</td>
+                <td class="col-content">
+                  <div class="bullet-inputs-col">
+                    <div v-for="(_, i) in form.q43_prof_courses" :key="i" class="bullet-input-row">
+                      <span class="bullet-dot">•</span>
+                      <input type="text" v-model="form.q43_prof_courses[i]" class="line-input" :placeholder="`Course / Certificate ${i + 1}`" />
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- 44: Professional Memberships -->
+          <div class="subsection-header" style="margin-top: 24px;">44. Professional Memberships</div>
+          <table class="bordered-table">
+            <tbody>
+              <tr>
+                <td class="col-num">44</td>
+                <td class="col-content">
+                  <div class="bullet-inputs-col">
+                    <div v-for="(_, i) in form.q44_prof_memberships" :key="i" class="bullet-input-row">
+                      <span class="bullet-dot">•</span>
+                      <input type="text" v-model="form.q44_prof_memberships[i]" class="line-input" :placeholder="`Professional Membership ${i + 1}`" />
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- 45: Other Achievements -->
+          <div class="subsection-header" style="margin-top: 24px;">45. Other Achievements</div>
+          <table class="bordered-table">
+            <tbody>
+              <tr>
+                <td class="col-num">45</td>
+                <td class="col-content">
+                  <div class="bullet-inputs-col">
+                    <div v-for="(_, i) in form.q45_other_achievements" :key="i" class="bullet-input-row">
+                      <span class="bullet-dot">•</span>
+                      <input type="text" v-model="form.q45_other_achievements[i]" class="line-input" :placeholder="`Achievement ${i + 1}`" />
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="page-footer-mark">CLIENT SUMMARY FORM | Page 6 & 7</div>
+        </section>
+
+        <!-- ═══════════════ PAGE 8: FINANCIALS ═══════════════ -->
+        <section v-show="currentTab === 'page7' || isPrinting" class="form-page" id="page-7">
+          <div class="section-banner">
+            <h3>Financials</h3>
+          </div>
+
+          <table class="bordered-table">
+            <tbody>
+              <!-- 46 -->
+              <tr>
+                <td class="col-num">46</td>
+                <td class="col-content">
+                  <div class="q-title" style="margin-bottom: 6px;">Personal Bank Statements:</div>
+                  <div class="checkbox-group inline-group" style="margin-bottom: 12px;">
+                    <label class="cb-label">
+                      <input type="checkbox" v-model="form.q46_bank_statements.individual" />
+                      <span>Individual Account</span>
+                    </label>
+                    <label class="cb-label">
+                      <input type="checkbox" v-model="form.q46_bank_statements.joint" />
+                      <span>Joint Account</span>
+                    </label>
+                  </div>
+
+                  <div class="q-title" style="margin-bottom: 6px;">Category of Application:</div>
+                  <div class="checkbox-group inline-group flex-wrap">
+                    <label v-for="cat in ['Innovator', 'Global Business Mobility', 'Portugal D2/D7/D8', 'Isle of Man', 'Ireland', 'Denmark', 'France']" :key="cat" class="cb-label">
+                      <input type="checkbox" :value="cat" v-model="form.q46_categories" />
+                      <span>{{ cat }}</span>
+                    </label>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- 47 -->
+              <tr>
+                <td class="col-num">47</td>
+                <td class="col-content">
+                  <div class="q-title" style="margin-bottom: 8px;">Availability of Investment Funds:</div>
+                  <div class="bullet-checkboxes">
+                    <label class="cb-label block-cb">
+                      <input type="checkbox" v-model="form.q47_investment_funds.own_funds" />
+                      <span>Own Funds (Maintained 90 days)</span>
+                    </label>
+
+                    <div style="margin-left: 20px; display: flex; flex-direction: column; gap: 6px; margin-top: 4px; margin-bottom: 6px;">
+                      <span class="sub-instruction">• Third Party Funds:</span>
+                      <label class="cb-label block-cb" style="margin-left: 12px;">
+                        <input type="checkbox" v-model="form.q47_investment_funds.third_party_individual" />
+                        <span>Funded by Individuals</span>
+                      </label>
+                      <label class="cb-label block-cb" style="margin-left: 12px;">
+                        <input type="checkbox" v-model="form.q47_investment_funds.third_party_company" />
+                        <span>Funded by Company</span>
+                      </label>
+                    </div>
+
+                    <label class="cb-label block-cb">
+                      <input type="checkbox" v-model="form.q47_investment_funds.agree_endorsing_fee" />
+                      <span>Agree to pay endorsing body Fee</span>
+                    </label>
+
+                    <label class="cb-label block-cb">
+                      <input type="checkbox" v-model="form.q47_investment_funds.agree_visa_ihs_fee" />
+                      <span>Agree to pay visa fee and Immigration Healthcare Surcharge/Insurance</span>
+                    </label>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- 48 -->
+              <tr>
+                <td class="col-num">48</td>
+                <td class="col-content">
+                  <div class="q-title">Source of Funds:</div>
+                  <div class="sub-instruction" style="margin-bottom: 6px;">
+                    (Kindly furnish information about the origin of the funds. This may include sources such as inheritance, asset sales, gifts, savings, or others. Please provide documentary evidence to support this.)
+                  </div>
+                  <textarea v-model="form.q48_source_of_funds" class="form-control" rows="3" placeholder="Explain the origin and breakdown of funds..."></textarea>
+                </td>
+              </tr>
+
+              <!-- 49 -->
+              <tr>
+                <td class="col-num">49</td>
+                <td class="col-content">
+                  <div class="q-title">Maintenance Funds:</div>
+                  <div class="sub-instruction" style="margin-bottom: 8px;">Applicant will maintain funds as per the schedule appurtenant:</div>
+                  <div class="maintenance-funds-grid">
+                    <label class="cb-label block-cb">
+                      <input type="checkbox" v-model="form.q49_maintenance_funds.applicant" />
+                      <span>Applicant - £1,270</span>
+                    </label>
+                    <label class="cb-label block-cb">
+                      <input type="checkbox" v-model="form.q49_maintenance_funds.spouse" />
+                      <span>Spouse/Partner - £285</span>
+                    </label>
+                    <label class="cb-label block-cb">
+                      <input type="checkbox" v-model="form.q49_maintenance_funds.first_child" />
+                      <span>First Child - £315</span>
+                    </label>
+                    <label class="cb-label block-cb">
+                      <input type="checkbox" v-model="form.q49_maintenance_funds.additional_child" />
+                      <span>Additional Child - £200</span>
+                    </label>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- 50 -->
+              <tr>
+                <td class="col-num">50</td>
+                <td class="col-content">
+                  <div class="q-title" style="margin-bottom: 6px;">English Language Proficiency:</div>
+                  <textarea v-model="form.q50_english_proficiency" class="form-control" rows="2" placeholder="e.g. IELTS UKVI 6.5, Degree taught in English, or Ecctis Certified"></textarea>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="page-footer-mark">CLIENT SUMMARY FORM | Page 8</div>
+        </section>
+
+        <!-- ═══════════════ PAGE 9: ACTION PLAN & SIGNATURES ═══════════════ -->
+        <section v-show="currentTab === 'page8' || isPrinting" class="form-page" id="page-9">
+          <!-- Course of Action for Business Plan -->
+          <div class="section-banner">
+            <h3>Course of Action for Business Plan:</h3>
+          </div>
+          <div class="action-box">
+            <textarea
+              v-model="form.course_of_action_business_plan"
+              class="form-control box-textarea"
+              rows="6"
+              placeholder="Outline the course of action for business plan drafting, market research, financial forecasting, and endorsement preparation..."
+            ></textarea>
+          </div>
+
+          <!-- Course of Action for Application -->
+          <div class="section-banner" style="margin-top: 24px;">
+            <h3>Course of Action for Application: (Complete Case Summary)</h3>
+          </div>
+          <div class="action-box">
+            <textarea
+              v-model="form.course_of_action_application"
+              class="form-control box-textarea"
+              rows="6"
+              placeholder="Comprehensive summary of the case, procedural roadmap, milestones, document checklist, and anticipated submission timeline..."
+            ></textarea>
+          </div>
+
+          <!-- Signatures Section -->
+          <div class="signatures-wrapper">
+            <div class="sig-block">
+              <div class="sig-line">
+                <input
+                  type="text"
+                  v-model="form.applicant_signature.name"
+                  class="sig-name-input"
+                  placeholder="Applicant Name"
+                />
+              </div>
+              <div class="sig-title">Signed by Applicant</div>
+              <div class="sig-date-row">
+                <span>Date:</span>
+                <input type="date" v-model="form.applicant_signature.date" class="line-input sig-date-input" />
+              </div>
+            </div>
+
+            <div class="sig-block">
+              <div class="sig-line">
+                <input
+                  type="text"
+                  v-model="form.counselor_signature.name"
+                  class="sig-name-input"
+                  placeholder="Counselor Name"
+                />
+              </div>
+              <div class="sig-title">Signed by Counselor</div>
+              <div class="sig-date-row">
+                <span>Date:</span>
+                <input type="date" v-model="form.counselor_signature.date" class="line-input sig-date-input" />
+              </div>
+            </div>
+          </div>
+
+          <div class="page-footer-mark">CLIENT SUMMARY FORM | Page 9</div>
+        </section>
+
+      </div>
+
+      <!-- Bottom Floating / Sticky Save Toolbar -->
+      <div class="floating-save-toolbar glass-card">
+        <div class="toolbar-left">
+          <span class="status-indicator" :class="summaryStatus === 'COMPLETED' ? 'dot-completed' : 'dot-draft'"></span>
+          <span>Status: <strong>{{ summaryStatus }}</strong></span>
+          <span v-if="lastSavedAt" class="text-muted small-text">• Last saved {{ formatTime(lastSavedAt) }}</span>
+        </div>
+        <div class="toolbar-right">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            :disabled="saving"
+            @click="saveSummary('DRAFT')"
+          >
+            {{ saving && savingMode === 'DRAFT' ? 'Saving…' : '💾 Save Draft' }}
+          </button>
+          <button
+            v-if="summaryStatus !== 'COMPLETED'"
+            type="button"
+            class="btn btn-primary"
+            :disabled="saving"
+            @click="saveSummary('COMPLETED')"
+          >
+            {{ saving && savingMode === 'COMPLETED' ? 'Completing…' : '✓ Mark Completed' }}
+          </button>
+          <button
+            v-else
+            type="button"
+            class="btn btn-secondary"
+            :disabled="saving"
+            @click="saveSummary('DRAFT')"
+          >
+            🔓 Reopen as Draft
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import axios from 'axios'
+import { useAuthStore } from '../stores/auth'
+
+const route  = useRoute()
+const router = useRouter()
+const auth   = useAuthStore()
+
+const apiBase = import.meta.env.VITE_API_BASE_URL || (typeof window !== 'undefined' && (window.location.protocol === 'https:' || (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')) ? '/api' : 'http://localhost:3001/api')
+
+function getHeaders() {
+  return {
+    Authorization: `Bearer ${auth.sessionToken}`,
+    'X-GHL-Context': auth.userContextToken || '',
+  }
+}
+
+// Contracts list state
+const completedContracts = ref([])
+const loadingContracts = ref(false)
+const searchQuery = ref('')
+const selectedContractId = ref('')
+const selectedContract = ref(null)
+const loadingContractData = ref(false)
+
+// Summary state
+const summaryStatus = ref('NOT_STARTED')
+const completedByName = ref('')
+const completedAt = ref(null)
+const lastSavedAt = ref(null)
+const saving = ref(false)
+const savingMode = ref('DRAFT')
+const isPrinting = ref(false)
+
+// Tabs navigation
+const currentTab = ref('page1')
+const formTabs = [
+  { id: 'page1', page: 'P1', title: 'General Info' },
+  { id: 'page2', page: 'P2', title: 'Immigration History' },
+  { id: 'page3', page: 'P3-4', title: 'Business Background' },
+  { id: 'page4', page: 'P4-5', title: 'Employment Background' },
+  { id: 'page5', page: 'P5-6', title: 'Personal & Family' },
+  { id: 'page6', page: 'P6-7', title: 'Academic Background' },
+  { id: 'page7', page: 'P8', title: 'Financials' },
+  { id: 'page8', page: 'P9', title: 'Action Plan & Signatures' },
+]
+
+// The reactive summary form data object
+const form = ref(getDefaultForm())
+
+function getDefaultForm() {
+  return {
+    reg_number: '',
+    reg_date: new Date().toISOString().slice(0, 10),
+    registered_at: 'Dubai',
+    counsellor_name: '',
+    country_applying_from: 'United Arab Emirates',
+    country_applying_for: '',
+    applying_category: '',
+    client_name: '',
+    nationality: '',
+    dob: '',
+    contact_landline: '',
+    contact_mobile: '',
+    email: '',
+    residential_address: '',
+    expected_submission: '8_weeks',
+
+    q1_applied_countries: [],
+    q2_refused_visa: 'no',
+    q2_details: { country: '', visa_type: '', refusal_date: '', refusal_reason: '' },
+    q3_overstayed: 'no',
+    q3_details: { reason: '' },
+    q4_deported: 'no',
+    q4_details: { country: '', deportation_date: '', port_airport: '', deportation_reason: '' },
+    q5_voluntary_depart: 'no',
+    q5_details: { departure_date: '', airport_port: '', decision_papers: '', ref_number: '' },
+    q6_exclusion_order: 'no',
+    q6_details: { date: '', ref_number: '', reason: '' },
+    q7_work_permit_ni: 'no',
+    q7_details: { ni_number: '' },
+
+    q8_own_business: 'no',
+    q8_legal_status: '',
+    q9_business_name: '',
+    q10_est_date: '',
+    q11_partners_shares: [
+      { partner: '', shares: '' },
+      { partner: '', shares: '' },
+      { partner: '', shares: '' },
+      { partner: '', shares: '' },
+      { partner: '', shares: '' },
+      { partner: '', shares: '' },
+    ],
+    q12_nature_of_business: '',
+    q13_business_docs: {
+      company_profile: false,
+      ntn_license: false,
+      tax_returns: false,
+      audit_reports: false,
+      business_registration: false,
+      business_accreditation: false,
+      professional_membership: false,
+      premises_documents: false,
+      sales_purchase_invoices: false,
+      bank_confirmation_letter: false,
+      business_bank_statements: false,
+      appreciation_letter: false,
+      import_export_docs: false,
+    },
+    q14_other_business_docs: '',
+    q15_products_services_desc: '',
+    q16_multiple_businesses: '',
+
+    q17_current_employer: '',
+    q18_current_designation: '',
+    q19_current_years: '',
+    q20_current_job_desc: '',
+    q21_current_expertise: '',
+
+    q22_prev1_employer: '',
+    q23_prev1_designation: '',
+    q24_prev1_years_worked: '',
+    q25_prev1_job_desc: '',
+    q26_prev1_expertise: '',
+
+    q27_prev2_employer: '',
+    q28_prev2_designation: '',
+    q29_prev2_years_worked: '',
+    q30_prev2_job_desc: '',
+    q31_prev2_expertise: '',
+
+    q32_other_nationality: 'no',
+    q32_details: { country: '' },
+    q33_passport_issue_place: '',
+    q34_address_duration: '',
+    q35_criminal_convictions: 'no',
+    q35_details: '',
+    q36_criminal_charges: 'no',
+    q36_details: '',
+    q37_spouse_dependents_applying: 'no',
+    q37_details: { spouse_name: '', dependents_count_names: '' },
+    q38_spouse_live_with_you: 'yes',
+    q38_details: { address_contact: '' },
+
+    q39_parents_details: {
+      father: { given_name: '', family_name: '', dob: '', birth_place: '' },
+      mother: { given_name: '', family_name: '', dob: '', birth_place: '' },
+    },
+    q40_spouse_parents_details: {
+      father: { given_name: '', family_name: '', dob: '', birth_place: '' },
+      mother: { given_name: '', family_name: '', dob: '', birth_place: '' },
+    },
+    q41_medical_treatment: 'no',
+    q41_details: { pay_for_treatment: 'no', facility_address_contact: '' },
+
+    q42_education: {
+      phd: { checked: false, institute: '', year: '' },
+      masters: { checked: false, institute: '', year: '' },
+      post_grad_diploma: { checked: false, institute: '', year: '' },
+      bachelors: { checked: false, institute: '', year: '' },
+      higher_secondary: { checked: false, institute: '', year: '' },
+    },
+
+    q43_prof_courses: ['', '', '', '', '', ''],
+    q44_prof_memberships: ['', '', ''],
+    q45_other_achievements: ['', ''],
+
+    q46_bank_statements: { individual: false, joint: false },
+    q46_categories: [],
+    q47_investment_funds: {
+      own_funds: false,
+      third_party_individual: false,
+      third_party_company: false,
+      agree_endorsing_fee: false,
+      agree_visa_ihs_fee: false,
+    },
+    q48_source_of_funds: '',
+    q49_maintenance_funds: {
+      applicant: false,
+      spouse: false,
+      first_child: false,
+      additional_child: false,
+    },
+    q50_english_proficiency: '',
+
+    course_of_action_business_plan: '',
+    course_of_action_application: '',
+    applicant_signature: { signed: false, name: '', date: '' },
+    counselor_signature: { signed: false, name: '', date: '' },
+  }
+}
+
+// Fetch completed contracts accessible to user
+async function fetchCompletedContracts(query = '') {
+  loadingContracts.value = true
+  try {
+    const params = { limit: 100 }
+    if (query && query.trim()) params.q = query.trim()
+    const res = await axios.get(`${apiBase}/client-summary/contracts`, {
+      headers: getHeaders(),
+      params,
+    })
+    completedContracts.value = res.data?.contracts || []
+  } catch (err) {
+    console.error('Fetch completed contracts error:', err)
+  } finally {
+    loadingContracts.value = false
+  }
+}
+
+let searchTimer = null
+function onSearchInput() {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    fetchCompletedContracts(searchQuery.value)
+  }, 350)
+}
+
+function clearSearch() {
+  searchQuery.value = ''
+  fetchCompletedContracts()
+}
+
+// Load a specific contract's summary
+async function loadSelectedContract() {
+  if (!selectedContractId.value) return
+  loadingContractData.value = true
+
+  // Update URL query parameter without full reload
+  router.replace({ query: { ...route.query, contractId: selectedContractId.value } })
+
+  try {
+    const res = await axios.get(`${apiBase}/client-summary/${selectedContractId.value}`, {
+      headers: getHeaders(),
+    })
+
+    const data = res.data
+    selectedContract.value = data.contract
+    summaryStatus.value = data.status || 'NOT_STARTED'
+    completedByName.value = data.completed_by_name || ''
+    completedAt.value = data.completed_at || null
+    lastSavedAt.value = data.updated_at || null
+
+    if (data.summary && Object.keys(data.summary).length > 0) {
+      form.value = { ...getDefaultForm(), ...data.summary }
+    } else {
+      form.value = getDefaultForm()
+    }
+  } catch (err) {
+    console.error('Load summary error:', err)
+    alert(err.response?.data?.message || err.response?.data?.error || 'Failed to load Client Summary for selected contract.')
+  } finally {
+    loadingContractData.value = false
+  }
+}
+
+// Save summary (DRAFT or COMPLETED)
+async function saveSummary(mode = 'DRAFT') {
+  if (!selectedContractId.value) return
+  saving.value = true
+  savingMode.value = mode
+
+  try {
+    const res = await axios.post(
+      `${apiBase}/client-summary/${selectedContractId.value}`,
+      {
+        summaryData: form.value,
+        status: mode,
+      },
+      { headers: getHeaders() }
+    )
+
+    summaryStatus.value = res.data.status
+    completedByName.value = res.data.completed_by_name || completedByName.value
+    completedAt.value = res.data.completed_at || completedAt.value
+    lastSavedAt.value = new Date().toISOString()
+
+    // Update status in completedContracts dropdown list
+    const found = completedContracts.value.find(c => c.id == selectedContractId.value)
+    if (found) {
+      found.summary_status = res.data.status
+    }
+
+    if (mode === 'COMPLETED') {
+      alert('✓ Client Summary has been marked as COMPLETED.')
+    }
+  } catch (err) {
+    console.error('Save summary error:', err)
+    alert(err.response?.data?.error || 'Failed to save Client Summary.')
+  } finally {
+    saving.value = false
+  }
+}
+
+function printDocument() {
+  isPrinting.value = true
+  setTimeout(() => {
+    window.print()
+    isPrinting.value = false
+  }, 200)
+}
+
+function formatDate(d) {
+  if (!d) return '—'
+  return new Date(d).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
+function formatTime(d) {
+  if (!d) return ''
+  return new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
+onMounted(async () => {
+  await fetchCompletedContracts()
+
+  // If contractId provided in URL query, automatically select and load it
+  const urlContractId = route.query.contractId
+  if (urlContractId) {
+    selectedContractId.value = urlContractId
+    await loadSelectedContract()
+  }
+})
+</script>
+
+<style scoped>
+.client-summary-page {
+  padding: var(--space-6);
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Page Header */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-4) var(--space-6);
+  margin-bottom: var(--space-6);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.header-icon {
+  font-size: 2rem;
+}
+
+.page-title {
+  font-family: var(--font-heading);
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.page-subtitle {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  margin: 2px 0 0;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* Contract Selector Card */
+.selector-card {
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  margin-bottom: var(--space-6);
+}
+
+.selector-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-5);
+}
+
+.section-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--color-text-muted);
+  margin-bottom: 6px;
+}
+
+.search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 10px;
+  color: #94a3b8;
+  font-size: 0.85rem;
+}
+
+.search-box input {
+  padding-left: 32px;
+}
+
+.btn-clear {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.select-contract {
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.selected-contract-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 20px;
+  margin-top: 16px;
+  padding: 10px 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+.scb-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.scb-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.5px;
+}
+
+.scb-actions {
+  margin-left: auto;
+}
+
+.link-subtle {
+  color: #2563eb;
+  text-decoration: none;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.link-subtle:hover {
+  text-decoration: underline;
+}
+
+/* Empty / Loading States */
+.empty-state-card, .loading-state-card {
+  text-align: center;
+  padding: 60px var(--space-6);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+}
+
+.empty-icon {
+  font-size: 3rem;
+  margin-bottom: 12px;
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 12px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Tabs */
+.form-nav-tabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  margin-bottom: 16px;
+}
+
+.tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.tab-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.tab-btn.active {
+  background: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+}
+
+.tab-number {
+  font-size: 0.72rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.tab-btn.active .tab-number {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Document Sheet */
+.document-sheet {
+  background: #ffffff;
+  color: #000000;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 40px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  font-family: inherit;
+}
+
+.official-header {
+  text-align: center;
+  margin-bottom: 24px;
+  border-bottom: 2px solid #000;
+  padding-bottom: 12px;
+}
+
+.doc-main-title {
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  margin: 0;
+  color: #000000;
+}
+
+.section-banner {
+  background: #254b68;
+  color: #ffffff;
+  padding: 8px 14px;
+  margin-bottom: 16px;
+}
+
+.section-banner h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.banner-sub {
+  display: block;
+  font-size: 0.75rem;
+  font-style: italic;
+  margin-top: 2px;
+  opacity: 0.9;
+}
+
+.subsection-header {
+  font-weight: 700;
+  font-size: 0.95rem;
+  margin-bottom: 8px;
+  color: #1e293b;
+}
+
+/* Row Lines & Form Styles */
+.form-row-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.line-label {
+  font-size: 0.85rem;
+  color: #1e293b;
+  white-space: nowrap;
+}
+
+.line-input {
+  flex: 1;
+  border: none;
+  border-bottom: 1px solid #64748b;
+  border-radius: 0;
+  background: transparent;
+  padding: 4px 6px;
+  font-size: 0.88rem;
+  color: #000000;
+  outline: none;
+}
+
+.line-input:focus {
+  border-bottom: 2px solid #2563eb;
+}
+
+.grid-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.grid-three-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.bold-text {
+  font-weight: 600;
+}
+
+.submission-time-box {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-top: 30px;
+  padding-top: 16px;
+  border-top: 1px dashed #cbd5e1;
+}
+
+.checkbox-group {
+  display: flex;
+  gap: 16px;
+}
+
+.inline-group {
+  flex-direction: row;
+}
+
+.flex-wrap {
+  flex-wrap: wrap;
+}
+
+.cb-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.block-cb {
+  display: flex;
+  margin-bottom: 6px;
+}
+
+/* Bordered Table for QA */
+.bordered-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #cbd5e1;
+  margin-bottom: 20px;
+}
+
+.bordered-table td {
+  border: 1px solid #cbd5e1;
+  padding: 10px 12px;
+  vertical-align: top;
+}
+
+.col-num {
+  width: 38px;
+  text-align: center;
+  font-weight: 700;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 0.88rem;
+}
+
+.col-content {
+  background: #ffffff;
+}
+
+.q-title {
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: #0f172a;
+}
+
+.q-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.yes-no-group {
+  display: flex;
+  gap: 14px;
+}
+
+.q-subdetails {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed #e2e8f0;
+}
+
+.sub-instruction {
+  font-size: 0.78rem;
+  font-style: italic;
+  color: #64748b;
+  margin: 4px 0 8px;
+}
+
+.countries-checkbox-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin-top: 8px;
+}
+
+.nested-table, .parents-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #cbd5e1;
+  margin-top: 6px;
+}
+
+.nested-table th, .parents-table th {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  padding: 6px 10px;
+  font-size: 0.82rem;
+  text-align: left;
+}
+
+.nested-table td, .parents-table td {
+  border: 1px solid #cbd5e1;
+  padding: 4px 6px;
+}
+
+.field-title {
+  font-weight: 600;
+  font-size: 0.82rem;
+  background: #f8fafc;
+}
+
+.table-cell-input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 4px 6px;
+  font-size: 0.85rem;
+  outline: none;
+}
+
+.bullet-inputs-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bullet-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bullet-dot {
+  font-weight: 700;
+  color: #475569;
+}
+
+.action-box {
+  border: 1px solid #cbd5e1;
+  padding: 6px;
+  background: #fcfcfc;
+}
+
+.box-textarea {
+  width: 100%;
+  border: none;
+  resize: vertical;
+  background: transparent;
+  font-size: 0.9rem;
+}
+
+.signatures-wrapper {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 40px;
+  padding: 20px 40px;
+}
+
+.sig-block {
+  width: 280px;
+  text-align: center;
+}
+
+.sig-line {
+  border-bottom: 1px solid #000;
+  padding-bottom: 4px;
+  margin-bottom: 6px;
+}
+
+.sig-name-input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.95rem;
+  outline: none;
+}
+
+.sig-title {
+  font-weight: 600;
+  font-size: 0.85rem;
+  margin-bottom: 6px;
+}
+
+.sig-date-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+}
+
+.sig-date-input {
+  width: 130px;
+  text-align: center;
+}
+
+.page-footer-mark {
+  margin-top: 30px;
+  padding-top: 10px;
+  border-top: 1px solid #e2e8f0;
+  text-align: right;
+  font-size: 0.72rem;
+  color: #94a3b8;
+  letter-spacing: 0.5px;
+}
+
+/* Floating Save Toolbar */
+.floating-save-toolbar {
+  position: sticky;
+  bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  margin-top: 24px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+}
+
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.88rem;
+}
+
+.status-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.dot-completed {
+  background: #10b981;
+}
+
+.dot-draft {
+  background: #f59e0b;
+}
+
+.toolbar-right {
+  display: flex;
+  gap: 10px;
+}
+
+/* Print Styles */
+@media print {
+  .page-header,
+  .selector-card,
+  .form-nav-tabs,
+  .floating-save-toolbar {
+    display: none !important;
+  }
+
+  .client-summary-page {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .document-sheet {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+  }
+
+  .form-page {
+    page-break-after: always;
+    break-after: page;
+    margin-bottom: 40px;
+  }
+
+  .section-banner {
+    background: #254b68 !important;
+    color: #fff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
+@media (max-width: 768px) {
+  .selector-grid,
+  .grid-two-col,
+  .grid-three-col {
+    grid-template-columns: 1fr;
+  }
+
+  .signatures-wrapper {
+    flex-direction: column;
+    gap: 30px;
+    align-items: center;
+  }
+}
+</style>

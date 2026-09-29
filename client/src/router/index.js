@@ -26,6 +26,7 @@ const routes = [
       { path: 'forms/:id/builder',      name: 'FormBuilder',       component: () => import('../views/FormBuilderView.vue'), meta: { roles: ['ADMIN', 'SUPER_ADMIN'] } },
       { path: 'automation',             name: 'Automation',        component: () => import('../views/AutomationView.vue'), meta: { roles: ['ADMIN', 'SUPER_ADMIN'] } },
       { path: 'ghl',                    name: 'GHL',               component: () => import('../views/GHLView.vue'), meta: { roles: ['ADMIN', 'SUPER_ADMIN'] } },
+      { path: 'client-summary',         name: 'ClientSummary',     component: () => import('../views/ClientSummaryView.vue') },
       { path: 'admin/users',            name: 'UsersAccess',       component: () => import('../views/UsersAccessView.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN'] } },
       { path: 'admin/settings',         name: 'Settings',          component: () => import('../views/SettingsView.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN'] } },
     ],
@@ -133,6 +134,11 @@ router.beforeEach(async (to) => {
 
   // Role check for restricted admin routes
   if (to.meta.roles && !to.meta.roles.includes(auth.role)) {
+    return { name: 'AccessDenied' }
+  }
+
+  // Client Summary permission check
+  if (to.name === 'ClientSummary' && !auth.hasClientSummaryAccess) {
     return { name: 'AccessDenied' }
   }
 

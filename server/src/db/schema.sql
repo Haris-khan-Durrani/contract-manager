@@ -9,13 +9,15 @@ SET time_zone = '+00:00';
 
 -- ─── 1. Authorization Allowlist ───────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS app_user_access (
-  id            INT AUTO_INCREMENT PRIMARY KEY,
-  location_id   VARCHAR(64)  NOT NULL,
-  ghl_user_id   VARCHAR(64)  NOT NULL,
-  app_role      ENUM('SUPER_ADMIN','ADMIN','SALES') NOT NULL DEFAULT 'SALES',
-  enabled       BOOLEAN      NOT NULL DEFAULT TRUE,
-  created_at    TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
-  updated_at    TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  id                      INT AUTO_INCREMENT PRIMARY KEY,
+  location_id             VARCHAR(64)  NOT NULL,
+  ghl_user_id             VARCHAR(64)  NOT NULL,
+  app_role                ENUM('SUPER_ADMIN','ADMIN','SALES') NOT NULL DEFAULT 'SALES',
+  enabled                 BOOLEAN      NOT NULL DEFAULT TRUE,
+  signature_png_url       MEDIUMTEXT   NULL,
+  can_fill_client_summary BOOLEAN      NOT NULL DEFAULT FALSE,
+  created_at              TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+  updated_at              TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uq_location_user (location_id, ghl_user_id),
   INDEX idx_location (location_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -152,5 +154,23 @@ CREATE TABLE IF NOT EXISTS system_settings (
   is_secret     BOOLEAN      NOT NULL DEFAULT FALSE,
   category      VARCHAR(64)  NOT NULL DEFAULT 'GENERAL',
   updated_at    TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─── 9. Completed Contract Client Summaries ───────────────────────────────────
+CREATE TABLE IF NOT EXISTS contract_client_summaries (
+  id                    INT AUTO_INCREMENT PRIMARY KEY,
+  location_id           VARCHAR(64)  NOT NULL,
+  contract_id           INT          NOT NULL,
+  status                VARCHAR(20)  NOT NULL DEFAULT 'DRAFT',
+  summary_data_json     LONGTEXT     NOT NULL,
+  completed_by_user_id  VARCHAR(64)  NULL,
+  completed_by_name     VARCHAR(255) NULL,
+  completed_at          TIMESTAMP    NULL,
+  created_at            TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+  updated_at            TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_contract_summary (location_id, contract_id),
+  FOREIGN KEY (contract_id) REFERENCES contract_instances(id) ON DELETE CASCADE,
+  INDEX idx_location (location_id),
+  INDEX idx_contract (contract_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

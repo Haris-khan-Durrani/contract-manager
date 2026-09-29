@@ -49,6 +49,16 @@
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
           <span v-show="!isSidebarCollapsed" class="nav-item-text">+ Create Contract</span>
         </router-link>
+        <router-link
+          v-if="auth.hasClientSummaryAccess"
+          to="/client-summary"
+          class="nav-item"
+          active-class="active"
+          title="Client Summary"
+        >
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="2"/><path d="M9 14l2 2 4-4"/></svg>
+          <span v-show="!isSidebarCollapsed" class="nav-item-text">Client Summary</span>
+        </router-link>
 
         <!-- Templates & Studio (Admin+) -->
         <template v-if="auth.hasRole(['ADMIN', 'SUPER_ADMIN'])">

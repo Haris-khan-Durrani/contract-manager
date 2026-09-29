@@ -75,6 +75,16 @@
           {{ downloadingPdf ? '⏳ Downloading…' : '⬇️ Download PDF' }}
         </button>
 
+        <!-- If COMPLETED: Client Summary Form -->
+        <button
+          v-if="(contract.state === 'COMPLETED' || contract.signed_at) && auth.hasClientSummaryAccess"
+          class="btn btn-primary"
+          style="display: inline-flex; align-items: center; gap: 6px; background: #0f172a; border-color: #0f172a;"
+          @click="router.push(`/client-summary?contractId=${contract.id}`)"
+        >
+          📋 Client Summary
+        </button>
+
         <!-- Primary Action: SEND CONTRACT VIA GOHIGHLEVEL -->
         <button
           v-if="['READY', 'AWAITING_FORM'].includes(contract.state)"
@@ -565,12 +575,13 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import { useAuthStore } from '../stores/auth'
 
-const route = useRoute()
-const auth  = useAuthStore()
+const route  = useRoute()
+const router = useRouter()
+const auth   = useAuthStore()
 const contractId = route.params.id
 
 const loading = ref(true)

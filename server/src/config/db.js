@@ -238,6 +238,28 @@ class SQLiteAdapter {
         ALTER TABLE app_user_access ADD COLUMN signature_png_url TEXT NULL;
       `).catch(() => {});
 
+      // Migration: add can_fill_client_summary to app_user_access
+      await this.run(`
+        ALTER TABLE app_user_access ADD COLUMN can_fill_client_summary INTEGER NOT NULL DEFAULT 0;
+      `).catch(() => {});
+
+      // Client summary table for completed contracts
+      await this.run(`
+        CREATE TABLE IF NOT EXISTS contract_client_summaries (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          location_id TEXT NOT NULL,
+          contract_id INTEGER NOT NULL,
+          status TEXT NOT NULL DEFAULT 'DRAFT',
+          summary_data_json TEXT NOT NULL,
+          completed_by_user_id TEXT NULL,
+          completed_by_name TEXT NULL,
+          completed_at DATETIME NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(location_id, contract_id)
+        );
+      `);
+
       await this.run(`
         CREATE TABLE IF NOT EXISTS webhook_idempotency_keys (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -644,12 +666,30 @@ async function initMysqlTables(pool) {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
+    await pool.execute(`
+      CREATE TABLE IF NOT EXISTS contract_client_summaries (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        location_id VARCHAR(64) NOT NULL,
+        contract_id INT NOT NULL,
+        status VARCHAR(20) NOT NULL DEFAULT 'DRAFT',
+        summary_data_json LONGTEXT NOT NULL,
+        completed_by_user_id VARCHAR(64) NULL,
+        completed_by_name VARCHAR(255) NULL,
+        completed_at TIMESTAMP NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_contract_summary (location_id, contract_id),
+        INDEX idx_location (location_id),
+        INDEX idx_contract (contract_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+
     // Additive column migrations for contract_forms
     const formAlters = [
       `ALTER TABLE contract_forms ADD COLUMN form_mode VARCHAR(20) NOT NULL DEFAULT 'NORMAL'`,
       `ALTER TABLE contract_forms ADD COLUMN settings_json JSON NULL`,
     ];
-    // Additive column migrations for contract_instances
+    // Additive column migrations for contract_instances and app_user_access
     const instanceAlters = [
       `ALTER TABLE contract_instances MODIFY COLUMN state VARCHAR(50) NOT NULL DEFAULT 'READY'`,
       `ALTER TABLE contract_instances ADD COLUMN form_mode VARCHAR(20) NOT NULL DEFAULT 'NORMAL'`,
@@ -668,6 +708,7 @@ async function initMysqlTables(pool) {
       `ALTER TABLE contract_instances ADD COLUMN assigned_user_name VARCHAR(255) NULL`,
       `ALTER TABLE contract_instances ADD COLUMN validity_days INT NULL DEFAULT 7`,
       `ALTER TABLE app_user_access ADD COLUMN signature_png_url MEDIUMTEXT NULL`,
+      `ALTER TABLE app_user_access ADD COLUMN can_fill_client_summary TINYINT(1) NOT NULL DEFAULT 0`,
     ];
     for (const stmt of [...formAlters, ...instanceAlters]) {
       try { await pool.execute(stmt); } catch (e) { /* column already exists — skip */ }

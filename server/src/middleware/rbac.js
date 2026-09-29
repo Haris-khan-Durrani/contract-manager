@@ -46,7 +46,7 @@ async function loadAppUser(req, res, next) {
     const { userId, locationId, role = 'SALES' } = req.ghlUser;
 
     const [rows] = await db.execute(
-      'SELECT id, app_role, enabled FROM app_user_access WHERE location_id = ? AND ghl_user_id = ? LIMIT 1',
+      'SELECT id, app_role, enabled, can_fill_client_summary FROM app_user_access WHERE location_id = ? AND ghl_user_id = ? LIMIT 1',
       [locationId, userId]
     ).catch(() => [[]]);
 
@@ -58,8 +58,9 @@ async function loadAppUser(req, res, next) {
         });
       }
       req.appUser = {
-        id:   rows[0].id,
-        role: rows[0].app_role,
+        id:                      rows[0].id,
+        role:                    rows[0].app_role,
+        can_fill_client_summary: Boolean(rows[0].can_fill_client_summary),
       };
     } else {
       // Auto-provision user access record based on verified GHL CRM role
@@ -75,8 +76,9 @@ async function loadAppUser(req, res, next) {
       });
 
       req.appUser = {
-        id:   insertResult?.insertId || 0,
-        role: initialRole,
+        id:                      insertResult?.insertId || 0,
+        role:                    initialRole,
+        can_fill_client_summary: ['SUPER_ADMIN', 'ADMIN'].includes(initialRole),
       };
     }
 
@@ -116,6 +118,25 @@ function requirePermission(permission) {
 }
 
 /**
+ * Middleware: require Client Summary access.
+ * Admins/Super Admins always have access.
+ * Selective users (e.g. Sales) must have can_fill_client_summary = true.
+ */
+function requireClientSummaryAccess(req, res, next) {
+  if (!req.appUser) {
+    return res.status(403).json({ error: 'App user context not loaded. Call loadAppUser first.' });
+  }
+  const { role, can_fill_client_summary } = req.appUser;
+  if (['SUPER_ADMIN', 'ADMIN'].includes(role) || can_fill_client_summary) {
+    return next();
+  }
+  return res.status(403).json({
+    error: 'Forbidden',
+    message: 'You do not have permission to access or fill Client Summaries. Please contact an administrator to enable access.',
+  });
+}
+
+/**
  * Utility: check if a role has a permission (for use in controllers).
  */
 function hasPermission(role, permission) {
@@ -123,4 +144,4 @@ function hasPermission(role, permission) {
   return allowedRoles.includes(role);
 }
 
-module.exports = { loadAppUser, requireRole, requirePermission, hasPermission, PERMISSIONS };
+module.exports = { loadAppUser, requireRole, requirePermission, requireClientSummaryAccess, hasPermission, PERMISSIONS };

@@ -91,6 +91,7 @@
                   <th>Team Member Name</th>
                   <th>Assigned Role</th>
                   <th>Official Signature</th>
+                  <th>Client Summary</th>
                   <th>Status</th>
                   <th>Access Granted</th>
                   <th style="text-align: right;">Actions</th>
@@ -98,7 +99,7 @@
               </thead>
               <tbody>
                 <tr v-if="!filteredUsers.length">
-                  <td colspan="7" style="text-align: center; padding: 32px; color: #94a3b8;">
+                  <td colspan="8" style="text-align: center; padding: 32px; color: #94a3b8;">
                     No team members found matching "{{ userSearchQuery }}".
                   </td>
                 </tr>
@@ -137,6 +138,25 @@
                   </div>
                 </td>
                 <td>
+                  <div v-if="['ADMIN', 'SUPER_ADMIN'].includes(u.app_role)">
+                    <span class="badge badge-success" style="font-size: 11px; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; font-weight: 600;">
+                      ✓ Full Access (Admin)
+                    </span>
+                  </div>
+                  <div v-else>
+                    <button
+                      type="button"
+                      class="btn-toggle-summary"
+                      :class="u.can_fill_client_summary ? 'active' : 'inactive'"
+                      :title="u.can_fill_client_summary ? 'Click to restrict Client Summary access' : 'Click to enable Client Summary access'"
+                      @click="toggleClientSummaryAccess(u)"
+                    >
+                      <span class="toggle-dot"></span>
+                      <span class="toggle-text">{{ u.can_fill_client_summary ? 'Enabled' : 'Restricted' }}</span>
+                    </button>
+                  </div>
+                </td>
+                <td>
                   <span v-if="u.enabled" class="badge badge-success">Active</span>
                   <span v-else class="badge badge-danger">Disabled</span>
                 </td>
@@ -167,6 +187,7 @@
         </div>
       </div>
     </div>
+  </div>
 
     <!-- Grant Access Modal -->
     <div v-if="showGrantModal" class="modal-overlay" @click.self="showGrantModal = false">
@@ -505,6 +526,21 @@ async function toggleUserStatus(user) {
   }
 }
 
+async function toggleClientSummaryAccess(user) {
+  const newStatus = !user.can_fill_client_summary
+  try {
+    await axios.put(
+      `${apiBase}/auth/users/${user.id}`,
+      { can_fill_client_summary: newStatus ? 1 : 0 },
+      { headers: getHeaders() }
+    )
+    user.can_fill_client_summary = newStatus ? 1 : 0
+  } catch (err) {
+    console.error('Toggle client summary error:', err)
+    alert('Failed to update Client Summary permission.')
+  }
+}
+
 async function revokeAccess(user) {
   if (!confirm(`Are you sure you want to revoke Contract App access for this user?`)) return
   try {
@@ -673,5 +709,49 @@ onMounted(() => {
   background: var(--color-bg-base);
   color: var(--color-text-base);
   font-size: 0.9rem;
+}
+
+.btn-toggle-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.btn-toggle-summary.active {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: #a7f3d0;
+}
+
+.btn-toggle-summary.active .toggle-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+}
+
+.btn-toggle-summary.inactive {
+  background: #f1f5f9;
+  color: #64748b;
+  border-color: #cbd5e1;
+}
+
+.btn-toggle-summary.inactive .toggle-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #94a3b8;
+}
+
+.btn-toggle-summary:hover {
+  filter: brightness(0.95);
+  transform: translateY(-1px);
 }
 </style>

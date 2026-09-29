@@ -18,6 +18,7 @@ const ghlRoutes       = require('./routes/ghl');
 const signRoutes      = require('./routes/sign');
 const verifyRoutes    = require('./routes/verify');
 const settingsRoutes  = require('./routes/settings');
+const clientSummaryRoutes = require('./routes/clientSummary');
 const settingsService = require('./services/settingsService');
 
 // Background workers
@@ -74,6 +75,7 @@ app.use('/api/verify', verifyRoutes);
 
 // Contract API: authenticated by GHL Signed Context + RBAC
 app.use('/api/contracts', contractRoutes);
+app.use('/api/client-summary', clientSummaryRoutes);
 app.use('/api/templates', templateRoutes);
 app.use('/api/forms',     formRoutes);
 app.use('/api/ghl',       ghlRoutes);

@@ -70,10 +70,11 @@ router.post('/login', async (req, res) => {
 
     // Check if database has explicit role override or disabled flag
     const [rows] = await db.execute(
-      'SELECT id, app_role, enabled FROM app_user_access WHERE location_id = ? AND ghl_user_id = ? LIMIT 1',
+      'SELECT id, app_role, enabled, can_fill_client_summary FROM app_user_access WHERE location_id = ? AND ghl_user_id = ? LIMIT 1',
       [trimmedLocationId, trimmedUserId]
     ).catch(() => [[]]);
 
+    let canFillClientSummary = false;
     if (rows.length) {
       if (!rows[0].enabled) {
         return res.status(403).json({
@@ -82,13 +83,15 @@ router.post('/login', async (req, res) => {
         });
       }
       appRole = rows[0].app_role;
+      canFillClientSummary = ['SUPER_ADMIN', 'ADMIN'].includes(appRole) || Boolean(rows[0].can_fill_client_summary);
     } else {
       // Auto-provision user record in database
+      canFillClientSummary = ['SUPER_ADMIN', 'ADMIN'].includes(appRole);
       await db.execute(
-        `INSERT INTO app_user_access (location_id, ghl_user_id, app_role, enabled)
-         VALUES (?, ?, ?, TRUE)
+        `INSERT INTO app_user_access (location_id, ghl_user_id, app_role, enabled, can_fill_client_summary)
+         VALUES (?, ?, ?, TRUE, ?)
          ON DUPLICATE KEY UPDATE updated_at = NOW()`,
-        [trimmedLocationId, trimmedUserId, appRole]
+        [trimmedLocationId, trimmedUserId, appRole, canFillClientSummary ? 1 : 0]
       ).catch(err => console.warn('[Auth Login] DB upsert notice:', err.message));
     }
 
@@ -112,6 +115,7 @@ router.post('/login', async (req, res) => {
         email,
       },
       role: appRole,
+      can_fill_client_summary: canFillClientSummary,
     });
   } catch (err) {
     console.error('[Auth Login] Unexpected error:', err);
@@ -140,7 +144,7 @@ router.post('/verify', async (req, res) => {
   }
 
   const [rows] = await db.execute(
-    'SELECT app_role, enabled FROM app_user_access WHERE location_id = ? AND ghl_user_id = ? LIMIT 1',
+    'SELECT app_role, enabled, can_fill_client_summary FROM app_user_access WHERE location_id = ? AND ghl_user_id = ? LIMIT 1',
     [locationId, userId]
   ).catch(() => [[]]);
 
@@ -152,6 +156,7 @@ router.post('/verify', async (req, res) => {
   }
 
   const effectiveRole = rows.length ? rows[0].app_role : (payload.role || 'SALES');
+  const canFillClientSummary = ['SUPER_ADMIN', 'ADMIN'].includes(effectiveRole) || Boolean(rows[0]?.can_fill_client_summary);
 
   return res.json({
     userId,
@@ -159,6 +164,7 @@ router.post('/verify', async (req, res) => {
     name:  payload.name  || payload.full_name || 'GHL User',
     email: payload.email || '',
     role:  effectiveRole,
+    can_fill_client_summary: canFillClientSummary,
   });
 });
 
@@ -221,7 +227,7 @@ router.get('/users', ghlAuthMiddleware, loadAppUser, requirePermission('users:ma
     }
 
     const [users] = await db.execute(
-      `SELECT id, location_id, ghl_user_id, app_role, enabled, signature_png_url, created_at, updated_at
+      `SELECT id, location_id, ghl_user_id, app_role, enabled, signature_png_url, can_fill_client_summary, created_at, updated_at
        FROM app_user_access
        WHERE location_id = ?
        ORDER BY created_at DESC`,
@@ -246,18 +252,19 @@ router.post('/users/sync', ghlAuthMiddleware, loadAppUser, requirePermission('us
         if (!gu.id) continue;
         const rawRole = (gu.roles?.role || gu.role || gu.type || '').toString().toLowerCase();
         const defaultAppRole = (rawRole.includes('admin') || rawRole.includes('agency') || rawRole.includes('owner')) ? 'ADMIN' : 'SALES';
+        const defaultSummaryAccess = defaultAppRole === 'ADMIN' ? 1 : 0;
         const [res] = await db.execute(
-          `INSERT INTO app_user_access (location_id, ghl_user_id, app_role, enabled)
-           VALUES (?, ?, ?, TRUE)
+          `INSERT INTO app_user_access (location_id, ghl_user_id, app_role, enabled, can_fill_client_summary)
+           VALUES (?, ?, ?, TRUE, ?)
            ON DUPLICATE KEY UPDATE updated_at = NOW()`,
-          [locationId, gu.id, defaultAppRole]
+          [locationId, gu.id, defaultAppRole, defaultSummaryAccess]
         ).catch(() => [{}]);
         if (res.affectedRows === 1) addedCount++;
       }
     }
 
     const [users] = await db.execute(
-      `SELECT id, location_id, ghl_user_id, app_role, enabled, signature_png_url, created_at, updated_at
+      `SELECT id, location_id, ghl_user_id, app_role, enabled, signature_png_url, can_fill_client_summary, created_at, updated_at
        FROM app_user_access
        WHERE location_id = ?
        ORDER BY created_at DESC`,
@@ -274,7 +281,7 @@ router.post('/users/sync', ghlAuthMiddleware, loadAppUser, requirePermission('us
 router.post('/users', ghlAuthMiddleware, loadAppUser, requirePermission('users:manage'), async (req, res) => {
   try {
     const { locationId } = req.ghlUser;
-    const { ghlUserId, appRole = 'SALES', enabled = true, signature_png_url = null } = req.body;
+    const { ghlUserId, appRole = 'SALES', enabled = true, signature_png_url = null, can_fill_client_summary = 0 } = req.body;
 
     if (!ghlUserId) {
       return res.status(400).json({ error: 'ghlUserId is required.' });
@@ -283,11 +290,13 @@ router.post('/users', ghlAuthMiddleware, loadAppUser, requirePermission('users:m
       return res.status(400).json({ error: 'Invalid app role.' });
     }
 
+    const isSummaryAllowed = ['SUPER_ADMIN', 'ADMIN'].includes(appRole) || Boolean(can_fill_client_summary);
+
     const [result] = await db.execute(
-      `INSERT INTO app_user_access (location_id, ghl_user_id, app_role, enabled, signature_png_url)
-       VALUES (?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE app_role = VALUES(app_role), enabled = VALUES(enabled), signature_png_url = COALESCE(VALUES(signature_png_url), signature_png_url), updated_at = NOW()`,
-      [locationId, ghlUserId, appRole, enabled, signature_png_url]
+      `INSERT INTO app_user_access (location_id, ghl_user_id, app_role, enabled, signature_png_url, can_fill_client_summary)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE app_role = VALUES(app_role), enabled = VALUES(enabled), signature_png_url = COALESCE(VALUES(signature_png_url), signature_png_url), can_fill_client_summary = VALUES(can_fill_client_summary), updated_at = NOW()`,
+      [locationId, ghlUserId, appRole, enabled, signature_png_url, isSummaryAllowed ? 1 : 0]
     );
 
     res.status(201).json({ success: true, id: result.insertId });
@@ -300,18 +309,21 @@ router.post('/users', ghlAuthMiddleware, loadAppUser, requirePermission('users:m
 router.put('/users/:id', ghlAuthMiddleware, loadAppUser, requirePermission('users:manage'), async (req, res) => {
   try {
     const { locationId } = req.ghlUser;
-    const { appRole, enabled, signature_png_url } = req.body;
+    const { appRole, enabled, signature_png_url, can_fill_client_summary } = req.body;
 
     await db.execute(
       `UPDATE app_user_access
        SET app_role = COALESCE(?, app_role),
            enabled = COALESCE(?, enabled),
+           can_fill_client_summary = CASE WHEN ? = 1 THEN ? ELSE can_fill_client_summary END,
            signature_png_url = CASE WHEN ? = 1 THEN ? ELSE signature_png_url END,
            updated_at = NOW()
        WHERE id = ? AND location_id = ?`,
       [
         appRole || null,
-        enabled !== undefined ? enabled : null,
+        enabled !== undefined ? (enabled ? 1 : 0) : null,
+        can_fill_client_summary !== undefined ? 1 : 0,
+        can_fill_client_summary ? 1 : 0,
         signature_png_url !== undefined ? 1 : 0,
         signature_png_url !== undefined ? signature_png_url : null,
         req.params.id,

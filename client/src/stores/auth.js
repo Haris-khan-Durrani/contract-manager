@@ -11,14 +11,16 @@ import api from '../services/api'
  *   3. Stored JWT session in localStorage
  */
 export const useAuthStore = defineStore('auth', () => {
-  const user       = ref(null)  // { userId, locationId, name, email }
-  const role       = ref(null)  // 'SUPER_ADMIN' | 'ADMIN' | 'SALES'
-  const token      = ref(localStorage.getItem('contract_auth_token') || null)
-  const loading    = ref(false)
-  const error      = ref(null)
+  const user                 = ref(null)  // { userId, locationId, name, email }
+  const role                 = ref(null)  // 'SUPER_ADMIN' | 'ADMIN' | 'SALES'
+  const canFillClientSummary = ref(false)
+  const token                = ref(localStorage.getItem('contract_auth_token') || null)
+  const loading              = ref(false)
+  const error                = ref(null)
 
-  const isAuthenticated = computed(() => !!user.value && !!role.value)
-  const hasRole = (roles) => roles.includes(role.value)
+  const isAuthenticated        = computed(() => !!user.value && !!role.value)
+  const hasRole                = (roles) => roles.includes(role.value)
+  const hasClientSummaryAccess = computed(() => ['SUPER_ADMIN', 'ADMIN'].includes(role.value) || canFillClientSummary.value)
 
   /**
    * Log in with GoHighLevel credentials.
@@ -38,6 +40,7 @@ export const useAuthStore = defineStore('auth', () => {
       token.value = data.token
       user.value  = data.user
       role.value  = data.role
+      canFillClientSummary.value = ['SUPER_ADMIN', 'ADMIN'].includes(data.role) || Boolean(data.can_fill_client_summary)
 
       // Save token and last used location/user to localStorage
       localStorage.setItem('contract_auth_token', data.token)
@@ -77,6 +80,7 @@ export const useAuthStore = defineStore('auth', () => {
         email:      data.email,
       }
       role.value = data.role
+      canFillClientSummary.value = ['SUPER_ADMIN', 'ADMIN'].includes(data.role) || Boolean(data.can_fill_client_summary)
       return true
     } catch (err) {
       console.warn('[Auth] Session verification failed, clearing session:', err.message)
@@ -127,6 +131,7 @@ export const useAuthStore = defineStore('auth', () => {
         email:      `${devRole.toLowerCase()}@localdev.com`,
       }
       role.value = data.role
+      canFillClientSummary.value = true
       localStorage.setItem('contract_auth_token', data.token)
       api.defaults.headers.common['Authorization'] = `Bearer ${data.token}`
       return data
@@ -144,6 +149,7 @@ export const useAuthStore = defineStore('auth', () => {
   function logout() {
     user.value  = null
     role.value  = null
+    canFillClientSummary.value = false
     token.value = null
     localStorage.removeItem('contract_auth_token')
     delete api.defaults.headers.common['Authorization']
@@ -159,6 +165,8 @@ export const useAuthStore = defineStore('auth', () => {
     error,
     isAuthenticated,
     hasRole,
+    canFillClientSummary,
+    hasClientSummaryAccess,
     login,
     verifySession,
     checkUrlParams,
