@@ -2177,6 +2177,8 @@ const quickVariables = ref([
   'applicant.email',
   'applicant.date_of_birth',
   'applicant.dependents',
+  'commercial_terms',
+  'schedule_three_content',
   'fees.total_after_discount',
   'fees.currency_text',
   'fees.payment_mode',
@@ -2185,6 +2187,10 @@ const quickVariables = ref([
   'fees.initial_amount',
   'contract.date',
   'jurisdiction',
+  'logo_url',
+  'signature.client',
+  'signature.company',
+  'company_stamp_url',
 ])
 
 const templateName = ref('Untitled Template')

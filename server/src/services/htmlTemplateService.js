@@ -15,11 +15,14 @@ function normalizeTemplateAssets(html, css, logoUrl = DEFAULT_LOGO_URL) {
   let cleanHtml = String(html || '');
   let cleanCss = String(css || '');
 
-  // Replace relative logo asset paths with the official high-res CDN logo
-  cleanHtml = cleanHtml
-    .replace(/src=["'](?:assets\/)?logo-left\.png["']/gi, `src="${logoUrl}"`)
-    .replace(/src=["'](?:assets\/)?logo-right\.png["']/gi, `src="${logoUrl}"`)
-    .replace(/src=["']assets\/[^"']+["']/gi, `src="${logoUrl}"`);
+  // Replace relative logo asset paths or previous CDN links with the configured logo
+  if (logoUrl) {
+    cleanHtml = cleanHtml
+      .replace(/src=["'](?:assets\/)?logo-left\.png["']/gi, `src="${logoUrl}"`)
+      .replace(/src=["'](?:assets\/)?logo-right\.png["']/gi, `src="${logoUrl}"`)
+      .replace(/src=["']assets\/[^"']+["']/gi, `src="${logoUrl}"`)
+      .replace(/(<img[^>]*class=["'][^"']*logo[^"']*["'][^>]*src=["'])[^"']+([^"']*["'])/gi, `$1${logoUrl}$2`);
+  }
 
   // Ensure UTF-8 and necessary font links are preserved
   return { html: cleanHtml, css: cleanCss };
@@ -75,7 +78,8 @@ function formatDate(d) {
  * Substitute dynamic tokens into HTML template
  */
 function renderHtmlTemplate(html, css, context = {}, options = {}) {
-  const { html: normHtml, css: normCss } = normalizeTemplateAssets(html, css, options.logoUrl || DEFAULT_LOGO_URL);
+  const logoUrl = options.logoUrl || context.logoUrl || DEFAULT_LOGO_URL;
+  const { html: normHtml, css: normCss } = normalizeTemplateAssets(html, css, logoUrl);
   let rendered = normHtml;
 
   const form = context.form || {};
@@ -98,14 +102,32 @@ function renderHtmlTemplate(html, css, context = {}, options = {}) {
   const currencyText = fees.currency_text || form.currency || 'THE GREAT BRITAIN POUND (GBP)';
   const paymentMode = fees.payment_mode || form.payment_terms || '100% Upfront';
   const additionalInfo = fees.additional_information || form.additional_information || form.visa_type || 'Standard Legal & Immigration Advisory';
-  const paymentBreakup = fees.payment_breakup || form.schedule_three_content || form.payment_breakup || '50% Initial Deposit upon signing, 50% upon Visa Approval';
+  
+  // Section 5: Commercial Terms & Fees (Schedule Three) rich editor content
+  const scheduleThreeContent = form.schedule_three_content || form.payment_breakup || fees.payment_breakup || '50% Initial Deposit upon signing, 50% upon Visa Approval';
+  const paymentBreakup = scheduleThreeContent;
   const initialAmount = fees.initial_amount || form.discounted_amount || form.initial_deposit || '—';
 
   const contractDate = formatDate(context.contractDate || form.contract_date || system.currentDate);
   const jurisdiction = context.jurisdiction || form.jurisdiction || 'Dubai International Financial Centre (DIFC)';
 
+  // Signatures & Company Seal
+  const settingsService = require('./settingsService');
+  const clientSignature = context.clientSignature || form.signatureDataUrl || '';
+  const companySignature = context.companySignature || options.companySignature || '';
+  const companyStamp = context.companyStamp || options.companyStamp || settingsService.get('COMPANY_STAMP_URL', '');
+
+  const clientSigImg = clientSignature ? `<img src="${clientSignature}" alt="Client Signature" class="client-sig-img" style="max-height: 14mm; max-width: 90%; display: block; margin: auto;" />` : '';
+  const compSigImg = companySignature ? `<img src="${companySignature}" alt="Company Signature" class="comp-sig-img" style="max-height: 13mm; max-width: 82%; display: block; margin: auto;" />` : '';
+  const compStampImg = companyStamp ? `<img src="${companyStamp}" alt="Company Seal" class="comp-stamp-img" style="max-height: 22mm; max-width: 26mm; opacity: 0.88; transform: rotate(-5deg); filter: drop-shadow(0 1px 3px rgba(0,0,0,0.12)); display: block;" />` : '';
+
   // Build replacement dictionary
   const replacements = {
+    'logo_url': logoUrl,
+    'company_logo': logoUrl,
+    'cover_image': logoUrl,
+    'cover_image_url': logoUrl,
+
     'applicant.full_name': fullName,
     'applicant.name': fullName,
     'client_name': fullName,
@@ -148,10 +170,16 @@ function renderHtmlTemplate(html, css, context = {}, options = {}) {
     'fees.additional_information': additionalInfo,
     'additional_information': additionalInfo,
 
-    'fees.payment_breakup': paymentBreakup,
-    'payment_breakup': paymentBreakup,
-    'schedule_three_content': form.schedule_three_content || paymentBreakup,
-    'commercial_terms': form.schedule_three_content || paymentBreakup,
+    // Section 5: Commercial Terms & Milestones shortcodes
+    'fees.payment_breakup': scheduleThreeContent,
+    'payment_breakup': scheduleThreeContent,
+    'schedule_three_content': scheduleThreeContent,
+    'schedule_three': scheduleThreeContent,
+    'commercial_terms': scheduleThreeContent,
+    'fees.commercial_terms': scheduleThreeContent,
+    'fees.schedule_three': scheduleThreeContent,
+    'milestones': scheduleThreeContent,
+    'fees.milestones': scheduleThreeContent,
 
     'fees.initial_amount': initialAmount,
     'initial_amount': initialAmount,
@@ -159,6 +187,16 @@ function renderHtmlTemplate(html, css, context = {}, options = {}) {
 
     'contract.date': contractDate,
     'contract_date': contractDate,
+
+    // Signature & Stamp shortcodes
+    'signature.client': clientSigImg,
+    'client_signature': clientSigImg,
+    'user_signature': clientSigImg,
+    'signature.company': compSigImg,
+    'company_signature': compSigImg,
+    'agent_signature': compSigImg,
+    'company_stamp': compStampImg,
+    'company_stamp_url': companyStamp,
   };
 
   // Replace {{token}} occurrences
@@ -220,21 +258,16 @@ function renderHtmlTemplate(html, css, context = {}, options = {}) {
     );
   }
 
-  // Handle Client Signature Injection if provided
-  const clientSignature = context.clientSignature || form.signatureDataUrl;
+  // Handle Client Signature Injection into .signature-line
   if (clientSignature) {
-    const sigImgTag = `<img src="${clientSignature}" alt="Client Signature" style="max-height: 12mm; max-width: 90%; display: block; margin: auto;" />`;
+    const sigImgTag = `<img src="${clientSignature}" alt="Client Signature" class="client-sig-img" style="max-height: 12mm; max-width: 90%; display: block; margin: auto;" />`;
     rendered = rendered.replace(
       /<div class=["']signature-line["'] data-field=["']signature\.client["']>[\s\S]*?<\/div>/gi,
       `<div class="signature-line signed" data-field="signature.client" style="display:flex;align-items:center;justify-content:center;background:#fff;">${sigImgTag}</div>`
     );
   }
 
-  // Handle Company Signature & Stamp Injection
-  const settingsService = require('./settingsService');
-  const companySignature = context.companySignature || options.companySignature || '';
-  const companyStamp = context.companyStamp || options.companyStamp || settingsService.get('COMPANY_STAMP_URL', '');
-
+  // Handle Company Signature & Stamp Injection into .signature-line
   if (companySignature || companyStamp) {
     let innerHtml = '';
     if (companySignature) {
@@ -248,6 +281,12 @@ function renderHtmlTemplate(html, css, context = {}, options = {}) {
       /<div class=["']signature-line["'] data-field=["']signature\.company["']>[\s\S]*?<\/div>/gi,
       `<div class="signature-line signed" data-field="signature.company" style="display:flex;align-items:center;justify-content:center;position:relative;background:#fff;overflow:visible;">${innerHtml}</div>`
     );
+  }
+
+  // Inject official company stamp onto EVERY page of the agreement
+  if (companyStamp && !rendered.includes('class="page-official-stamp"')) {
+    const pageStampHtml = `\n  <div class="page-official-stamp" style="position: absolute; right: 18mm; bottom: 3.2mm; z-index: 9; pointer-events: none;"><img src="${companyStamp}" alt="Company Stamp" style="max-height: 19mm; max-width: 24mm; opacity: 0.86; transform: rotate(-6deg); filter: drop-shadow(0 1px 2px rgba(0,0,0,0.12)); display: block;" /></div>\n</section>`;
+    rendered = rendered.replace(/<\/section>/gi, pageStampHtml);
   }
 
   // Wrap in standalone document HTML if requested or if missing outer wrapper
