@@ -341,6 +341,19 @@
 
               <button
                 type="button"
+                class="palette-btn highlight-btn"
+                @click="addComponent('image')"
+                title="Insert bilingual image or logo block"
+              >
+                <div class="btn-icon">🖼️</div>
+                <div class="btn-text">
+                  <strong>Image / Logo Row</strong>
+                  <span>Add logo, partner badge, or certificate seal</span>
+                </div>
+              </button>
+
+              <button
+                type="button"
                 class="palette-btn"
                 @click="addComponent('clause')"
               >
@@ -1290,6 +1303,32 @@
                     title="Upload image from computer"
                   >
                     📁 Upload Image…
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-xs"
+                    @click="insertSecondaryImageBelow"
+                    title="Add another logo, partner seal, or badge below this image"
+                    style="background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; font-weight: 600;"
+                  >
+                    ➕ Add Below
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-xs"
+                    @click="insertSecondaryImageBeside"
+                    title="Add another logo side-by-side (for dual logos / co-branding)"
+                    style="background: #f0fdf4; color: #15803d; border-color: #bbf7d0; font-weight: 600;"
+                  >
+                    ➕ Add Beside
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-xs text-danger"
+                    @click="deleteSelectedImage"
+                    title="Delete this image"
+                  >
+                    🗑️ Delete
                   </button>
                 </div>
                 <input
@@ -2557,6 +2596,153 @@ function onLocalImageSelected(event) {
   reader.readAsDataURL(file)
 }
 
+function insertSecondaryImageBelow() {
+  if (!activeSelectedDomEl || activeSelectedDomEl.tagName.toLowerCase() !== 'img') return
+
+  // Create new secondary image element
+  const newImg = document.createElement('img')
+  newImg.className = 'logo secondary-logo'
+  newImg.src = 'https://assets.cdn.filesafe.space/NJOPxsxylG8ulEPo9hX9/media/6ab2a26318891558b460bf74.png'
+  newImg.alt = 'Secondary Badge / Accreditation Seal'
+  newImg.style.maxHeight = '32mm'
+  newImg.style.maxWidth = '60%'
+  newImg.style.objectFit = 'contain'
+  newImg.style.display = 'block'
+  newImg.style.margin = '8mm auto 0'
+
+  // If on a bilingual row with English/Arabic paired cells, also mirror in the other cell
+  const currentCell = activeSelectedDomEl.closest('td')
+  const currentRow = activeSelectedDomEl.closest('tr')
+  if (currentCell && currentRow) {
+    const isEn = currentCell.classList.contains('en-cell')
+    const otherCell = currentRow.querySelector(isEn ? '.ar-cell' : '.en-cell')
+    if (otherCell) {
+      const otherImg = otherCell.querySelector('img.logo') || otherCell.querySelector('img')
+      const clonedOther = newImg.cloneNode(true)
+      if (otherImg) {
+        otherImg.insertAdjacentElement('afterend', clonedOther)
+      } else {
+        otherCell.appendChild(clonedOther)
+      }
+    }
+  }
+
+  activeSelectedDomEl.insertAdjacentElement('afterend', newImg)
+
+  recordHistoryState('Add Secondary Image (Below)')
+  syncDomToRawHtml()
+
+  nextTick(() => {
+    selectHtmlElement(newImg)
+    refreshLayersList()
+  })
+}
+
+function insertSecondaryImageBeside() {
+  if (!activeSelectedDomEl || activeSelectedDomEl.tagName.toLowerCase() !== 'img') return
+
+  const currentImg = activeSelectedDomEl
+  const parent = currentImg.parentElement
+
+  // Check if currentImg is already inside a flex container
+  let container = currentImg.closest('.logo-group')
+  if (!container) {
+    container = document.createElement('div')
+    container.className = 'logo-group'
+    container.style.display = 'flex'
+    container.style.alignItems = 'center'
+    container.style.justifyContent = 'center'
+    container.style.gap = '14px'
+    container.style.margin = '10mm auto 0'
+    container.style.flexWrap = 'wrap'
+
+    parent.insertBefore(container, currentImg)
+    container.appendChild(currentImg)
+    currentImg.style.maxWidth = '45%'
+    currentImg.style.display = 'inline-block'
+    currentImg.style.margin = '0'
+  }
+
+  // Create new side-by-side secondary image
+  const newImg = document.createElement('img')
+  newImg.className = 'logo secondary-logo'
+  newImg.src = 'https://assets.cdn.filesafe.space/NJOPxsxylG8ulEPo9hX9/media/6ab2a26318891558b460bf74.png'
+  newImg.alt = 'Partner / Co-brand Logo'
+  newImg.style.maxHeight = '32mm'
+  newImg.style.maxWidth = '45%'
+  newImg.style.objectFit = 'contain'
+  newImg.style.display = 'inline-block'
+  newImg.style.margin = '0'
+
+  container.appendChild(newImg)
+
+  // Mirror in opposite bilingual cell (EN <-> AR)
+  const currentCell = container.closest('td')
+  const currentRow = container.closest('tr')
+  if (currentCell && currentRow) {
+    const isEn = currentCell.classList.contains('en-cell')
+    const otherCell = currentRow.querySelector(isEn ? '.ar-cell' : '.en-cell')
+    if (otherCell) {
+      let otherContainer = otherCell.querySelector('.logo-group')
+      const otherImg = otherCell.querySelector('img.logo') || otherCell.querySelector('img')
+      if (!otherContainer && otherImg) {
+        otherContainer = document.createElement('div')
+        otherContainer.className = 'logo-group'
+        otherContainer.style.display = 'flex'
+        otherContainer.style.alignItems = 'center'
+        otherContainer.style.justifyContent = 'center'
+        otherContainer.style.gap = '14px'
+        otherContainer.style.margin = '10mm auto 0'
+        otherContainer.style.flexWrap = 'wrap'
+        otherImg.parentElement.insertBefore(otherContainer, otherImg)
+        otherContainer.appendChild(otherImg)
+        otherImg.style.maxWidth = '45%'
+        otherImg.style.display = 'inline-block'
+        otherImg.style.margin = '0'
+      }
+      if (otherContainer) {
+        const clonedOther = newImg.cloneNode(true)
+        otherContainer.appendChild(clonedOther)
+      }
+    }
+  }
+
+  recordHistoryState('Add Secondary Image (Beside)')
+  syncDomToRawHtml()
+
+  nextTick(() => {
+    selectHtmlElement(newImg)
+    refreshLayersList()
+  })
+}
+
+function deleteSelectedImage() {
+  if (!activeSelectedDomEl || activeSelectedDomEl.tagName.toLowerCase() !== 'img') return
+  const imgToDelete = activeSelectedDomEl
+  
+  // If in a bilingual cell, also delete corresponding secondary logo if present
+  const currentCell = imgToDelete.closest('td')
+  const currentRow = imgToDelete.closest('tr')
+  if (currentCell && currentRow && imgToDelete.classList.contains('secondary-logo')) {
+    const isEn = currentCell.classList.contains('en-cell')
+    const otherCell = currentRow.querySelector(isEn ? '.ar-cell' : '.en-cell')
+    const otherSecondary = otherCell?.querySelector('img.secondary-logo')
+    if (otherSecondary) {
+      otherSecondary.remove()
+    }
+  }
+
+  clearHtmlSelection()
+  imgToDelete.remove()
+
+  recordHistoryState('Delete Image')
+  syncDomToRawHtml()
+
+  nextTick(() => {
+    refreshLayersList()
+  })
+}
+
 function onHtmlCanvasClick(event) {
   if (!isHtmlTemplate.value) return
   if (event.target.closest('.canvas-floating-toolbar')) return
@@ -3304,6 +3490,15 @@ function addComponent(type) {
       <div class="clause-number">١.</div>
       <div class="clause-text">أدخل نص البند القانوني باللغة العربية هنا.</div>
     </div>
+  </td>
+</tr>`,
+      image: `
+<tr class="group-gap">
+  <td class="en-cell" style="text-align: center;">
+    <img class="logo" src="https://assets.cdn.filesafe.space/NJOPxsxylG8ulEPo9hX9/media/6ab2a26318891558b460bf74.png" alt="Company Logo / Badge" style="max-height: 44mm; max-width: 78%; object-fit: contain; margin: 10px auto; display: block;" />
+  </td>
+  <td class="ar-cell" style="text-align: center;">
+    <img class="logo" src="https://assets.cdn.filesafe.space/NJOPxsxylG8ulEPo9hX9/media/6ab2a26318891558b460bf74.png" alt="Company Logo / Badge" style="max-height: 44mm; max-width: 78%; object-fit: contain; margin: 10px auto; display: block;" />
   </td>
 </tr>`,
       clause: `

@@ -96,36 +96,52 @@
         <div
           v-for="t in filteredTemplates"
           :key="t.id"
-          class="glass-card template-card"
+          class="template-card"
           @click="openBuilder(t.id)"
         >
+          <!-- Top Accent Bar -->
+          <div class="card-accent-bar" :class="{ 'accent-active': t.is_active }"></div>
+
+          <!-- Card Header & Badges -->
           <div class="card-header">
             <div class="card-badges">
-              <span class="badge badge-primary">{{ t.contract_type }}</span>
-              <span class="badge badge-neutral">v{{ t.current_version }}</span>
-              <span v-if="t.is_active" class="badge badge-success">Active</span>
-              <span v-else class="badge badge-danger">Draft</span>
+              <span class="badge-type" :title="t.contract_type">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                </svg>
+                <span>{{ t.contract_type }}</span>
+              </span>
+              <span class="badge-version">v{{ t.current_version }}</span>
+              <span v-if="t.is_active" class="badge-status-active">
+                <span class="pulse-dot"></span>
+                Active
+              </span>
+              <span v-else class="badge-status-draft">Draft</span>
+              <span v-if="t.name && (t.name.includes('Cyprus') || t.name.includes('Bilingual') || t.is_html_template)" class="badge-format">
+                ✨ HTML Studio
+              </span>
             </div>
 
-            <div style="display: flex; gap: 4px; align-items: center;">
+            <div class="card-actions-row">
               <button
                 type="button"
-                class="btn-icon-more"
+                class="btn-card-action"
                 @click.stop="duplicateTemplate(t.id)"
                 title="Duplicate Template"
               >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
                   <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
                 </svg>
               </button>
               <button
                 type="button"
-                class="btn-icon-more btn-icon-danger"
+                class="btn-card-action btn-card-delete"
                 @click.stop="confirmDeleteTemplate(t)"
                 title="Delete Template"
               >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <polyline points="3 6 5 6 21 6"/>
                   <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
                 </svg>
@@ -133,26 +149,71 @@
             </div>
           </div>
 
-          <h3 class="template-name">{{ t.name }}</h3>
+          <!-- Title Block with Document Icon -->
+          <div class="template-title-block">
+            <div class="template-doc-icon" :class="{ 'icon-active': t.is_active }">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+              </svg>
+            </div>
+            <h3 class="template-name">{{ t.name }}</h3>
+          </div>
 
-          <div class="template-meta-list">
+          <!-- Structured Metadata Cardlet -->
+          <div class="template-meta-cardlet">
             <div class="meta-row">
-              <span class="meta-label">Associated Form:</span>
-              <span class="meta-value">{{ t.form_name || 'No form attached' }}</span>
+              <span class="meta-label">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                  <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+                </svg>
+                Associated Form
+              </span>
+              <span class="meta-value form-value" :title="t.form_name">
+                {{ t.form_name || 'Standard Service Intake Form' }}
+              </span>
             </div>
             <div class="meta-row">
-              <span class="meta-label">Signing Validity:</span>
-              <span class="meta-value">{{ t.validity_days || 7 }} days</span>
+              <span class="meta-label">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                Signing Validity
+              </span>
+              <span class="meta-value validity-badge">
+                {{ t.validity_days || 7 }} days
+              </span>
             </div>
             <div class="meta-row">
-              <span class="meta-label">Last Modified:</span>
-              <span class="meta-value">{{ formatDate(t.updated_at) }}</span>
+              <span class="meta-label">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+                Last Modified
+              </span>
+              <span class="meta-value text-muted">{{ formatDate(t.updated_at) }}</span>
             </div>
           </div>
 
+          <!-- Card Footer -->
           <div class="card-footer">
-            <span class="text-muted small-text">Template #{{ t.id }}</span>
-            <span class="open-builder-text">Open Studio →</span>
+            <div class="template-id-tag">
+              <span class="id-hash">#</span>
+              <span class="id-num">{{ t.id }}</span>
+            </div>
+            <div class="btn-open-studio">
+              <span>Open Studio</span>
+              <svg class="studio-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+              </svg>
+            </div>
           </div>
         </div>
       </div>
@@ -665,93 +726,338 @@ onMounted(() => {
 }
 
 .template-card {
-  padding: var(--space-6);
+  position: relative;
+  overflow: hidden;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 22px 20px 18px;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
   flex-direction: column;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
 }
 
 .template-card:hover {
-  transform: translateY(-2px);
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow-card-hover);
+  transform: translateY(-4px);
+  border-color: #cbd5e1;
+  box-shadow: 0 16px 32px -8px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(99, 102, 241, 0.25);
 }
 
+/* Top Accent Line */
+.card-accent-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3.5px;
+  background: linear-gradient(90deg, #94a3b8, #cbd5e1);
+  transition: all 0.25s ease;
+}
+
+.card-accent-bar.accent-active {
+  background: linear-gradient(90deg, #3b82f6, #6366f1, #8b5cf6);
+}
+
+.template-card:hover .card-accent-bar {
+  height: 4.5px;
+}
+
+/* Card Header & Badges */
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--space-3);
+  margin-bottom: 14px;
 }
 
 .card-badges {
   display: flex;
-  gap: var(--space-2);
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.badge-type {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge-version {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', Consolas, monospace;
+}
+
+.badge-status-active {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
+  animation: pulse-ring 2s infinite;
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+  70% { transform: scale(1); box-shadow: 0 0 0 5px rgba(16, 185, 129, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.badge-status-draft {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #fefce8;
+  color: #a16207;
+  border: 1px solid #fef08a;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.badge-format {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #faf5ff;
+  color: #7e22ce;
+  border: 1px solid #e9d5ff;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+/* Card Actions */
+.card-actions-row {
+  display: flex;
+  gap: 4px;
   align-items: center;
 }
 
-.btn-icon-more {
-  background: none;
-  border: none;
-  color: var(--color-text-muted);
+.btn-card-action {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #64748b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  padding: 4px;
-  border-radius: var(--radius-sm);
+  transition: all 0.15s ease;
 }
 
-.btn-icon-more:hover {
-  color: var(--color-text-base);
-  background: var(--color-bg-base);
+.btn-card-action:hover {
+  color: #1d4ed8;
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  transform: translateY(-1px);
 }
 
-.btn-icon-more.btn-icon-danger:hover {
+.btn-card-action.btn-card-delete:hover {
   color: #dc2626;
   background: #fee2e2;
+  border-color: #fca5a5;
+}
+
+/* Title Block */
+.template-title-block {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.template-doc-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.template-doc-icon.icon-active {
+  background: linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%);
+  border-color: #bfdbfe;
+  color: #2563eb;
+}
+
+.template-card:hover .template-doc-icon {
+  transform: scale(1.05);
 }
 
 .template-name {
   font-family: var(--font-heading);
-  font-size: 1.3rem;
-  font-weight: 600;
-  margin-bottom: var(--space-4);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.38;
+  margin: 0;
+  transition: color 0.15s ease;
 }
 
-.template-meta-list {
+.template-card:hover .template-name {
+  color: #2563eb;
+}
+
+/* Metadata Cardlet */
+.template-meta-cardlet {
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 10px;
+  padding: 10px 12px;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  margin-bottom: var(--space-6);
+  gap: 8px;
+  margin-bottom: 16px;
   flex: 1;
 }
 
 .meta-row {
   display: flex;
   justify-content: space-between;
-  font-size: 0.85rem;
+  align-items: center;
+  font-size: 0.82rem;
+  gap: 8px;
 }
 
 .meta-label {
-  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #64748b;
+  font-weight: 500;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.meta-label svg {
+  color: #94a3b8;
+  flex-shrink: 0;
 }
 
 .meta-value {
-  font-weight: 500;
-  color: var(--color-text-base);
+  font-weight: 600;
+  color: #1e293b;
+  max-width: 60%;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.82rem;
 }
 
+.form-value {
+  color: #334155;
+  font-weight: 500;
+}
+
+.validity-badge {
+  display: inline-flex;
+  align-items: center;
+  background: #e0f2fe;
+  color: #0369a1;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.75rem;
+  border: 1px solid #bae6fd;
+}
+
+/* Card Footer */
 .card-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-top: 1px solid var(--color-border);
-  padding-top: var(--space-3);
+  border-top: 1px solid #f1f5f9;
+  padding-top: 12px;
+  margin-top: auto;
 }
 
-.open-builder-text {
-  color: var(--color-primary-light);
+.template-id-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.78rem;
   font-weight: 600;
-  font-size: 0.85rem;
+  color: #64748b;
+  background: #f8fafc;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  font-family: 'JetBrains Mono', Consolas, monospace;
+}
+
+.id-hash {
+  color: #94a3b8;
+  font-size: 0.7rem;
+}
+
+.btn-open-studio {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #2563eb;
+  font-weight: 600;
+  font-size: 0.82rem;
+  border: 1px solid #bfdbfe;
+  transition: all 0.2s ease;
+}
+
+.template-card:hover .btn-open-studio {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+}
+
+.studio-arrow {
+  transition: transform 0.2s ease;
+}
+
+.template-card:hover .studio-arrow {
+  transform: translateX(3px);
 }
 
 /* Empty Card */

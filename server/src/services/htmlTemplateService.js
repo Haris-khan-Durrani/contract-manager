@@ -20,8 +20,8 @@ function normalizeTemplateAssets(html, css, logoUrl = DEFAULT_LOGO_URL) {
     cleanHtml = cleanHtml
       .replace(/src=["'](?:assets\/)?logo-left\.png["']/gi, `src="${logoUrl}"`)
       .replace(/src=["'](?:assets\/)?logo-right\.png["']/gi, `src="${logoUrl}"`)
-      .replace(/src=["']assets\/[^"']+["']/gi, `src="${logoUrl}"`)
-      .replace(/(<img[^>]*class=["'][^"']*logo[^"']*["'][^>]*src=["'])[^"']+([^"']*["'])/gi, `$1${logoUrl}$2`);
+    // Replace primary logo images while preserving secondary logos / partner badges
+    cleanHtml = cleanHtml.replace(/(<img\b(?=[^>]*\bclass=["'][^"']*\blogo\b)(?![^>]*\bsecondary-logo\b)[^>]*\bsrc=["'])[^"']+([^"']*["'])/gi, `$1${logoUrl}$2`);
   }
 
   // Ensure UTF-8 and necessary font links are preserved

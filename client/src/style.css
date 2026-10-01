@@ -267,6 +267,36 @@ a:hover { color: var(--color-accent-hover); }
   color:      #0369a1;
   border-color: #bae6fd;
 }
+.badge-primary {
+  background: #eff6ff;
+  color:      #1d4ed8;
+  border-color: #bfdbfe;
+}
+.badge-secondary, .badge-neutral {
+  background: #f8fafc;
+  color:      #475569;
+  border-color: #e2e8f0;
+}
+.badge-success {
+  background: #ecfdf5;
+  color:      #047857;
+  border-color: #a7f3d0;
+}
+.badge-warning {
+  background: #fffbeb;
+  color:      #b45309;
+  border-color: #fde68a;
+}
+.badge-danger {
+  background: #fef2f2;
+  color:      #b91c1c;
+  border-color: #fecaca;
+}
+.badge-purple {
+  background: #faf5ff;
+  color:      #6b21a8;
+  border-color: #e9d5ff;
+}
 
 /* Pill with active pulsing dot */
 .status-pill-live {
