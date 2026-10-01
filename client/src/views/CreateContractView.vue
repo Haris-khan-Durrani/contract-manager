@@ -464,52 +464,18 @@
 
             <div class="section-divider"></div>
 
-            <!-- SECTION 6: Signing & Link Validity Controls -->
+            <!-- SECTION 6: Client Signature Controls -->
             <div class="card-section">
               <div class="section-title-wrap">
-                <span class="section-icon">⏱️</span>
+                <span class="section-icon">✍️</span>
                 <div>
-                  <h3 class="section-title">6. Validity & Signing Controls</h3>
-                  <p class="section-sub">Configure how long the client's public link remains active and permitted signature methods.</p>
-                </div>
-              </div>
-
-              <div class="form-group">
-                <label class="field-label">Public Link Validity</label>
-                <div class="validity-row">
-                  <div class="validity-chips">
-                    <button
-                      v-for="opt in validityOptions"
-                      :key="opt.value"
-                      type="button"
-                      class="validity-pill"
-                      :class="{ active: form.validityDays === opt.value }"
-                      @click="form.validityDays = opt.value"
-                    >
-                      {{ opt.label }}
-                    </button>
-                  </div>
-
-                  <div class="custom-days-box">
-                    <span>Custom:</span>
-                    <input
-                      type="number"
-                      v-model.number="form.validityDays"
-                      min="1"
-                      max="365"
-                      class="form-control custom-num-input"
-                    />
-                    <span>days</span>
-                  </div>
-
-                  <div class="live-expiry-badge" v-if="form.validityDays">
-                    Expires on <strong>{{ computedExpiryDate }}</strong>
-                  </div>
+                  <h3 class="section-title">6. Client Signature Controls</h3>
+                  <p class="section-sub">Configure permitted signature methods for the client (public link validity defaults to 1 day).</p>
                 </div>
               </div>
 
               <!-- Allowed Signature Methods -->
-              <div class="form-group" style="margin-top: 18px;">
+              <div class="form-group">
                 <label class="field-label">Allowed Client Signature Methods <span class="req">*</span></label>
                 <div class="sig-methods-row">
                   <label class="sig-toggle-chip" :class="{ active: form.signatureMethods.draw }">
@@ -577,8 +543,8 @@
                 <strong class="summary-v">{{ formResponses['contract_value'] }}</strong>
               </div>
               <div class="summary-row">
-                <span class="summary-k">Expires On</span>
-                <strong class="summary-v text-warning">{{ computedExpiryDate }}</strong>
+                <span class="summary-k">Validity:</span>
+                <span class="summary-v">1 Day (Expires {{ computedExpiryDate }})</span>
               </div>
             </div>
 
@@ -740,7 +706,7 @@ const form = ref({
   recipientName:            '',
   recipientEmail:           '',
   recipientPhone:           '',
-  validityDays:             7,
+  validityDays:             1,
   signatureMethods: {
     draw:   true,
     type:   true,
@@ -902,7 +868,7 @@ async function loadInitialContacts() {
 function onTemplateChange() {
   const t = templates.value.find(t => t.id === form.value.templateId)
   selectedTemplate.value = t || null
-  if (t?.validity_days) form.value.validityDays = t.validity_days
+  form.value.validityDays = 1
   if (t?.form_id) form.value.formId = t.form_id
 }
 
@@ -1101,7 +1067,7 @@ function resetForm() {
     recipientName:            '',
     recipientEmail:           '',
     recipientPhone:           '',
-    validityDays:             7,
+    validityDays:             1,
     signatureMethods: {
       draw:   true,
       type:   true,

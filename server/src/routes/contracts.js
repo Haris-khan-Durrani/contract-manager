@@ -194,7 +194,7 @@ router.post('/manual', requirePermission('contract:create'), async (req, res) =>
 
     // Generate signing token immediately on creation
     const signingToken   = crypto.randomBytes(32).toString('hex');
-    const numDays        = parseInt(validityDays) || 7;
+    const numDays        = parseInt(validityDays) || 1;
     const tokenExpiresAt = new Date(Date.now() + numDays * 24 * 60 * 60 * 1000);
 
     // Build immutable snapshot with all tokens resolved
@@ -521,7 +521,7 @@ router.post('/:id/send', requirePermission('contract:send'), async (req, res) =>
       const diffMs = new Date(contract.token_expires_at).getTime() - Date.now();
       expiryDays = Math.max(1, Math.round(diffMs / (24 * 60 * 60 * 1000)));
     } else {
-      expiryDays = contract.template_validity_days || 7;
+      expiryDays = contract.template_validity_days || 1;
     }
 
     const tokenExpiresAt = new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000);
