@@ -1243,121 +1243,211 @@
               <button type="button" class="btn-icon-xs text-danger" @click="clearHtmlSelection" title="Deselect">✕</button>
             </div>
 
-            <!-- Content Editor -->
-            <div class="inspector-section">
-              <h4 class="section-subtitle">Text &amp; Clause Content</h4>
-              <textarea
-                v-model="selectedHtmlText"
-                @input="updateSelectedHtmlText(selectedHtmlText)"
-                class="form-control"
-                rows="4"
-                :dir="selectedHtmlDir"
-                style="font-size: 0.82rem; line-height: 1.45;"
-              ></textarea>
-              <small class="text-muted" style="display: block; margin-top: 4px; font-size: 0.72rem;">
-                ✏️ Direct inline typing in document canvas is also supported.
-              </small>
-            </div>
+            <!-- Image & Logo Settings (when <img> is selected) -->
+            <div v-if="selectedHtmlTag === 'img'" class="inspector-section">
+              <h4 class="section-subtitle">Image &amp; Logo Settings</h4>
 
-            <!-- Typography & Direction -->
-            <div class="inspector-section">
-              <h4 class="section-subtitle">Typography &amp; Direction</h4>
+              <!-- Image Preview Box -->
+              <div class="image-preview-box" style="margin-bottom: 12px; padding: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; text-align: center;">
+                <img
+                  :src="selectedHtmlImageSrc"
+                  :alt="selectedHtmlImageAlt || 'Preview'"
+                  style="max-height: 85px; max-width: 100%; object-fit: contain; margin: 0 auto; display: block;"
+                />
+              </div>
 
+              <!-- Image Source URL Input -->
               <div class="form-group">
-                <label class="form-label">Font Family</label>
+                <label class="form-label">Image Source URL</label>
+                <input
+                  type="text"
+                  v-model="selectedHtmlImageSrc"
+                  @input="updateSelectedImageSrc(selectedHtmlImageSrc)"
+                  class="form-control"
+                  placeholder="https://.../logo.png"
+                />
+                <small class="text-muted" style="display: block; margin-top: 4px; font-size: 0.72rem;">
+                  Paste any public image link or CDN URL to update the image in real time.
+                </small>
+              </div>
+
+              <!-- Quick Presets & File Upload -->
+              <div class="form-group" style="margin-top: 10px;">
+                <label class="form-label">Quick Actions</label>
+                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-xs"
+                    @click="updateSelectedImageSrc('https://assets.cdn.filesafe.space/NJOPxsxylG8ulEPo9hX9/media/6ab2a26318891558b460bf74.png')"
+                    title="Reset to official 360GI logo"
+                  >
+                    🏛️ 360GI Logo
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-primary btn-xs"
+                    @click="triggerImageFileInput"
+                    title="Upload image from computer"
+                  >
+                    📁 Upload Image…
+                  </button>
+                </div>
+                <input
+                  type="file"
+                  ref="imageFileInputRef"
+                  style="display: none;"
+                  accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                  @change="onLocalImageSelected"
+                />
+              </div>
+
+              <!-- Alt Text Input -->
+              <div class="form-group" style="margin-top: 10px;">
+                <label class="form-label">Alt Text (Description)</label>
+                <input
+                  type="text"
+                  v-model="selectedHtmlImageAlt"
+                  @input="updateSelectedImageAlt(selectedHtmlImageAlt)"
+                  class="form-control"
+                  placeholder="e.g. 360 Global Immigration"
+                />
+              </div>
+
+              <!-- Width / Scaling -->
+              <div class="form-group" style="margin-top: 10px;">
+                <label class="form-label">Image Width / Size</label>
                 <select
-                  v-model="selectedHtmlFontFamily"
-                  @change="updateSelectedHtmlStyle('fontFamily', selectedHtmlFontFamily)"
+                  v-model="selectedHtmlImageWidth"
+                  @change="updateSelectedImageWidth(selectedHtmlImageWidth)"
                   class="form-control"
                 >
-                  <option value="Inter, 'Segoe UI', Arial, sans-serif">Inter (Modern Clean Sans)</option>
-                  <option value="'Noto Sans Arabic', Tahoma, sans-serif">Noto Sans Arabic (Official Arabic)</option>
-                  <option value="'Cairo', sans-serif">Cairo (Standard Arabic/English)</option>
-                  <option value="'Amiri', serif">Amiri (Classical Arabic Serif)</option>
-                  <option value="Georgia, serif">Georgia (Traditional Legal)</option>
+                  <option value="">Default (from stylesheet: 82%)</option>
+                  <option value="40%">40% (Compact)</option>
+                  <option value="60%">60% (Medium)</option>
+                  <option value="82%">82% (Cover Standard)</option>
+                  <option value="100%">100% (Full Cell Width)</option>
                 </select>
               </div>
-
-              <div class="form-row-2">
-                <div class="form-group">
-                  <label class="form-label">Font Size</label>
-                  <select
-                    v-model="selectedHtmlFontSize"
-                    @change="updateSelectedHtmlStyle('fontSize', selectedHtmlFontSize)"
-                    class="form-control"
-                  >
-                    <option value="7.6pt">7.6pt (Fine print)</option>
-                    <option value="7.9pt">7.9pt (Body compact)</option>
-                    <option value="8.45pt">8.45pt (Standard body)</option>
-                    <option value="10.2pt">10.2pt (Section title)</option>
-                    <option value="12pt">12pt (Subheading)</option>
-                    <option value="16pt">16pt (Heading)</option>
-                    <option value="21pt">21pt (Cover title)</option>
-                  </select>
-                </div>
-
-                <div class="form-group">
-                  <label class="form-label">Direction</label>
-                  <select
-                    v-model="selectedHtmlDir"
-                    @change="updateSelectedHtmlDir(selectedHtmlDir)"
-                    class="form-control"
-                  >
-                    <option value="ltr">LTR (English)</option>
-                    <option value="rtl">RTL (Arabic)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div class="form-row-2">
-                <div class="form-group">
-                  <label class="form-label">Font Weight</label>
-                  <select
-                    v-model="selectedHtmlFontWeight"
-                    @change="updateSelectedHtmlStyle('fontWeight', selectedHtmlFontWeight)"
-                    class="form-control"
-                  >
-                    <option value="400">Regular (400)</option>
-                    <option value="600">Semi-Bold (600)</option>
-                    <option value="700">Bold (700)</option>
-                    <option value="800">Extra-Bold (800)</option>
-                  </select>
-                </div>
-
-                <div class="form-group">
-                  <label class="form-label">Text Align</label>
-                  <select
-                    v-model="selectedHtmlTextAlign"
-                    @change="updateSelectedHtmlStyle('textAlign', selectedHtmlTextAlign)"
-                    class="form-control"
-                  >
-                    <option value="left">Left</option>
-                    <option value="center">Center</option>
-                    <option value="right">Right</option>
-                    <option value="justify">Justify</option>
-                  </select>
-                </div>
-              </div>
             </div>
 
-            <!-- Dynamic Variables Quick Inserter -->
-            <div class="inspector-section">
-              <h4 class="section-subtitle">Insert Dynamic Variable Token</h4>
-              <p class="text-muted" style="font-size: 0.72rem; margin-bottom: 6px;">
-                Click to insert token into this element:
-              </p>
-              <div class="quick-token-wrap">
-                <button
-                  v-for="v in quickVariables"
-                  :key="v"
-                  type="button"
-                  class="token-chip-btn"
-                  @click="insertDynamicTokenToElement(v)"
-                >
-                  + &#123;&#123;{{ v }}&#125;&#125;
-                </button>
+            <!-- Content Editor & Typography (for text elements) -->
+            <template v-else>
+              <!-- Content Editor -->
+              <div class="inspector-section">
+                <h4 class="section-subtitle">Text &amp; Clause Content</h4>
+                <textarea
+                  v-model="selectedHtmlText"
+                  @input="updateSelectedHtmlText(selectedHtmlText)"
+                  class="form-control"
+                  rows="4"
+                  :dir="selectedHtmlDir"
+                  style="font-size: 0.82rem; line-height: 1.45;"
+                ></textarea>
+                <small class="text-muted" style="display: block; margin-top: 4px; font-size: 0.72rem;">
+                  ✏️ Direct inline typing in document canvas is also supported.
+                </small>
               </div>
-            </div>
+
+              <!-- Typography & Direction -->
+              <div class="inspector-section">
+                <h4 class="section-subtitle">Typography &amp; Direction</h4>
+
+                <div class="form-group">
+                  <label class="form-label">Font Family</label>
+                  <select
+                    v-model="selectedHtmlFontFamily"
+                    @change="updateSelectedHtmlStyle('fontFamily', selectedHtmlFontFamily)"
+                    class="form-control"
+                  >
+                    <option value="Inter, 'Segoe UI', Arial, sans-serif">Inter (Modern Clean Sans)</option>
+                    <option value="'Noto Sans Arabic', Tahoma, sans-serif">Noto Sans Arabic (Official Arabic)</option>
+                    <option value="'Cairo', sans-serif">Cairo (Standard Arabic/English)</option>
+                    <option value="'Amiri', serif">Amiri (Classical Arabic Serif)</option>
+                    <option value="Georgia, serif">Georgia (Traditional Legal)</option>
+                  </select>
+                </div>
+
+                <div class="form-row-2">
+                  <div class="form-group">
+                    <label class="form-label">Font Size</label>
+                    <select
+                      v-model="selectedHtmlFontSize"
+                      @change="updateSelectedHtmlStyle('fontSize', selectedHtmlFontSize)"
+                      class="form-control"
+                    >
+                      <option value="7.6pt">7.6pt (Fine print)</option>
+                      <option value="7.9pt">7.9pt (Body compact)</option>
+                      <option value="8.45pt">8.45pt (Standard body)</option>
+                      <option value="10.2pt">10.2pt (Section title)</option>
+                      <option value="12pt">12pt (Subheading)</option>
+                      <option value="16pt">16pt (Heading)</option>
+                      <option value="21pt">21pt (Cover title)</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label">Direction</label>
+                    <select
+                      v-model="selectedHtmlDir"
+                      @change="updateSelectedHtmlDir(selectedHtmlDir)"
+                      class="form-control"
+                    >
+                      <option value="ltr">LTR (English)</option>
+                      <option value="rtl">RTL (Arabic)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="form-row-2">
+                  <div class="form-group">
+                    <label class="form-label">Font Weight</label>
+                    <select
+                      v-model="selectedHtmlFontWeight"
+                      @change="updateSelectedHtmlStyle('fontWeight', selectedHtmlFontWeight)"
+                      class="form-control"
+                    >
+                      <option value="400">Regular (400)</option>
+                      <option value="600">Semi-Bold (600)</option>
+                      <option value="700">Bold (700)</option>
+                      <option value="800">Extra-Bold (800)</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label">Text Align</label>
+                    <select
+                      v-model="selectedHtmlTextAlign"
+                      @change="updateSelectedHtmlStyle('textAlign', selectedHtmlTextAlign)"
+                      class="form-control"
+                    >
+                      <option value="left">Left</option>
+                      <option value="center">Center</option>
+                      <option value="right">Right</option>
+                      <option value="justify">Justify</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Dynamic Variables Quick Inserter -->
+              <div class="inspector-section">
+                <h4 class="section-subtitle">Insert Dynamic Variable Token</h4>
+                <p class="text-muted" style="font-size: 0.72rem; margin-bottom: 6px;">
+                  Click to insert token into this element:
+                </p>
+                <div class="quick-token-wrap">
+                  <button
+                    v-for="v in quickVariables"
+                    :key="v"
+                    type="button"
+                    class="token-chip-btn"
+                    @click="insertDynamicTokenToElement(v)"
+                  >
+                    + &#123;&#123;{{ v }}&#125;&#125;
+                  </button>
+                </div>
+              </div>
+            </template>
 
             <!-- Row & Element Operations -->
             <div class="inspector-section">
@@ -2321,6 +2411,10 @@ const selectedHtmlFontWeight = ref('400')
 const selectedHtmlTextAlign = ref('left')
 const selectedHtmlDir = ref('ltr')
 const selectedHtmlColor = ref('#202629')
+const selectedHtmlImageSrc = ref('')
+const selectedHtmlImageAlt = ref('')
+const selectedHtmlImageWidth = ref('')
+const imageFileInputRef = ref(null)
 let activeSelectedDomEl = null
 
 const hasSelectedRow = computed(() => {
@@ -2344,7 +2438,9 @@ function updateFloatingToolbarPos() {
     return
   }
 
-  const el = activeSelectedDomEl.closest('tr') || activeSelectedDomEl
+  const el = activeSelectedDomEl.tagName?.toLowerCase() === 'img' 
+    ? activeSelectedDomEl 
+    : (activeSelectedDomEl.closest('tr') || activeSelectedDomEl)
   const rect = el.getBoundingClientRect()
   const viewRect = canvasView.getBoundingClientRect()
 
@@ -2377,8 +2473,16 @@ function selectHtmlElement(target) {
 
   activeSelectedDomEl = target
   target.classList.add('studio-selected-node')
-  target.setAttribute('contenteditable', 'true')
-  target.focus()
+
+  const isImg = target.tagName.toLowerCase() === 'img'
+  if (isImg) {
+    selectedHtmlImageSrc.value = target.getAttribute('src') || ''
+    selectedHtmlImageAlt.value = target.getAttribute('alt') || ''
+    selectedHtmlImageWidth.value = target.style.width || ''
+  } else {
+    target.setAttribute('contenteditable', 'true')
+    target.focus()
+  }
 
   const pageEl = target.closest('.page:not(.page-no), section.page')
   if (pageEl) {
@@ -2404,12 +2508,67 @@ function selectHtmlElement(target) {
   updateFloatingToolbarPos()
 }
 
+function updateSelectedImageSrc(newSrc) {
+  if (!activeSelectedDomEl || activeSelectedDomEl.tagName.toLowerCase() !== 'img') return
+  activeSelectedDomEl.setAttribute('src', newSrc)
+  selectedHtmlImageSrc.value = newSrc
+
+  // If on cover page, sync both English and Arabic logo images
+  const coverPage = activeSelectedDomEl.closest('.cover, .page-1')
+  if (coverPage) {
+    const allLogos = coverPage.querySelectorAll('img.logo')
+    allLogos.forEach(img => {
+      img.setAttribute('src', newSrc)
+    })
+  }
+
+  recordHistoryState('Image Change')
+  syncDomToRawHtml()
+}
+
+function updateSelectedImageAlt(newAlt) {
+  if (!activeSelectedDomEl || activeSelectedDomEl.tagName.toLowerCase() !== 'img') return
+  activeSelectedDomEl.setAttribute('alt', newAlt)
+  selectedHtmlImageAlt.value = newAlt
+  recordHistoryState('Image Alt Change')
+  syncDomToRawHtml()
+}
+
+function updateSelectedImageWidth(newWidth) {
+  if (!activeSelectedDomEl || activeSelectedDomEl.tagName.toLowerCase() !== 'img') return
+  activeSelectedDomEl.style.width = newWidth
+  selectedHtmlImageWidth.value = newWidth
+  recordHistoryState('Image Width Change')
+  syncDomToRawHtml()
+}
+
+function triggerImageFileInput() {
+  imageFileInputRef.value?.click()
+}
+
+function onLocalImageSelected(event) {
+  const file = event.target.files?.[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    const dataUrl = e.target.result
+    updateSelectedImageSrc(dataUrl)
+  }
+  reader.readAsDataURL(file)
+}
+
 function onHtmlCanvasClick(event) {
   if (!isHtmlTemplate.value) return
   if (event.target.closest('.canvas-floating-toolbar')) return
 
+  // Prioritize clicking directly on an <img> element
+  if (event.target.tagName.toLowerCase() === 'img') {
+    selectHtmlElement(event.target)
+    return
+  }
+
   const target = event.target.closest(
-    '.clause, .clause-text, .clause-number, .section-title, .cover-title, ' +
+    'img, .clause, .clause-text, .clause-number, .section-title, .cover-title, ' +
     '.money, .dynamic, .label, p, h1, h2, h3, td, th, li, tr, .signature-line'
   ) || event.target
 
@@ -2631,12 +2790,38 @@ function scanCanvasLayers() {
     const pageNum = pIdx + 1
     const pageMeta = htmlPageList.value[pIdx] || { title: `Page ${pageNum}` }
 
-    // Find all rows or major elements inside page
-    const rows = Array.from(pageEl.querySelectorAll('tr, .header-row, .cover-title, .signature-box'))
+    // Find all rows or major elements and images inside page
+    const rows = Array.from(pageEl.querySelectorAll('tr, .header-row, .cover-title, img.logo, img, .signature-box'))
     const elementsToScan = rows.length > 0 ? rows : Array.from(pageEl.children)
 
     elementsToScan.forEach((el, elIdx) => {
       if (el.tagName === 'TD' || el.tagName === 'TH') return
+
+      // Explicit image detection in layers tree
+      if (el.tagName === 'IMG') {
+        const isCover = pIdx === 0
+        const isLogo = el.classList.contains('logo') || el.classList.contains('cover-logo')
+        const imgTitle = el.getAttribute('alt') || (isLogo ? (isCover ? 'Cover Logo' : 'Official Logo') : 'Image')
+        const rawSrc = el.getAttribute('src') || ''
+        const shortSrc = rawSrc.length > 38 ? rawSrc.substring(0, 35) + '…' : rawSrc
+
+        result.push({
+          id: `layer_p${pIdx}_img${elIdx}`,
+          pageIndex: pIdx,
+          pageNumber: pageNum,
+          pageTitle: pageMeta.title,
+          domEl: el,
+          tagName: 'img',
+          isRow: false,
+          type: 'image',
+          icon: '🖼️',
+          typeLabel: 'Image / Logo',
+          title: imgTitle,
+          subtitle: shortSrc,
+          text: '',
+        })
+        return
+      }
 
       const text = el.innerText?.trim() || ''
       const textLower = text.toLowerCase()
@@ -2658,7 +2843,7 @@ function scanCanvasLayers() {
       let subtitle = ''
 
       // 1. Header or Logo row
-      if (classStr.includes('header-row') || el.querySelector('img, .logo-left, .logo-right') || (pIdx === 0 && elIdx === 0)) {
+      if (classStr.includes('header-row') || el.querySelector('.logo-left, .logo-right') || (pIdx === 0 && elIdx === 0)) {
         type = 'header'
         icon = '🏛️'
         typeLabel = pIdx === 0 ? 'Cover Title' : 'Bilingual Header'
@@ -5968,9 +6153,11 @@ watch(activeTab, (newTab, oldTab) => {
 .interactive-html-canvas :deep(.cover-title:hover),
 .interactive-html-canvas :deep(.clause-row:hover),
 .interactive-html-canvas :deep(.dynamic:hover),
-.interactive-html-canvas :deep(td:hover) {
-  outline: 1.5px dashed rgba(99, 102, 241, 0.6) !important;
-  cursor: pointer;
+.interactive-html-canvas :deep(td:hover),
+.interactive-html-canvas :deep(img:hover) {
+  outline: 1.5px dashed rgba(99, 102, 241, 0.7) !important;
+  outline-offset: 2px;
+  cursor: pointer !important;
 }
 
 .interactive-html-canvas :deep(.studio-selected-node) {
@@ -5979,6 +6166,14 @@ watch(activeTab, (newTab, oldTab) => {
   background-color: rgba(99, 102, 241, 0.08) !important;
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25) !important;
   border-radius: 3px;
+}
+
+.interactive-html-canvas :deep(img.studio-selected-node) {
+  outline: 2.5px solid #2563eb !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.28) !important;
+  border-radius: 4px;
+  background-color: transparent !important;
 }
 
 .interactive-html-canvas :deep([contenteditable="true"]:focus) {
