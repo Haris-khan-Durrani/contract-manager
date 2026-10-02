@@ -668,6 +668,33 @@ const renderedHtmlContent = computed(() => {
     )
   }
 
+  // Ensure Company Signature & Stamp are displayed in .signature-line
+  const companySig = contract.value?.snapshot?.companySignature || contract.value?.companySignature;
+  const companySeal = contract.value?.snapshot?.companyStamp || contract.value?.companyStamp;
+  if (companySig || companySeal) {
+    let companyContent = '';
+    if (companySig) {
+      companyContent += `<img src="${companySig}" alt="Company Signature" class="comp-sig-img" style="max-height: 13mm; max-width: 82%; display: block; position: relative; z-index: 2;" />`;
+    }
+    if (companySeal) {
+      companyContent += `<img src="${companySeal}" alt="Company Seal" class="comp-stamp-img" style="max-height: 22mm; position: absolute; right: 2mm; top: -5mm; opacity: 0.88; transform: rotate(-5deg); z-index: 1; pointer-events: none;" />`;
+    }
+    rendered = rendered.replace(
+      /<div class=["']signature-line["'] data-field=["']signature\.company["']>[\s\S]*?<\/div>/gi,
+      `<div class="signature-line signed" data-field="signature.company" style="display:flex;align-items:center;justify-content:center;position:relative;background:#fff;border-bottom:1.5px solid #0f172a;min-height:36px;">${companyContent}</div>`
+    );
+  }
+
+  // Ensure Official Stamp on every page
+  if (companySeal && !rendered.includes('class="page-official-stamp"')) {
+    const pageStampBadge = `
+<div class="page-official-stamp" style="position: absolute; bottom: 8mm; right: 12mm; pointer-events: none; z-index: 99; opacity: 0.85;">
+  <img src="${companySeal}" alt="Official Company Stamp" style="max-height: 24mm; max-width: 28mm; transform: rotate(-4deg); filter: drop-shadow(0 2px 4px rgba(0,0,0,0.12));" />
+</div>
+</section>`;
+    rendered = rendered.replace(/<\/section>/gi, pageStampBadge);
+  }
+
   // Extract embedded <style> tags from rawHtml if present
   let extractedCss = ''
   rendered = rendered.replace(/<style[^>]*>([\s\S]*?)<\/style>/gi, (_, css) => {

@@ -5,6 +5,7 @@
  * Preloads into memory at server startup with instant in-memory lookups.
  */
 const db = require('../config/db');
+const { DEFAULT_COMPANY_STAMP, DEFAULT_COMPANY_SIGNATURE } = require('../constants/defaultAssets');
 
 const DEFAULT_SETTINGS = {
   GHL_SHARED_SECRET:             'development_shared_secret_for_testing',
@@ -21,7 +22,8 @@ const DEFAULT_SETTINGS = {
   RETRY_WORKER_CRON:             '*/2 * * * *',
   MAX_UPLOAD_RETRIES:            '5',
   RESTRICT_CONTACTS_TO_ASSIGNED: 'true',
-  COMPANY_STAMP_URL:             '',
+  COMPANY_STAMP_URL:             DEFAULT_COMPANY_STAMP,
+  COMPANY_SIGNATURE_URL:         DEFAULT_COMPANY_SIGNATURE,
 };
 
 class SettingsService {

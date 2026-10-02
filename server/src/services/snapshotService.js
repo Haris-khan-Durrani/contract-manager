@@ -287,6 +287,9 @@ async function buildSnapshot(opts) {
   const customCss = docSchema.customCss || template.customCss;
   let renderedRawHtml = null;
 
+  const settingsService = require('./settingsService');
+  const { DEFAULT_COMPANY_STAMP, DEFAULT_COMPANY_SIGNATURE } = require('../constants/defaultAssets');
+
   let companySignature = opts.companySignature || '';
   if (!companySignature && opts.assignedUserId && locationId) {
     const [uRows] = await db.execute(
@@ -297,8 +300,14 @@ async function buildSnapshot(opts) {
       companySignature = uRows[0].signature_png_url;
     }
   }
-  const settingsService = require('./settingsService');
-  const companyStamp = opts.companyStamp || settingsService.get('COMPANY_STAMP_URL', '');
+  if (!companySignature) {
+    companySignature = settingsService.get('COMPANY_SIGNATURE_URL') || DEFAULT_COMPANY_SIGNATURE;
+  }
+
+  let companyStamp = opts.companyStamp || settingsService.get('COMPANY_STAMP_URL');
+  if (!companyStamp) {
+    companyStamp = DEFAULT_COMPANY_STAMP;
+  }
 
   if (rawHtml) {
     const htmlTemplateService = require('./htmlTemplateService');

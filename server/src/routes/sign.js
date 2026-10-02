@@ -466,7 +466,9 @@ router.post('/:token/submit', async (req, res) => {
       },
     ];
 
-    // Retrieve assigned user's signature PNG and company stamp
+    const settingsService = require('../services/settingsService');
+    const { DEFAULT_COMPANY_STAMP, DEFAULT_COMPANY_SIGNATURE } = require('../constants/defaultAssets');
+
     let companySignature = snapshot.companySignature || '';
     if (!companySignature && contract.assigned_user_id) {
       const [uRows] = await connection.execute(
@@ -477,8 +479,14 @@ router.post('/:token/submit', async (req, res) => {
         companySignature = uRows[0].signature_png_url;
       }
     }
-    const settingsService = require('../services/settingsService');
-    const companyStamp = snapshot.companyStamp || settingsService.get('COMPANY_STAMP_URL', '');
+    if (!companySignature) {
+      companySignature = settingsService.get('COMPANY_SIGNATURE_URL') || DEFAULT_COMPANY_SIGNATURE;
+    }
+
+    let companyStamp = snapshot.companyStamp || settingsService.get('COMPANY_STAMP_URL');
+    if (!companyStamp) {
+      companyStamp = DEFAULT_COMPANY_STAMP;
+    }
 
     snapshot.companySignature = companySignature;
     snapshot.companyStamp = companyStamp;

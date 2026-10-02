@@ -113,9 +113,11 @@ function renderHtmlTemplate(html, css, context = {}, options = {}) {
 
   // Signatures & Company Seal
   const settingsService = require('./settingsService');
+  const { DEFAULT_COMPANY_STAMP, DEFAULT_COMPANY_SIGNATURE } = require('../constants/defaultAssets');
+
   const clientSignature = context.clientSignature || form.signatureDataUrl || '';
-  const companySignature = context.companySignature || options.companySignature || '';
-  const companyStamp = context.companyStamp || options.companyStamp || settingsService.get('COMPANY_STAMP_URL', '');
+  const companySignature = context.companySignature || options.companySignature || settingsService.get('COMPANY_SIGNATURE_URL') || DEFAULT_COMPANY_SIGNATURE;
+  const companyStamp = context.companyStamp || options.companyStamp || settingsService.get('COMPANY_STAMP_URL') || DEFAULT_COMPANY_STAMP;
 
   const clientSigImg = clientSignature ? `<img src="${clientSignature}" alt="Client Signature" class="client-sig-img" style="max-height: 14mm; max-width: 90%; display: block; margin: auto;" />` : '';
   const compSigImg = companySignature ? `<img src="${companySignature}" alt="Company Signature" class="comp-sig-img" style="max-height: 13mm; max-width: 82%; display: block; margin: auto;" />` : '';

@@ -935,6 +935,33 @@ const renderedContractHtml = computed(() => {
     .replace(/src=["'](?:assets\/)?logo-left\.png["']/gi, 'src="https://assets.cdn.filesafe.space/NJOPxsxylG8ulEPo9hX9/media/6ab2a26318891558b460bf74.png"')
     .replace(/src=["'](?:assets\/)?logo-right\.png["']/gi, 'src="https://assets.cdn.filesafe.space/NJOPxsxylG8ulEPo9hX9/media/6ab2a26318891558b460bf74.png"')
 
+  // Inject Company Signature & Stamp into .signature-line
+  const companySig = snap?.companySignature || contract.value?.companySignature;
+  const companySeal = snap?.companyStamp || contract.value?.companyStamp;
+  if (companySig || companySeal) {
+    let companyContent = '';
+    if (companySig) {
+      companyContent += `<img src="${companySig}" alt="Company Signature" class="comp-sig-img" style="max-height: 13mm; max-width: 82%; display: block; position: relative; z-index: 2;" />`;
+    }
+    if (companySeal) {
+      companyContent += `<img src="${companySeal}" alt="Company Seal" class="comp-stamp-img" style="max-height: 22mm; position: absolute; right: 2mm; top: -5mm; opacity: 0.88; transform: rotate(-5deg); z-index: 1; pointer-events: none;" />`;
+    }
+    html = html.replace(
+      /<div class=["']signature-line["'] data-field=["']signature\.company["']>[\s\S]*?<\/div>/gi,
+      `<div class="signature-line signed" data-field="signature.company" style="display:flex;align-items:center;justify-content:center;position:relative;background:#fff;border-bottom:1.5px solid #0f172a;min-height:36px;">${companyContent}</div>`
+    );
+  }
+
+  // Inject Official Stamp on each page if not already present
+  if (companySeal && !html.includes('class="page-official-stamp"')) {
+    const pageStampBadge = `
+<div class="page-official-stamp" style="position: absolute; bottom: 8mm; right: 12mm; pointer-events: none; z-index: 99; opacity: 0.85;">
+  <img src="${companySeal}" alt="Official Company Stamp" style="max-height: 24mm; max-width: 28mm; transform: rotate(-4deg); filter: drop-shadow(0 2px 4px rgba(0,0,0,0.12));" />
+</div>
+</section>`;
+    html = html.replace(/<\/section>/gi, pageStampBadge);
+  }
+
   return `<style>${css}</style>\n${html}`
 })
 
