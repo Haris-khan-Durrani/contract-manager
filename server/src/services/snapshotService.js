@@ -291,13 +291,26 @@ async function buildSnapshot(opts) {
   const { DEFAULT_COMPANY_STAMP, DEFAULT_COMPANY_SIGNATURE } = require('../constants/defaultAssets');
 
   let companySignature = opts.companySignature || '';
-  if (!companySignature && opts.assignedUserId && locationId) {
+  if (!companySignature && opts.assignedUserId) {
     const [uRows] = await db.execute(
-      'SELECT signature_png_url FROM app_user_access WHERE location_id = ? AND ghl_user_id = ? LIMIT 1',
-      [locationId, opts.assignedUserId]
+      `SELECT signature_png_url FROM app_user_access
+       WHERE ghl_user_id = ? AND signature_png_url IS NOT NULL AND signature_png_url != ''
+       ORDER BY (location_id = ?) DESC LIMIT 1`,
+      [opts.assignedUserId, locationId]
     ).catch(() => [[]]);
     if (uRows.length && uRows[0].signature_png_url) {
       companySignature = uRows[0].signature_png_url;
+    }
+  }
+  if (!companySignature && locationId) {
+    const [adminRows] = await db.execute(
+      `SELECT signature_png_url FROM app_user_access
+       WHERE location_id = ? AND signature_png_url IS NOT NULL AND signature_png_url != ''
+       LIMIT 1`,
+      [locationId]
+    ).catch(() => [[]]);
+    if (adminRows.length && adminRows[0].signature_png_url) {
+      companySignature = adminRows[0].signature_png_url;
     }
   }
   if (!companySignature) {

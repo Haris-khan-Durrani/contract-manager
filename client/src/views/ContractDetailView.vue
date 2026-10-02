@@ -578,6 +578,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import { useAuthStore } from '../stores/auth'
+import { DEFAULT_COMPANY_STAMP, DEFAULT_COMPANY_SIGNATURE } from '../constants/defaultAssets'
 
 const route  = useRoute()
 const router = useRouter()
@@ -936,8 +937,8 @@ const renderedContractHtml = computed(() => {
     .replace(/src=["'](?:assets\/)?logo-right\.png["']/gi, 'src="https://assets.cdn.filesafe.space/NJOPxsxylG8ulEPo9hX9/media/6ab2a26318891558b460bf74.png"')
 
   // Inject Company Signature & Stamp into .signature-line
-  const companySig = snap?.companySignature || contract.value?.companySignature;
-  const companySeal = snap?.companyStamp || contract.value?.companyStamp;
+  const companySig = snap?.companySignature || contract.value?.companySignature || DEFAULT_COMPANY_SIGNATURE;
+  const companySeal = snap?.companyStamp || contract.value?.companyStamp || DEFAULT_COMPANY_STAMP;
   if (companySig || companySeal) {
     let companyContent = '';
     if (companySig) {

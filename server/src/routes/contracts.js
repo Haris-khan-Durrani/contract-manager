@@ -132,10 +132,58 @@ router.get('/:id', async (req, res) => {
       [contract.id]
     );
 
+    // Resolve company signature & stamp for preview & detail rendering
+    const { DEFAULT_COMPANY_STAMP, DEFAULT_COMPANY_SIGNATURE } = require('../constants/defaultAssets');
+    let snapshot = null;
+    try {
+      snapshot = typeof contract.snapshot_json === 'string'
+        ? JSON.parse(contract.snapshot_json)
+        : contract.snapshot_json;
+    } catch (e) {}
+
+    let companySignature = snapshot?.companySignature || '';
+    if (!companySignature && contract.assigned_user_id) {
+      const [uRows] = await db.execute(
+        `SELECT signature_png_url FROM app_user_access
+         WHERE ghl_user_id = ? AND signature_png_url IS NOT NULL AND signature_png_url != ''
+         ORDER BY (location_id = ?) DESC LIMIT 1`,
+        [contract.assigned_user_id, locationId]
+      ).catch(() => [[]]);
+      if (uRows.length && uRows[0].signature_png_url) {
+        companySignature = uRows[0].signature_png_url;
+      }
+    }
+    if (!companySignature) {
+      const [adminRows] = await db.execute(
+        `SELECT signature_png_url FROM app_user_access
+         WHERE location_id = ? AND signature_png_url IS NOT NULL AND signature_png_url != ''
+         LIMIT 1`,
+        [locationId]
+      ).catch(() => [[]]);
+      if (adminRows.length && adminRows[0].signature_png_url) {
+        companySignature = adminRows[0].signature_png_url;
+      }
+    }
+    if (!companySignature) {
+      companySignature = settingsService.get('COMPANY_SIGNATURE_URL') || DEFAULT_COMPANY_SIGNATURE;
+    }
+
+    let companyStamp = snapshot?.companyStamp || settingsService.get('COMPANY_STAMP_URL') || DEFAULT_COMPANY_STAMP;
+
+    contract.companySignature = companySignature;
+    contract.companyStamp = companyStamp;
+    if (snapshot) {
+      snapshot.companySignature = companySignature;
+      snapshot.companyStamp = companyStamp;
+      contract.snapshot_json = snapshot;
+    }
+
     res.json({
       contract,
       ghlContact,
       ghlOpportunity,
+      companySignature,
+      companyStamp,
       events: events || [],
       signatures: signatures || [],
     });

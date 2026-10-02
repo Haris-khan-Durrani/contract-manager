@@ -471,6 +471,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import axios from 'axios'
 import SignaturePad from '../components/signing/SignaturePad.vue'
+import { DEFAULT_COMPANY_STAMP, DEFAULT_COMPANY_SIGNATURE } from '../constants/defaultAssets'
 
 const route = useRoute()
 const token = route.params.token
@@ -669,8 +670,8 @@ const renderedHtmlContent = computed(() => {
   }
 
   // Ensure Company Signature & Stamp are displayed in .signature-line
-  const companySig = contract.value?.snapshot?.companySignature || contract.value?.companySignature;
-  const companySeal = contract.value?.snapshot?.companyStamp || contract.value?.companyStamp;
+  const companySig = contract.value?.snapshot?.companySignature || contract.value?.companySignature || DEFAULT_COMPANY_SIGNATURE;
+  const companySeal = contract.value?.snapshot?.companyStamp || contract.value?.companyStamp || DEFAULT_COMPANY_STAMP;
   if (companySig || companySeal) {
     let companyContent = '';
     if (companySig) {

@@ -183,6 +183,53 @@ router.get('/:token', async (req, res) => {
       }
     } catch (e) {}
 
+    // Resolve company signature & stamp for public signing view
+    const settingsService = require('../services/settingsService');
+    const { DEFAULT_COMPANY_STAMP, DEFAULT_COMPANY_SIGNATURE } = require('../constants/defaultAssets');
+
+    let companySignature = snapshot?.companySignature || '';
+    if (!companySignature && contract.assigned_user_id) {
+      const [uRows] = await db.execute(
+        `SELECT signature_png_url FROM app_user_access
+         WHERE ghl_user_id = ? AND signature_png_url IS NOT NULL AND signature_png_url != ''
+         ORDER BY (location_id = ?) DESC LIMIT 1`,
+        [contract.assigned_user_id, contract.location_id]
+      ).catch(() => [[]]);
+      if (uRows.length && uRows[0].signature_png_url) {
+        companySignature = uRows[0].signature_png_url;
+      }
+    }
+    if (!companySignature) {
+      const [adminRows] = await db.execute(
+        `SELECT signature_png_url FROM app_user_access
+         WHERE location_id = ? AND signature_png_url IS NOT NULL AND signature_png_url != ''
+         LIMIT 1`,
+        [contract.location_id]
+      ).catch(() => [[]]);
+      if (adminRows.length && adminRows[0].signature_png_url) {
+        companySignature = adminRows[0].signature_png_url;
+      }
+    }
+    if (!companySignature) {
+      companySignature = settingsService.get('COMPANY_SIGNATURE_URL') || DEFAULT_COMPANY_SIGNATURE;
+    }
+
+    let companyStamp = snapshot?.companyStamp || settingsService.get('COMPANY_STAMP_URL') || DEFAULT_COMPANY_STAMP;
+
+    let rawHtml = snapshot?.rawHtml || docSchema?.rawHtml || null;
+    let customCss = snapshot?.customCss || docSchema?.customCss || null;
+
+    if (rawHtml) {
+      const htmlTemplateService = require('../services/htmlTemplateService');
+      rawHtml = htmlTemplateService.renderHtmlTemplate(rawHtml, customCss, {
+        form: formData,
+        clientSignature: '',
+        companySignature,
+        companyStamp,
+        contractDate: new Date(contract.created_at || Date.now()).toLocaleDateString('en-GB'),
+      });
+    }
+
     return res.json({
       contractId:         contract.id,
       templateName:       contract.template_name,
@@ -199,13 +246,17 @@ router.get('/:token', async (req, res) => {
       formSchema,
       formSettings,
       signingConfig,
-      rawHtml:            snapshot?.rawHtml || docSchema?.rawHtml || null,
-      customCss:          snapshot?.customCss || docSchema?.customCss || null,
+      companySignature,
+      companyStamp,
+      rawHtml,
+      customCss,
       snapshot: {
         documentTitle: snapshot?.documentTitle || docSchema?.title || contract.template_name,
         activeBlocks:  snapshot?.activeBlocks || docSchema?.blocks || [],
-        rawHtml:       snapshot?.rawHtml || docSchema?.rawHtml || null,
-        customCss:     snapshot?.customCss || docSchema?.customCss || null,
+        rawHtml,
+        customCss,
+        companySignature,
+        companyStamp,
         systemValues:  snapshot?.systemValues || {},
         templateName:  contract.template_name,
         ...(snapshot || {}),
@@ -472,21 +523,31 @@ router.post('/:token/submit', async (req, res) => {
     let companySignature = snapshot.companySignature || '';
     if (!companySignature && contract.assigned_user_id) {
       const [uRows] = await connection.execute(
-        'SELECT signature_png_url FROM app_user_access WHERE location_id = ? AND ghl_user_id = ? LIMIT 1',
-        [contract.location_id, contract.assigned_user_id]
+        `SELECT signature_png_url FROM app_user_access
+         WHERE ghl_user_id = ? AND signature_png_url IS NOT NULL AND signature_png_url != ''
+         ORDER BY (location_id = ?) DESC LIMIT 1`,
+        [contract.assigned_user_id, contract.location_id]
       ).catch(() => [[]]);
       if (uRows.length && uRows[0].signature_png_url) {
         companySignature = uRows[0].signature_png_url;
       }
     }
     if (!companySignature) {
+      const [adminRows] = await connection.execute(
+        `SELECT signature_png_url FROM app_user_access
+         WHERE location_id = ? AND signature_png_url IS NOT NULL AND signature_png_url != ''
+         LIMIT 1`,
+        [contract.location_id]
+      ).catch(() => [[]]);
+      if (adminRows.length && adminRows[0].signature_png_url) {
+        companySignature = adminRows[0].signature_png_url;
+      }
+    }
+    if (!companySignature) {
       companySignature = settingsService.get('COMPANY_SIGNATURE_URL') || DEFAULT_COMPANY_SIGNATURE;
     }
 
-    let companyStamp = snapshot.companyStamp || settingsService.get('COMPANY_STAMP_URL');
-    if (!companyStamp) {
-      companyStamp = DEFAULT_COMPANY_STAMP;
-    }
+    let companyStamp = snapshot.companyStamp || settingsService.get('COMPANY_STAMP_URL') || DEFAULT_COMPANY_STAMP;
 
     snapshot.companySignature = companySignature;
     snapshot.companyStamp = companyStamp;
