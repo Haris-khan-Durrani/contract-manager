@@ -216,6 +216,7 @@ async function searchWonOpportunities(locationId, query = '', pipelineId = null,
       }
 
       let mapped = filtered.map(opp => {
+        const assignedTo = opp.assignedTo || opp.assigned_to || opp.userId || null;
         const contact = opp.contact || {
           id: opp.contactId || opp.id,
           name: opp.contactName || opp.name?.split('|')?.[0]?.trim() || opp.name,
@@ -230,7 +231,11 @@ async function searchWonOpportunities(locationId, query = '', pipelineId = null,
           status: opp.status || 'open',
           pipelineName: opp.pipelineName || 'Main Pipeline',
           pipelineStageName: opp.pipelineStageName || opp.stage || 'Pipeline Lead',
-          contact,
+          assignedTo,
+          contact: {
+            ...contact,
+            assignedTo: contact.assignedTo || assignedTo,
+          },
         };
       });
 
@@ -570,6 +575,9 @@ async function sendContractViaGHLConversation(locationId, {
   expiryDays = 7,
   channels = ['sms', 'email'],
   userId = null,
+  assignedUserName = '',
+  assignedUserEmail = '',
+  emailFrom = null,
   privateToken = null,
 }) {
   const results = {
@@ -601,6 +609,7 @@ async function sendContractViaGHLConversation(locationId, {
   
   <p style="font-size: 15px; line-height: 1.6;">Hello <strong>${recipientName || 'Valued Client'}</strong>,</p>
   <p style="font-size: 15px; line-height: 1.6;">Your agreement <strong>"${contractName}"</strong> has been prepared and is ready for your review and electronic signature.</p>
+  ${assignedUserName ? `<p style="font-size: 14px; color: #475569; margin: 8px 0 16px;">Assigned Representative: <strong>${assignedUserName}</strong></p>` : ''}
   
   <div style="text-align: center; margin: 28px 0;">
     <a href="${signingUrl}" target="_blank" style="background-color: #2563eb; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 15px; display: inline-block;">
@@ -631,7 +640,7 @@ async function sendContractViaGHLConversation(locationId, {
         privateToken,
       });
       results.smsSent = true;
-      console.log(`[GHL Delivery] Sent SMS via GHL Conversation to ${contactId} (${recipientPhone})`);
+      console.log(`[GHL Delivery] Sent SMS via GHL Conversation to ${contactId} (${recipientPhone}) with userId: ${userId}`);
     } catch (err) {
       console.warn(`[GHL Delivery] SMS conversation dispatch note: ${err.message}`);
       results.errors.push(`SMS: ${err.message}`);
@@ -641,6 +650,7 @@ async function sendContractViaGHLConversation(locationId, {
   // 2. Send Email via GoHighLevel Conversations
   if (shouldSendEmail && recipientEmail) {
     try {
+      const fromAddr = emailFrom || assignedUserEmail || null;
       await sendConversationMessage(locationId, {
         contactId,
         type: 'Email',
@@ -648,10 +658,11 @@ async function sendContractViaGHLConversation(locationId, {
         html: emailHtml,
         message: smsBody,
         userId,
+        emailFrom: fromAddr,
         privateToken,
       });
       results.emailSent = true;
-      console.log(`[GHL Delivery] Sent Email via GHL Conversation to ${contactId} (${recipientEmail})`);
+      console.log(`[GHL Delivery] Sent Email via GHL Conversation to ${contactId} (${recipientEmail}) with sender userId ${userId} (${fromAddr || 'default'})`);
     } catch (err) {
       console.warn(`[GHL Delivery] Email conversation dispatch note: ${err.message}`);
       results.errors.push(`Email: ${err.message}`);

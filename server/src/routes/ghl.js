@@ -15,6 +15,7 @@ const { loadAppUser, requirePermission } = require('../middleware/rbac');
 const ghlService    = require('../services/ghlService');
 const ghlFieldCache = require('../services/ghlFieldCache');
 const settingsService = require('../services/settingsService');
+const db = require('../config/db');
 
 router.use(ghlAuthMiddleware, loadAppUser);
 
@@ -113,6 +114,7 @@ router.get('/contacts', async (req, res) => {
       status: d.status,
       pipelineName: d.pipelineName,
       pipelineStageName: d.pipelineStageName,
+      assignedTo: d.assignedTo || d.contact?.assignedTo || null,
     }));
     return res.json({ contacts });
   } catch (err) {
@@ -129,11 +131,46 @@ router.get('/users', async (req, res) => {
     try {
       users = await ghlService.getLocationUsers(locationId, privateToken);
     } catch (err) {
-      users = [
-        { id: req.ghlUser.userId, name: req.ghlUser.name || 'Authorized User', email: req.ghlUser.email || 'user@ghlcrm.com' },
-      ];
+      console.warn('[GHL Route] getLocationUsers notice:', err.message);
     }
-    res.json({ users: users || [] });
+
+    // Enrich from app_user_access
+    const [dbUsers] = await db.execute(
+      `SELECT ghl_user_id AS id, user_name AS name, user_email AS email, app_role AS role
+       FROM app_user_access
+       WHERE location_id = ? AND enabled = TRUE`,
+      [locationId]
+    ).catch(() => [[]]);
+
+    const userMap = new Map();
+    for (const u of (users || [])) {
+      if (u.id) userMap.set(u.id, u);
+    }
+    for (const du of (dbUsers || [])) {
+      if (du.id && !userMap.has(du.id)) {
+        userMap.set(du.id, {
+          id: du.id,
+          name: du.name || 'HighLevel User',
+          email: du.email || '',
+          role: du.role || 'SALES',
+        });
+      } else if (du.id && userMap.has(du.id)) {
+        const existing = userMap.get(du.id);
+        if (!existing.name && du.name) existing.name = du.name;
+        if (!existing.email && du.email) existing.email = du.email;
+      }
+    }
+
+    if (!userMap.has(req.ghlUser.userId)) {
+      userMap.set(req.ghlUser.userId, {
+        id: req.ghlUser.userId,
+        name: req.ghlUser.name || 'Authorized User',
+        email: req.ghlUser.email || '',
+        role: req.ghlUser.role || 'ADMIN',
+      });
+    }
+
+    res.json({ users: Array.from(userMap.values()) });
   } catch (err) {
     console.error('[GHL Route] Get users error:', err.message);
     res.status(500).json({ error: 'Failed to get location users.' });

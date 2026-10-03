@@ -201,6 +201,7 @@ router.post('/manual', requirePermission('contract:create'), async (req, res) =>
       templateId,
       ghlContactId,
       ghlOpportunityId,
+      assignedUserId,
       formId,
       formMode     = 'NORMAL',
       recipientName,
@@ -245,6 +246,51 @@ router.post('/manual', requirePermission('contract:create'), async (req, res) =>
     const numDays        = parseInt(validityDays) || 1;
     const tokenExpiresAt = new Date(Date.now() + numDays * 24 * 60 * 60 * 1000);
 
+    // Determine assigned user (from request body, or from GHL contact/opportunity, or fallback to creator)
+    let targetAssignedUserId = assignedUserId || req.body.assignedTo;
+    if (!targetAssignedUserId && ghlContactId) {
+      try {
+        const contactObj = await ghlService.getContact(locationId, ghlContactId, req.ghlUser?.privateToken);
+        if (contactObj?.assignedTo) targetAssignedUserId = contactObj.assignedTo;
+      } catch (_) {}
+    }
+    if (!targetAssignedUserId && ghlOpportunityId) {
+      try {
+        const oppObj = await ghlService.getOpportunity(locationId, ghlOpportunityId, req.ghlUser?.privateToken);
+        if (oppObj?.assignedTo) targetAssignedUserId = oppObj.assignedTo;
+      } catch (_) {}
+    }
+    if (!targetAssignedUserId) {
+      targetAssignedUserId = userId;
+    }
+
+    // Resolve assigned user's name & email
+    let assignedUserObj = null;
+    if (targetAssignedUserId) {
+      assignedUserObj = await ghlService.getUser(locationId, targetAssignedUserId, req.ghlUser?.privateToken).catch(() => null);
+    }
+    if (!assignedUserObj || !assignedUserObj.name) {
+      const [uRows] = await db.execute(
+        'SELECT user_name, user_email FROM app_user_access WHERE location_id = ? AND ghl_user_id = ? LIMIT 1',
+        [locationId, targetAssignedUserId]
+      ).catch(() => [[]]);
+      if (uRows.length && (uRows[0].user_name || uRows[0].user_email)) {
+        assignedUserObj = {
+          id: targetAssignedUserId,
+          name: uRows[0].user_name || assignedUserObj?.name || '',
+          email: uRows[0].user_email || assignedUserObj?.email || '',
+        };
+      }
+    }
+
+    const assignedUserName = assignedUserObj?.name
+      || (assignedUserObj?.firstName ? `${assignedUserObj.firstName} ${assignedUserObj.lastName || ''}`.trim() : '')
+      || (targetAssignedUserId === userId ? req.ghlUser?.name : '')
+      || '';
+    const assignedUserEmail = assignedUserObj?.email
+      || (targetAssignedUserId === userId ? req.ghlUser?.email : '')
+      || '';
+
     // Build immutable snapshot with all tokens resolved
     let snapshot = null;
     try {
@@ -270,8 +316,8 @@ router.post('/manual', requirePermission('contract:create'), async (req, res) =>
         locationId,
         ghlContactId,
         ghlOpportunityId: ghlOpportunityId || null,
-        assignedUserName: req.ghlUser?.name || '',
-        assignedUserId:   assignedUserId || req.ghlUser?.userId,
+        assignedUserName,
+        assignedUserId:   targetAssignedUserId,
         privateToken: req.ghlUser?.privateToken,
       });
       snapshot = built.snapshot;
@@ -292,8 +338,8 @@ router.post('/manual', requirePermission('contract:create'), async (req, res) =>
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'MANUAL', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         locationId, templateId, template.current_version, ghlContactId, ghlOpportunityId || null,
-        userId, userId,
-        req.ghlUser.name || '',
+        targetAssignedUserId, userId,
+        assignedUserName || req.ghlUser.name || '',
         formMode.toUpperCase(),
         contractState,
         publicState,
@@ -365,7 +411,10 @@ router.post('/manual', requirePermission('contract:create'), async (req, res) =>
         signingUrl,
         expiryDays: numDays,
         channels: deliveryChannels,
-        userId,
+        userId: targetAssignedUserId,
+        assignedUserName,
+        assignedUserEmail,
+        emailFrom: assignedUserEmail || undefined,
         privateToken: req.ghlUser?.privateToken,
       }).catch(err => {
         console.warn('[Contracts] GHL auto-send delivery error:', err.message);
@@ -661,6 +710,31 @@ router.post('/:id/send', requirePermission('contract:send'), async (req, res) =>
     const baseUrl = settingsService.getSigningBaseUrl(req);
     const signingUrl = `${baseUrl}/sign/${signingToken}`;
 
+    const targetUserId = contract.assigned_user_id || userId;
+    let assignedUserObj = null;
+    if (contract.assigned_user_id) {
+      assignedUserObj = await ghlService.getUser(locationId, contract.assigned_user_id, req.ghlUser?.privateToken).catch(() => null);
+    }
+    if (!assignedUserObj || !assignedUserObj.name) {
+      const [uRows] = await db.execute(
+        'SELECT user_name, user_email FROM app_user_access WHERE location_id = ? AND ghl_user_id = ? LIMIT 1',
+        [locationId, targetUserId]
+      ).catch(() => [[]]);
+      if (uRows.length && (uRows[0].user_name || uRows[0].user_email)) {
+        assignedUserObj = {
+          id: targetUserId,
+          name: uRows[0].user_name || assignedUserObj?.name || '',
+          email: uRows[0].user_email || assignedUserObj?.email || '',
+        };
+      }
+    }
+
+    const assignedUserName = assignedUserObj?.name
+      || (assignedUserObj?.firstName ? `${assignedUserObj.firstName} ${assignedUserObj.lastName || ''}`.trim() : '')
+      || contract.assigned_user_name
+      || '';
+    const assignedUserEmail = assignedUserObj?.email || '';
+
     // Deliver via GHL Conversation (SMS, Email, and Internal Conversation Thread)
     const deliveryChannels = req.body.channels || (deliveryMethod === 'sms' ? ['sms'] : deliveryMethod === 'email' ? ['email'] : ['sms', 'email']);
     const delivery = await ghlService.sendContractViaGHLConversation(locationId, {
@@ -672,7 +746,10 @@ router.post('/:id/send', requirePermission('contract:send'), async (req, res) =>
       signingUrl,
       expiryDays,
       channels: deliveryChannels,
-      userId,
+      userId: targetUserId,
+      assignedUserName,
+      assignedUserEmail,
+      emailFrom: assignedUserEmail || undefined,
       privateToken: req.ghlUser?.privateToken,
     }).catch(err => {
       console.warn('[Contracts] GHL delivery note:', err.message);

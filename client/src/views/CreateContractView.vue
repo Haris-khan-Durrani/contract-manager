@@ -121,6 +121,23 @@
                   <button type="button" class="chip-remove" @click="clearContact" title="Clear lead">✕</button>
                 </div>
               </div>
+
+              <!-- Assigned Agent / Staff Member -->
+              <div class="form-group" style="margin-top: 14px;">
+                <label class="field-label">Assigned Agent / Staff Member</label>
+                <div v-if="loadingUsers" class="spinner-inline">Loading team members…</div>
+                <div v-else class="select-wrap">
+                  <select v-model="form.assignedUserId" class="form-control form-select">
+                    <option value="">— Auto-detect from Lead / Logged-in Staff —</option>
+                    <option v-for="u in locationUsers" :key="u.id" :value="u.id">
+                      {{ u.name || u.email || 'Unnamed Staff' }}{{ u.email ? ` (${u.email})` : '' }}{{ u.role ? ` · ${u.role}` : '' }}
+                    </option>
+                  </select>
+                </div>
+                <small style="display:block; margin-top:4px; font-size:0.78rem; color:var(--color-text-muted);">
+                  The contract emails and SMS will be sent with this agent as the sender in GoHighLevel.
+                </small>
+              </div>
             </div>
 
             <div class="section-divider"></div>
@@ -531,6 +548,10 @@
                 <span class="summary-k">Main Applicant: 1</span>
                 <strong class="summary-v">{{ form.recipientName || '—' }}</strong>
               </div>
+              <div class="summary-row" v-if="selectedAgentName">
+                <span class="summary-k">Assigned Agent:</span>
+                <strong class="summary-v">{{ selectedAgentName }}</strong>
+              </div>
               <div class="summary-row" v-if="form.formMode === 'TEAM' && teamMembers.length">
                 <span class="summary-k">Additional:</span>
                 <span class="summary-v">{{ teamMembers.length }} member{{ teamMembers.length > 1 ? 's' : '' }}</span>
@@ -747,6 +768,7 @@ const form = ref({
   formId:                   '',
   ghlContactId:             '',
   ghlOpportunityId:         '',
+  assignedUserId:           '',
   recipientName:            '',
   recipientEmail:           '',
   recipientPhone:           '',
@@ -799,6 +821,10 @@ const forms            = ref([])
 const loadingTemplates = ref(false)
 const selectedTemplate = ref(null)
 
+// Location Users / Staff Members
+const locationUsers        = ref([])
+const loadingUsers         = ref(false)
+
 // Contacts / Leads
 const allContacts          = ref([])
 const contactSearch        = ref('')
@@ -840,6 +866,12 @@ const computedExpiryDate = computed(() => {
   if (!form.value.validityDays) return '—'
   const d = new Date(Date.now() + form.value.validityDays * 24 * 60 * 60 * 1000)
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+})
+
+const selectedAgentName = computed(() => {
+  if (!form.value.assignedUserId) return ''
+  const u = locationUsers.value.find(user => user.id === form.value.assignedUserId)
+  return u ? (u.name || u.email) : ''
 })
 
 const atLeastOneSignatureMethod = computed(() => {
@@ -910,6 +942,21 @@ async function loadInitialContacts() {
   }
 }
 
+async function loadLocationUsers() {
+  loadingUsers.value = true
+  try {
+    const res = await api.get('/ghl/users', { headers: getHeaders() })
+    locationUsers.value = res.data.users || []
+    if (!form.value.assignedUserId && auth.user?.userId) {
+      form.value.assignedUserId = auth.user.userId
+    }
+  } catch (e) {
+    console.warn('Failed to load location users:', e.message)
+  } finally {
+    loadingUsers.value = false
+  }
+}
+
 function onTemplateChange() {
   const t = templates.value.find(t => t.id === form.value.templateId)
   selectedTemplate.value = t || null
@@ -953,6 +1000,9 @@ function selectContact(c) {
   form.value.recipientName    = c.name || ''
   form.value.recipientEmail   = c.email || ''
   form.value.recipientPhone   = c.phone || ''
+  if (c.assignedTo) {
+    form.value.assignedUserId = c.assignedTo
+  }
   contactSearch.value         = c.name || c.email || ''
   showContactDropdown.value   = false
 
@@ -1018,6 +1068,7 @@ async function createContract(isDraft = false) {
       templateId:       parseInt(form.value.templateId),
       ghlContactId:     contactId,
       ghlOpportunityId: form.value.ghlOpportunityId || null,
+      assignedUserId:   form.value.assignedUserId || null,
       formMode:         form.value.formMode,
       recipientName:    form.value.recipientName,
       recipientEmail:   form.value.recipientEmail,
@@ -1117,6 +1168,7 @@ function resetForm() {
     formId:                   '',
     ghlContactId:             '',
     ghlOpportunityId:         '',
+    assignedUserId:           auth.user?.userId || '',
     recipientName:            '',
     recipientEmail:           '',
     recipientPhone:           '',
@@ -1135,7 +1187,7 @@ function resetForm() {
 // ─── Lifecycle ────────────────────────────────────────────────────────────────
 onMounted(async () => {
   document.addEventListener('click', handleClickOutside)
-  await Promise.all([loadTemplates(), loadForms(), loadInitialContacts()])
+  await Promise.all([loadTemplates(), loadForms(), loadInitialContacts(), loadLocationUsers()])
 })
 
 onUnmounted(() => {
