@@ -133,6 +133,19 @@
                 </td>
                 <td style="text-align: right;" @click.stop>
                   <div style="display:inline-flex; gap:6px; align-items:center;">
+                    <!-- Direct "Send via GHL" button for Draft contracts -->
+                    <button
+                      v-if="['DRAFT', 'READY'].includes(c.state)"
+                      type="button"
+                      class="btn btn-primary btn-sm"
+                      style="font-weight:600; padding:4px 8px; font-size:0.78rem; background:#2563eb;"
+                      :disabled="sendingContractId === c.id"
+                      @click="sendViaGhl(c)"
+                      title="Send via GoHighLevel to client"
+                    >
+                      <span v-if="sendingContractId === c.id">Sending…</span>
+                      <span v-else>📤 Send via GHL</span>
+                    </button>
                     <button
                       v-if="c.signing_token"
                       type="button"
@@ -170,11 +183,14 @@ const contracts = ref([])
 const selectedStatus = ref('')
 const searchQuery = ref('')
 const copiedId = ref(null)
+const sendingContractId = ref(null)
 
 const statusOptions = [
   { label: 'All Contracts', value: '' },
+  { label: 'Drafts', value: 'DRAFT' },
   { label: 'Ready', value: 'READY' },
-  { label: 'Opened / Sent', value: 'OPENED' },
+  { label: 'Sent', value: 'SENT' },
+  { label: 'Opened', value: 'OPENED' },
   { label: 'In Progress', value: 'IN_PROGRESS' },
   { label: 'Completed', value: 'COMPLETED' },
   { label: 'Revoked', value: 'REVOKED' },
@@ -235,6 +251,7 @@ function openContract(id) {
 
 function getStatusBadgeClass(state) {
   const map = {
+    DRAFT:                  'badge-warning',
     AWAITING_FORM:          'badge-warning',
     READY:                  'badge-info',
     SENT:                   'badge-primary',
@@ -251,6 +268,7 @@ function getStatusBadgeClass(state) {
 
 function formatStatusLabel(state) {
   const map = {
+    DRAFT:                  'Draft',
     AWAITING_FORM:          'Awaiting Form',
     READY:                  'Ready to Send',
     SENT:                   'Sent to Client',
@@ -263,6 +281,22 @@ function formatStatusLabel(state) {
     DECLINED:               'Declined',
   }
   return map[state] || state
+}
+
+async function sendViaGhl(contract) {
+  if (!confirm(`Dispatch contract #${contract.id} (${contract.template_name}) to ${contract.recipient_name || 'client'} via GoHighLevel?`)) return
+  sendingContractId.value = contract.id
+  try {
+    const res = await axios.post(`${apiBase}/contracts/${contract.id}/send`, {
+      channels: ['sms', 'email'],
+    }, { headers: getHeaders() })
+    alert(res.data?.message || 'Contract dispatched via GoHighLevel successfully! Status updated to Sent.')
+    contract.state = 'SENT'
+  } catch (err) {
+    alert(err.response?.data?.error || 'Failed to dispatch contract via GoHighLevel.')
+  } finally {
+    sendingContractId.value = null
+  }
 }
 
 function formatDate(d) {

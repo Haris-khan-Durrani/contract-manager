@@ -279,18 +279,24 @@ router.post('/manual', requirePermission('contract:create'), async (req, res) =>
       console.warn('[Contracts] Could not pre-build snapshot:', sErr.message);
     }
 
+    const isDraft = Boolean(req.body.isDraft || req.body.saveAsDraft);
+    const contractState = isDraft ? 'DRAFT' : 'SENT';
+    const publicState   = isDraft ? 'DRAFT' : 'SENT';
+
     const [result] = await db.execute(
       `INSERT INTO contract_instances
          (location_id, template_id, template_version, ghl_contact_id, ghl_opportunity_id,
           assigned_user_id, created_by_user_id, assigned_user_name, creation_mode, form_mode, state, public_state,
           recipient_name, recipient_email, recipient_phone, signing_config_json,
           signing_token, token_expires_at, form_response_json, form_data_json, snapshot_json, validity_days)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'MANUAL', ?, 'READY', 'PENDING', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'MANUAL', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         locationId, templateId, template.current_version, ghlContactId, ghlOpportunityId || null,
         userId, userId,
         req.ghlUser.name || '',
         formMode.toUpperCase(),
+        contractState,
+        publicState,
         recipientName  || null,
         recipientEmail || null,
         recipientPhone || null,
@@ -305,43 +311,104 @@ router.post('/manual', requirePermission('contract:create'), async (req, res) =>
     );
 
     const contractInstanceId = result.insertId;
-
-    // Audit log — creation
-    await db.execute(
-      `INSERT INTO contract_audit_logs
-         (contract_instance_id, actor_type, actor_id, actor_name, action, to_state, metadata_json)
-       VALUES (?, 'USER', ?, ?, 'CONTRACT_CREATED', 'READY', ?)`,
-      [contractInstanceId, userId, req.ghlUser.name, JSON.stringify({ templateId, mode: 'MANUAL', formMode })]
-    );
-
-    // Event log
-    await db.execute(
-      `INSERT INTO contract_events (contract_instance_id, event_type, event_data_json, actor_type, actor_label)
-       VALUES (?, 'CONTRACT_CREATED', ?, 'USER', ?)`,
-      [contractInstanceId, JSON.stringify({ templateId, formMode, validityDays: numDays }), req.ghlUser.name || userId]
-    );
-
-    // Sync Contract Created event to GHL Conversation stream & Contact Notes
-    ghlService.syncAuditLogToGHL(locationId, {
-      contactId: ghlContactId,
-      userId,
-      title: `Contract #${contractInstanceId} Created (${template.name})`,
-      details: `Form Mode: ${formMode} | Validity: ${numDays} days`,
-      actorName: req.ghlUser?.name || 'Staff User',
-      privateToken: req.ghlUser?.privateToken,
-    }).catch(err => console.warn('[Contracts] GHL creation note failed:', err.message));
-
     const baseUrl    = settingsService.getSigningBaseUrl(req);
     const signingUrl = `${baseUrl}/sign/${signingToken}`;
 
-    res.status(201).json({
-      contractInstanceId,
-      state: 'READY',
-      template: template.name,
-      signingUrl,
-      signingToken,
-      expiresAt: tokenExpiresAt,
-    });
+    let deliveryResults = null;
+
+    if (isDraft) {
+      // Audit log — creation as Draft
+      await db.execute(
+        `INSERT INTO contract_audit_logs
+           (contract_instance_id, actor_type, actor_id, actor_name, action, to_state, metadata_json)
+         VALUES (?, 'USER', ?, ?, 'CONTRACT_CREATED', 'DRAFT', ?)`,
+        [contractInstanceId, userId, req.ghlUser.name, JSON.stringify({ templateId, mode: 'MANUAL', formMode, isDraft: true })]
+      );
+
+      // Event log
+      await db.execute(
+        `INSERT INTO contract_events (contract_instance_id, event_type, event_data_json, actor_type, actor_label)
+         VALUES (?, 'CONTRACT_CREATED', ?, 'USER', ?)`,
+        [contractInstanceId, JSON.stringify({ templateId, formMode, validityDays: numDays, state: 'DRAFT' }), req.ghlUser.name || userId]
+      );
+
+      // Sync draft event to GHL Conversation stream & Contact Notes
+      ghlService.syncAuditLogToGHL(locationId, {
+        contactId: ghlContactId,
+        userId,
+        title: `Contract #${contractInstanceId} Saved as Draft (${template.name})`,
+        details: `Form Mode: ${formMode} | Validity: ${numDays} days | Awaiting manual dispatch via GHL`,
+        actorName: req.ghlUser?.name || 'Staff User',
+        privateToken: req.ghlUser?.privateToken,
+      }).catch(err => console.warn('[Contracts] GHL draft note failed:', err.message));
+
+      res.status(201).json({
+        contractInstanceId,
+        state: 'DRAFT',
+        public_state: 'DRAFT',
+        template: template.name,
+        signingUrl,
+        signingToken,
+        expiresAt: tokenExpiresAt,
+        isDraft: true,
+        message: 'Contract saved as Draft. Ready to be sent manually via GHL.',
+      });
+    } else {
+      // Auto-send immediately via GoHighLevel Conversation (SMS & Email)
+      const deliveryChannels = req.body.channels || ['sms', 'email'];
+      deliveryResults = await ghlService.sendContractViaGHLConversation(locationId, {
+        contactId: ghlContactId,
+        recipientName: recipientName || '',
+        recipientEmail: recipientEmail || '',
+        recipientPhone: recipientPhone || '',
+        contractName: template.name,
+        signingUrl,
+        expiryDays: numDays,
+        channels: deliveryChannels,
+        userId,
+        privateToken: req.ghlUser?.privateToken,
+      }).catch(err => {
+        console.warn('[Contracts] GHL auto-send delivery error:', err.message);
+        return { smsSent: false, emailSent: false, notePosted: false, errors: [err.message] };
+      });
+
+      // Update contact custom fields in GHL
+      ghlService.updateContact(locationId, ghlContactId, {
+        customFields: [
+          { id: 'contract_status',  value: 'Sent' },
+          { id: 'contract_sent_date', value: new Date().toISOString() },
+          { id: 'contract_expiry_date', value: tokenExpiresAt.toISOString() },
+        ],
+      }, req.ghlUser?.privateToken).catch(err => console.warn('[Contracts] GHL status sync failed:', err.message));
+
+      // Audit log — created and sent
+      await db.execute(
+        `INSERT INTO contract_audit_logs
+           (contract_instance_id, actor_type, actor_id, actor_name, action, to_state, metadata_json)
+         VALUES (?, 'USER', ?, ?, 'CONTRACT_SENT', 'SENT', ?)`,
+        [contractInstanceId, userId, req.ghlUser.name, JSON.stringify({ templateId, mode: 'MANUAL', formMode, autoSend: true, delivery: deliveryResults })]
+      );
+
+      // Event log
+      await db.execute(
+        `INSERT INTO contract_events (contract_instance_id, event_type, event_data_json, actor_type, actor_label)
+         VALUES (?, 'CONTRACT_SENT', ?, 'USER', ?)`,
+        [contractInstanceId, JSON.stringify({ templateId, formMode, validityDays: numDays, autoSend: true }), req.ghlUser.name || userId]
+      );
+
+      res.status(201).json({
+        contractInstanceId,
+        state: 'SENT',
+        public_state: 'SENT',
+        template: template.name,
+        signingUrl,
+        signingToken,
+        expiresAt: tokenExpiresAt,
+        isDraft: false,
+        delivery: deliveryResults,
+        message: 'Contract created and automatically sent via GoHighLevel!',
+      });
+    }
   } catch (err) {
     console.error('[Contracts] Manual create error:', err.message);
     res.status(500).json({ error: 'Failed to create contract.' });
@@ -518,8 +585,8 @@ router.post('/:id/send', requirePermission('contract:send'), async (req, res) =>
     if (!rows.length) return res.status(404).json({ error: 'Contract not found.' });
 
     const contract = rows[0];
-    if (contract.state !== 'READY') {
-      return res.status(409).json({ error: `Contract must be in READY state to send. Current: ${contract.state}` });
+    if (contract.state !== 'READY' && contract.state !== 'DRAFT') {
+      return res.status(409).json({ error: `Contract must be in READY or DRAFT state to send. Current: ${contract.state}` });
     }
 
     // Build immutable snapshot
@@ -577,7 +644,7 @@ router.post('/:id/send', requirePermission('contract:send'), async (req, res) =>
     // Transition to SENT with snapshot
     await db.execute(
       `UPDATE contract_instances
-       SET state = 'SENT', snapshot_json = ?, signing_token = ?, token_expires_at = ?, validity_days = ?, updated_at = NOW()
+       SET state = 'SENT', public_state = 'SENT', snapshot_json = ?, signing_token = ?, token_expires_at = ?, validity_days = ?, updated_at = NOW()
        WHERE id = ?`,
       [JSON.stringify(snapshot), signingToken, tokenExpiresAt, expiryDays, contract.id]
     );
@@ -586,8 +653,8 @@ router.post('/:id/send', requirePermission('contract:send'), async (req, res) =>
     await db.execute(
       `INSERT INTO contract_audit_logs
          (contract_instance_id, actor_type, actor_id, actor_name, action, from_state, to_state, metadata_json)
-       VALUES (?, 'USER', ?, ?, 'CONTRACT_SENT', 'READY', 'SENT', ?)`,
-      [contract.id, userId, req.ghlUser.name, JSON.stringify({ expiryDays, deliveryMethod })]
+       VALUES (?, 'USER', ?, ?, 'CONTRACT_SENT', ?, 'SENT', ?)`,
+      [contract.id, userId, req.ghlUser.name, contract.state, JSON.stringify({ expiryDays, deliveryMethod })]
     );
 
     // Build signing URL

@@ -560,18 +560,39 @@
               </div>
             </div>
 
-            <div class="sidebar-actions">
+            <div class="sidebar-actions" style="display:flex; flex-direction:column; gap:10px;">
+              <!-- Primary: Create Contract & Link (Auto-Sends immediately) -->
               <button
                 type="button"
                 class="btn btn-primary btn-full-width"
-                :disabled="!canCreate || creating"
-                @click="createContract"
+                :disabled="!canCreate || creating || savingDraft"
+                @click="createContract(false)"
+                title="Create agreement and automatically send to client via GoHighLevel"
               >
-                <span v-if="creating" class="spinner-inline">Generating Contract…</span>
-                <span v-else>🚀 Create Contract & Link</span>
+                <span v-if="creating" class="spinner-inline">Creating &amp; Sending via GHL…</span>
+                <span v-else>🚀 Create Contract &amp; Link</span>
               </button>
+              <div style="font-size:0.73rem; color:var(--color-text-muted); text-align:center; margin-top:-4px;">
+                ⚡ Auto-sends signing link to client via GoHighLevel
+              </div>
 
-              <router-link to="/contracts" class="btn btn-secondary btn-full-width" style="text-align:center;">
+              <!-- Secondary: Save as Draft (User sends manually later) -->
+              <button
+                type="button"
+                class="btn btn-secondary btn-full-width"
+                style="background: #f8fafc; color: #1e293b; border: 1.5px solid #cbd5e1; font-weight: 600;"
+                :disabled="!canCreate || creating || savingDraft"
+                @click="createContract(true)"
+                title="Save agreement as Draft without sending to client"
+              >
+                <span v-if="savingDraft" class="spinner-inline">Saving Draft…</span>
+                <span v-else>💾 Save as Draft</span>
+              </button>
+              <div style="font-size:0.73rem; color:var(--color-text-muted); text-align:center; margin-top:-4px;">
+                ⏸️ Creates draft; send to client manually later via GHL
+              </div>
+
+              <router-link to="/contracts" class="btn btn-secondary btn-full-width" style="text-align:center; margin-top:4px;">
                 Cancel
               </router-link>
             </div>
@@ -587,21 +608,33 @@
       <!-- ──── SUCCESS: CONTRACT CREATED ──────────────────────────────────── -->
       <div v-else class="created-success-view animate-fade-in">
         <div class="glass-card success-banner-card">
-          <div class="success-icon-ring">
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <div class="success-icon-ring" :style="createdContract.state === 'DRAFT' ? 'background: #fef3c7; color: #d97706;' : ''">
+            <span v-if="createdContract.state === 'DRAFT'" style="font-size: 24px;">📝</span>
+            <svg v-else width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
               <path d="M20 6L9 17l-5-5"/>
             </svg>
           </div>
 
-          <h2 class="success-head">Contract Created Successfully!</h2>
+          <h2 class="success-head">
+            {{ createdContract.state === 'DRAFT' ? 'Contract Saved as Draft!' : 'Contract Created & Dispatched!' }}
+          </h2>
           <p class="text-muted">
             <strong>{{ createdContract.template }}</strong> · {{ form.recipientName }}
           </p>
 
+          <div v-if="createdContract.state === 'DRAFT'" class="alert-banner alert-warning" style="margin: 14px 0 18px; text-align: left; font-size: 0.88rem; background: #fffbeb; border: 1px solid #fef3c7; color: #92400e; padding: 12px 16px; border-radius: 8px;">
+            ℹ️ <strong>Draft Mode:</strong> This contract has been saved as a Draft and has <strong>not</strong> been sent to the client yet. You can copy the link below or click <strong>"Send via GHL"</strong> whenever you are ready to dispatch it. Once clicked, its status will automatically update to <strong>Sent</strong>.
+          </div>
+          <div v-else class="alert-banner alert-success" style="margin: 14px 0 18px; text-align: left; font-size: 0.88rem; background: #ecfdf5; border: 1px solid #d1fae5; color: #065f46; padding: 12px 16px; border-radius: 8px;">
+            ✓ <strong>Dispatched:</strong> Contract generated and automatically sent to {{ form.recipientName }} via GoHighLevel Conversation (SMS &amp; Email)!
+          </div>
+
           <div class="success-details-grid">
             <div class="detail-box">
               <span class="detail-label">Status</span>
-              <span class="badge badge-primary">{{ createdContract.state }}</span>
+              <span class="badge" :class="createdContract.state === 'DRAFT' ? 'badge-warning' : 'badge-primary'">
+                {{ createdContract.state }}
+              </span>
             </div>
             <div class="detail-box">
               <span class="detail-label">Mode</span>
@@ -637,15 +670,29 @@
 
           <!-- Actions -->
           <div class="success-actions-row" style="display:flex; flex-wrap:wrap; gap:10px;">
+            <!-- Send via GHL Button -->
             <button
+              v-if="createdContract.state === 'DRAFT'"
               type="button"
               class="btn btn-primary"
+              style="background: #2563eb; font-weight: 700;"
               :disabled="sendingGhl"
               @click="sendViaGhlNow"
             >
               <span v-if="sendingGhl" class="spinner-inline">Sending via GHL…</span>
-              <span v-else>💬 Auto-Send via GHL Conversation</span>
+              <span v-else>📤 Send via GHL</span>
             </button>
+            <button
+              v-else
+              type="button"
+              class="btn btn-secondary"
+              :disabled="sendingGhl"
+              @click="sendViaGhlNow"
+            >
+              <span v-if="sendingGhl" class="spinner-inline">Resending via GHL…</span>
+              <span v-else>🔄 Resend via GHL</span>
+            </button>
+
             <a
               :href="createdContract.signingUrl"
               target="_blank"
@@ -761,6 +808,7 @@ const showContactDropdown  = ref(false)
 const searchContainerRef   = ref(null)
 
 const creating         = ref(false)
+const savingDraft      = ref(false)
 const createError      = ref('')
 const createdContract  = ref(null)
 const copied           = ref(false)
@@ -949,9 +997,13 @@ function removeTeamMember(idx) {
 }
 
 // ─── Create Contract ──────────────────────────────────────────────────────────
-async function createContract() {
+async function createContract(isDraft = false) {
   if (!canCreate.value) return
-  creating.value    = true
+  if (isDraft) {
+    savingDraft.value = true
+  } else {
+    creating.value = true
+  }
   createError.value = ''
 
   try {
@@ -973,6 +1025,9 @@ async function createContract() {
       formData:         formResponses.value,
       teamMembers:      form.value.formMode === 'TEAM' ? teamMembers.value : [],
       validityDays:     form.value.validityDays,
+      isDraft:          Boolean(isDraft),
+      saveAsDraft:      Boolean(isDraft),
+      autoSend:         !isDraft,
       signingConfig: {
         clientSignatureRequired:  form.value.clientSignatureRequired,
         companySignatureRequired: form.value.companySignatureRequired,
@@ -993,11 +1048,12 @@ async function createContract() {
         }
       } catch (_) {}
     }
-    createdContract.value = { ...data, signingUrl: sUrl }
+    createdContract.value = { ...data, signingUrl: sUrl, state: data.state || (isDraft ? 'DRAFT' : 'SENT') }
   } catch (err) {
     createError.value = err.response?.data?.error || err.message || 'Failed to create contract.'
   } finally {
     creating.value = false
+    savingDraft.value = false
   }
 }
 
@@ -1025,7 +1081,7 @@ async function sendViaGhlNow() {
       },
       { headers: getHeaders() }
     )
-    alert(res.data?.message || 'Contract dispatched successfully via GoHighLevel Conversation!')
+    alert(res.data?.message || 'Contract dispatched successfully via GoHighLevel Conversation! Status updated to Sent.')
     if (createdContract.value) {
       createdContract.value.state = 'SENT'
     }

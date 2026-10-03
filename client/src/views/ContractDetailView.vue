@@ -87,16 +87,19 @@
 
         <!-- Primary Action: SEND CONTRACT VIA GOHIGHLEVEL -->
         <button
-          v-if="['READY', 'AWAITING_FORM'].includes(contract.state)"
+          v-if="['READY', 'DRAFT', 'AWAITING_FORM'].includes(contract.state)"
           class="btn btn-primary"
           @click="openSendModal"
           :disabled="sending"
+          :title="contract.state === 'DRAFT' ? 'Dispatch this draft contract to client via GoHighLevel' : 'Send via GHL'"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="22" y1="2" x2="11" y2="13"/>
             <polygon points="22 2 15 22 11 13 2 9 22 2"/>
           </svg>
-          {{ sending ? 'Sending…' : 'Send via GHL Conversation' }}
+          <span v-if="sending">Sending…</span>
+          <span v-else-if="contract.state === 'DRAFT'">📤 Send via GHL</span>
+          <span v-else>Send via GHL Conversation</span>
         </button>
       </div>
     </header>

@@ -39,7 +39,7 @@ function extractGhlFileUrl(result) {
 }
 
 // Allowed states where client can view/interact with the contract
-const INTERACTIVE_STATES = ['READY', 'SENT', 'VIEWED', 'OPENED', 'IN_PROGRESS', 'READY_TO_SIGN'];
+const INTERACTIVE_STATES = ['DRAFT', 'READY', 'SENT', 'VIEWED', 'OPENED', 'IN_PROGRESS', 'READY_TO_SIGN'];
 
 // ─── GET /api/sign/:token ─────────────────────────────────────────────────────
 router.get('/:token', async (req, res) => {
