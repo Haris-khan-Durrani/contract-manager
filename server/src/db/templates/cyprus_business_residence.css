@@ -431,6 +431,78 @@ p,li,td,th{
 /* align the internal applicant table with the V2 look */
 .data-wrap{margin-top:1mm}
 
+/* Commercial Terms & Fees Rich WYSIWYG Styling */
+.commercial-terms-box{
+  margin-top: 2mm;
+  margin-bottom: 2mm;
+}
+
+.commercial-terms{
+  font-size: var(--body-size);
+  line-height: 1.36;
+  color: var(--ink);
+  background: #fbfdfd;
+  border: .25mm solid #cbd8db;
+  border-radius: 1.5mm;
+  padding: 2mm 2.5mm;
+  text-align: left;
+}
+
+.ar-cell .commercial-terms{
+  text-align: right;
+  direction: rtl;
+}
+
+.commercial-terms p{
+  margin: 0 0 1.2mm 0;
+}
+
+.commercial-terms p:last-child{
+  margin-bottom: 0;
+}
+
+.commercial-terms strong,
+.commercial-terms b{
+  font-weight: 700;
+  color: var(--brand-deep);
+}
+
+.commercial-terms ul,
+.commercial-terms ol{
+  margin: 1mm 0 1.5mm 4mm;
+  padding-left: 3.5mm;
+}
+
+.ar-cell .commercial-terms ul,
+.ar-cell .commercial-terms ol{
+  margin: 1mm 4mm 1mm 0;
+  padding-right: 3.5mm;
+  padding-left: 0;
+}
+
+.commercial-terms li{
+  margin-bottom: 0.8mm;
+}
+
+.commercial-terms table{
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5mm 0;
+  font-size: var(--small-size);
+}
+
+.commercial-terms table th,
+.commercial-terms table td{
+  padding: 1.2mm 1.5mm;
+  border: 0.2mm solid #dbe3e5;
+  text-align: left;
+}
+
+.ar-cell .commercial-terms table th,
+.ar-cell .commercial-terms table td{
+  text-align: right;
+}
+
 /* screen polish */
 @media screen{
   .page:hover{box-shadow:0 16px 46px rgba(28,45,50,.16)}

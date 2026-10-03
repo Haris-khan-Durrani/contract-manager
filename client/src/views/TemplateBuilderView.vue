@@ -2931,6 +2931,19 @@ function buildCanvasHtml(rawHtml, customCss) {
     .replace(/\{\{fees\.additional_information\}\}/g, 'Cyprus Business Residence Advisory')
     .replace(/\{\{fees\.payment_breakup\}\}/g, 'Initial Deposit upon signing, balance upon milestone')
     .replace(/\{\{fees\.initial_amount\}\}/g, '£7,500 GBP')
+    .replace(/\{\{(?:commercial_terms|schedule_three_content|fees\.commercial_terms|fees\.schedule_three|milestones)\}\}/g, `
+<div class="milestones-preview" style="font-size: 8.2pt; line-height: 1.4; color: var(--ink);">
+  <p style="margin: 0 0 1.5mm 0;"><strong>Total Professional Fees:</strong> 20,000 EUR</p>
+  <p style="margin: 0 0 1.5mm 0;"><strong>Amount after Exclusive Discount:</strong> 15,000 EUR</p>
+  <p style="margin: 0 0 1mm 0;"><strong>Agreed Payment Milestones:</strong></p>
+  <ul style="margin: 0 0 1.5mm 0; padding-inline-start: 16px;">
+    <li style="margin-bottom: 0.8mm;"><strong>First Milestone (50% Advance):</strong> 7,500 EUR payable upon signing this agreement.</li>
+    <li style="margin-bottom: 0.8mm;"><strong>Second Milestone (50% Balance):</strong> 7,500 EUR payable upon formal file approval / visa issuance.</li>
+  </ul>
+  <p style="margin: 0 0 1.5mm 0;"><strong>Payment Mode:</strong> International Bank Wire Transfer / Swift.</p>
+  <p style="margin: 0; font-style: italic; color: var(--muted); font-size: 7.6pt;">All fees are net of third-party government charges and subject to standard terms of business.</p>
+</div>
+`.trim())
     .replace(/\{\{contract\.date\}\}/g, new Date().toLocaleDateString('en-GB'))
     .replace(/src=["'](?:assets\/)?logo-left\.png["']/gi, 'src="https://assets.cdn.filesafe.space/NJOPxsxylG8ulEPo9hX9/media/6ab2a26318891558b460bf74.png"')
     .replace(/src=["'](?:assets\/)?logo-right\.png["']/gi, 'src="https://assets.cdn.filesafe.space/NJOPxsxylG8ulEPo9hX9/media/6ab2a26318891558b460bf74.png"')

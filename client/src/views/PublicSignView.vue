@@ -632,8 +632,13 @@ const renderedHtmlContent = computed(() => {
     'fees.additional_information': fd.visa_type || fd.additional_information || 'Standard Legal & Immigration Advisory',
     'additional_information': fd.visa_type || fd.additional_information || 'Standard Legal & Immigration Advisory',
 
-    'fees.payment_breakup': fd.payment_breakup || '50% Initial Deposit upon signing, 50% upon Visa Approval',
-    'payment_breakup': fd.payment_breakup || '50% Initial Deposit upon signing, 50% upon Visa Approval',
+    'fees.payment_breakup': fd.schedule_three_content || fd.commercial_terms || fd.payment_breakup || '50% Initial Deposit upon signing, 50% upon Visa Approval',
+    'payment_breakup': fd.schedule_three_content || fd.commercial_terms || fd.payment_breakup || '50% Initial Deposit upon signing, 50% upon Visa Approval',
+    'commercial_terms': fd.schedule_three_content || fd.commercial_terms || fd.payment_breakup || '—',
+    'fees.commercial_terms': fd.schedule_three_content || fd.commercial_terms || fd.payment_breakup || '—',
+    'schedule_three_content': fd.schedule_three_content || fd.commercial_terms || fd.payment_breakup || '—',
+    'schedule_three': fd.schedule_three_content || fd.commercial_terms || fd.payment_breakup || '—',
+    'milestones': fd.schedule_three_content || fd.commercial_terms || fd.payment_breakup || '—',
 
     'fees.initial_amount': fd.discounted_amount || fd.initial_deposit || '—',
     'discounted_amount': fd.discounted_amount || fd.initial_deposit || '—',
