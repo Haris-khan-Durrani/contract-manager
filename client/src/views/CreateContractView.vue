@@ -407,57 +407,54 @@
                 />
               </div>
 
-              <!-- Optional Individual Variable Inputs Toggle -->
-              <div class="field-sync-hint-row">
-                <button
-                  type="button"
-                  class="btn-text-toggle"
-                  @click="showIndividualFields = !showIndividualFields"
-                >
-                  <span>{{ showIndividualFields ? '▲ Hide individual variable inputs' : '⚙️ Show individual variable inputs (optional)' }}</span>
-                </button>
-                <small class="text-hint">
-                  Your formatted terms will be rendered directly into the legal agreement &amp; PDF certificate.
-                </small>
-              </div>
+              <!-- Individual Variable Inputs (Always Visible) -->
+              <div class="individual-fields-box">
+                <div class="field-sync-hint-row" style="margin-top: 0; margin-bottom: 12px;">
+                  <span class="field-label" style="font-weight: 700; color: #1e293b; margin: 0;">
+                    Individual Variable Inputs
+                  </span>
+                  <small class="text-hint">
+                    Your formatted terms and these individual variables will be rendered directly into the legal agreement &amp; PDF certificate.
+                  </small>
+                </div>
 
-              <!-- Collapsible Individual Variable Overrides -->
-              <div v-if="showIndividualFields" class="form-grid-2 individual-fields-box">
-                <div class="form-group">
-                  <label class="field-label">Total Professional Fees</label>
-                  <input
-                    type="text"
-                    v-model="formResponses['contract_value']"
-                    class="form-control"
-                    placeholder="e.g. 20,000 USD / AED"
-                  />
-                </div>
-                <div class="form-group">
-                  <label class="field-label">Amount after Exclusive Discount</label>
-                  <input
-                    type="text"
-                    v-model="formResponses['discounted_amount']"
-                    class="form-control"
-                    placeholder="e.g. 15,000 USD / AED"
-                  />
-                </div>
-                <div class="form-group full-col">
-                  <label class="field-label">Payment Mode / Schedule</label>
-                  <input
-                    type="text"
-                    v-model="formResponses['payment_terms']"
-                    class="form-control"
-                    placeholder="e.g. 50% Advance Upon Signing, 50% on File Approval"
-                  />
-                </div>
-                <div class="form-group full-col">
-                  <label class="field-label">Visa Program / Scope (Schedule Two)</label>
-                  <input
-                    type="text"
-                    v-model="formResponses['visa_type']"
-                    class="form-control"
-                    placeholder="e.g. Golden Visa Program / Business Immigration"
-                  />
+                <div class="form-grid-2">
+                  <div class="form-group">
+                    <label class="field-label">Total Professional Fees</label>
+                    <input
+                      type="text"
+                      v-model="formResponses['contract_value']"
+                      class="form-control"
+                      placeholder="e.g. 20,000 USD / AED"
+                    />
+                  </div>
+                  <div class="form-group">
+                    <label class="field-label">Amount after Exclusive Discount</label>
+                    <input
+                      type="text"
+                      v-model="formResponses['discounted_amount']"
+                      class="form-control"
+                      placeholder="e.g. 15,000 USD / AED"
+                    />
+                  </div>
+                  <div class="form-group full-col">
+                    <label class="field-label">Payment Mode / Schedule</label>
+                    <input
+                      type="text"
+                      v-model="formResponses['payment_terms']"
+                      class="form-control"
+                      placeholder="e.g. 50% Advance Upon Signing, 50% on File Approval"
+                    />
+                  </div>
+                  <div class="form-group full-col">
+                    <label class="field-label">Visa Program / Scope (Schedule Two)</label>
+                    <input
+                      type="text"
+                      v-model="formResponses['visa_type']"
+                      class="form-control"
+                      placeholder="e.g. Golden Visa Program / Business Immigration"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
