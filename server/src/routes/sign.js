@@ -21,6 +21,7 @@ const db         = require('../config/db');
 const pdfService = require('../services/pdfService');
 const { ghlAuthMiddleware } = require('../middleware/ghlAuth');
 const ghlService = require('../services/ghlService');
+const { getClientIp } = require('../utils/ipHelper');
 
 function extractGhlFileUrl(result) {
   if (!result) return '';
@@ -114,16 +115,17 @@ router.get('/:token', async (req, res) => {
         [contract.id]
       );
 
+      const clientIp = getClientIp(req);
       await db.execute(
         `INSERT INTO contract_audit_logs (contract_instance_id, actor_type, actor_id, action, from_state, to_state, ip_address, user_agent)
          VALUES (?, 'CLIENT', ?, 'CONTRACT_OPENED', ?, 'OPENED', ?, ?)`,
-        [contract.id, token.slice(0, 8), contract.state, req.ip, req.headers['user-agent'] || '']
+        [contract.id, token.slice(0, 8), contract.state, clientIp, req.headers['user-agent'] || '']
       );
 
       await db.execute(
-        `INSERT INTO contract_events (contract_instance_id, event_type, actor_type, actor_label)
-         VALUES (?, 'CLIENT_OPENED', 'CLIENT', ?)`,
-        [contract.id, contract.recipient_name || 'Client']
+        `INSERT INTO contract_events (contract_instance_id, event_type, actor_type, actor_label, ip_address)
+         VALUES (?, 'CLIENT_OPENED', 'CLIENT', ?, ?)`,
+        [contract.id, contract.recipient_name || 'Client', clientIp]
       );
 
       // Post audit event to GHL Conversation stream & Contact Note
@@ -131,7 +133,7 @@ router.get('/:token', async (req, res) => {
         contactId: contract.ghl_contact_id,
         userId:    contract.assigned_user_id,
         title:     `Client Opened Contract #${contract.id}`,
-        details:   `Client accessed contract signing link from IP: ${req.ip || '—'}`,
+        details:   `Client accessed contract signing link from IP: ${clientIp || '—'}`,
         actorName: contract.recipient_name || 'Client',
       }).catch(err => console.warn('[Sign] GHL open note failed:', err.message));
     }
@@ -301,10 +303,11 @@ router.patch('/:token/progress', async (req, res) => {
       [JSON.stringify(formData || {}), nextState, token]
     );
 
+    const clientIp = getClientIp(req);
     await db.execute(
-      `INSERT INTO contract_events (contract_instance_id, event_type, event_data_json, actor_type, actor_label)
-       VALUES (?, 'FORM_PROGRESS_SAVED', ?, 'CLIENT', ?)`,
-      [contract.id, JSON.stringify({ currentStep, fieldCount: Object.keys(formData || {}).length }), contract.recipient_name || 'Client']
+      `INSERT INTO contract_events (contract_instance_id, event_type, event_data_json, actor_type, actor_label, ip_address)
+       VALUES (?, 'FORM_PROGRESS_SAVED', ?, 'CLIENT', ?, ?)`,
+      [contract.id, JSON.stringify({ currentStep, fieldCount: Object.keys(formData || {}).length }), contract.recipient_name || 'Client', clientIp]
     );
 
     res.json({ success: true, savedAt: new Date().toISOString() });
@@ -339,10 +342,11 @@ router.post('/:token/review', async (req, res) => {
       [token]
     );
 
+    const clientIp = getClientIp(req);
     await db.execute(
-      `INSERT INTO contract_events (contract_instance_id, event_type, actor_type, actor_label)
-       VALUES (?, 'AGREEMENT_REVIEWED', 'CLIENT', ?)`,
-      [contract.id, contract.recipient_name || 'Client']
+      `INSERT INTO contract_events (contract_instance_id, event_type, actor_type, actor_label, ip_address)
+       VALUES (?, 'AGREEMENT_REVIEWED', 'CLIENT', ?, ?)`,
+      [contract.id, contract.recipient_name || 'Client', clientIp]
     );
 
     res.json({ success: true, reviewedAt: new Date().toISOString() });
@@ -378,7 +382,7 @@ router.post('/:token/submit', async (req, res) => {
     return res.status(400).json({ error: 'Signer name is required.' });
   }
 
-  const ipAddress = req.ip || req.connection?.remoteAddress || '';
+  const ipAddress = getClientIp(req);
   const userAgent = req.headers['user-agent'] || '';
   const signedAt  = new Date().toISOString();
 
@@ -569,9 +573,9 @@ router.post('/:token/submit', async (req, res) => {
 
     // Log events & audit
     await connection.execute(
-      `INSERT INTO contract_events (contract_instance_id, event_type, event_data_json, actor_type, actor_label)
-       VALUES (?, 'CONTRACT_SIGNED', ?, 'CLIENT', ?)`,
-      [contract.id, JSON.stringify({ signatureMethod, signerName: signerName.trim() }), signerName.trim()]
+      `INSERT INTO contract_events (contract_instance_id, event_type, event_data_json, actor_type, actor_label, ip_address)
+       VALUES (?, 'CONTRACT_SIGNED', ?, 'CLIENT', ?, ?)`,
+      [contract.id, JSON.stringify({ signatureMethod, signerName: signerName.trim() }), signerName.trim(), ipAddress]
     );
 
     await connection.execute(

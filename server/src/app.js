@@ -28,6 +28,9 @@ const retryWorker  = require('./services/retryWorker');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Trust reverse proxies (Cloudflare, Nginx, tunnels) for accurate client IP resolution
+app.set('trust proxy', true);
+
 // ─── Security ────────────────────────────────────────────────────────────────
 // Allow embedding in GoHighLevel Custom Menu Link iframes
 app.use(helmet({

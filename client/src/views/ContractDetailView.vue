@@ -514,7 +514,7 @@
                   <span v-if="log.from_state && log.to_state">
                     • State: {{ log.from_state }} → <strong>{{ log.to_state }}</strong>
                   </span>
-                  <span v-if="log.ip_address">• IP: {{ log.ip_address }}</span>
+                  <span v-if="log.ip_address">• IP: {{ formatIp(log.ip_address) }}</span>
                 </div>
               </div>
             </div>
@@ -564,7 +564,7 @@
                     by <strong>{{ evt.actorName }}</strong>
                   </span>
                   <span v-if="evt.ipAddress" class="rt-ip">
-                    <span class="rt-dot">•</span> IP: <code>{{ evt.ipAddress }}</code>
+                    <span class="rt-dot">•</span> IP: <code>{{ formatIp(evt.ipAddress) }}</code>
                   </span>
                 </div>
               </div>
@@ -679,6 +679,10 @@ async function fetchContract() {
     }
 
     formResponses.value = initialResponses
+
+    // Fetch audit logs & activity timeline in background so tab badge counters populate immediately
+    fetchAuditLogs()
+    fetchTimeline()
   } catch (err) {
     console.error('Fetch contract detail error:', err)
     error.value = 'Failed to load contract details. Check access permissions.'
@@ -819,6 +823,12 @@ function timelineIconClass(action) {
   if (['CONTRACT_REVOKED', 'CONTRACT_CANCELLED', 'CONTRACT_EXPIRED'].includes(action)) return 'rt-icon--danger'
   if (['CONTRACT_SENT', 'EXPIRY_EXTENDED'].includes(action)) return 'rt-icon--primary'
   return 'rt-icon--neutral'
+}
+
+function formatIp(ip) {
+  if (!ip) return '—'
+  if (ip === '::1' || ip === '::ffff:127.0.0.1' || ip === '127.0.0.1') return '127.0.0.1 (Localhost)'
+  return String(ip).replace(/^::ffff:/, '')
 }
 
 async function fetchAuditLogs() {
@@ -1198,6 +1208,8 @@ async function downloadPdf() {
 
 onMounted(() => {
   fetchContract()
+  fetchAuditLogs()
+  fetchTimeline()
 })
 </script>
 

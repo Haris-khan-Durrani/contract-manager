@@ -26,6 +26,7 @@ const ghlService       = require('../services/ghlService');
 const snapshotService  = require('../services/snapshotService');
 const settingsService  = require('../services/settingsService');
 const pdfService       = require('../services/pdfService');
+const { getClientIp }  = require('../utils/ipHelper');
 
 // Apply auth to all routes in this router
 router.use(ghlAuthMiddleware, loadAppUser);
@@ -363,19 +364,20 @@ router.post('/manual', requirePermission('contract:create'), async (req, res) =>
     let deliveryResults = null;
 
     if (isDraft) {
+      const clientIp = getClientIp(req);
       // Audit log — creation as Draft
       await db.execute(
         `INSERT INTO contract_audit_logs
-           (contract_instance_id, actor_type, actor_id, actor_name, action, to_state, metadata_json)
-         VALUES (?, 'USER', ?, ?, 'CONTRACT_CREATED', 'DRAFT', ?)`,
-        [contractInstanceId, userId, req.ghlUser.name, JSON.stringify({ templateId, mode: 'MANUAL', formMode, isDraft: true })]
+           (contract_instance_id, actor_type, actor_id, actor_name, action, to_state, ip_address, metadata_json)
+         VALUES (?, 'USER', ?, ?, 'CONTRACT_CREATED', 'DRAFT', ?, ?)`,
+        [contractInstanceId, userId, req.ghlUser.name, clientIp, JSON.stringify({ templateId, mode: 'MANUAL', formMode, isDraft: true })]
       );
 
       // Event log
       await db.execute(
-        `INSERT INTO contract_events (contract_instance_id, event_type, event_data_json, actor_type, actor_label)
-         VALUES (?, 'CONTRACT_CREATED', ?, 'USER', ?)`,
-        [contractInstanceId, JSON.stringify({ templateId, formMode, validityDays: numDays, state: 'DRAFT' }), req.ghlUser.name || userId]
+        `INSERT INTO contract_events (contract_instance_id, event_type, event_data_json, actor_type, actor_label, ip_address)
+         VALUES (?, 'CONTRACT_CREATED', ?, 'USER', ?, ?)`,
+        [contractInstanceId, JSON.stringify({ templateId, formMode, validityDays: numDays, state: 'DRAFT' }), req.ghlUser.name || userId, clientIp]
       );
 
       // Sync draft event to GHL Conversation stream & Contact Notes
@@ -431,18 +433,19 @@ router.post('/manual', requirePermission('contract:create'), async (req, res) =>
       }, req.ghlUser?.privateToken).catch(err => console.warn('[Contracts] GHL status sync failed:', err.message));
 
       // Audit log — created and sent
+      const clientIp = getClientIp(req);
       await db.execute(
         `INSERT INTO contract_audit_logs
-           (contract_instance_id, actor_type, actor_id, actor_name, action, to_state, metadata_json)
-         VALUES (?, 'USER', ?, ?, 'CONTRACT_SENT', 'SENT', ?)`,
-        [contractInstanceId, userId, req.ghlUser.name, JSON.stringify({ templateId, mode: 'MANUAL', formMode, autoSend: true, delivery: deliveryResults })]
+           (contract_instance_id, actor_type, actor_id, actor_name, action, to_state, ip_address, metadata_json)
+         VALUES (?, 'USER', ?, ?, 'CONTRACT_SENT', 'SENT', ?, ?)`,
+        [contractInstanceId, userId, req.ghlUser.name, clientIp, JSON.stringify({ templateId, mode: 'MANUAL', formMode, autoSend: true, delivery: deliveryResults })]
       );
 
       // Event log
       await db.execute(
-        `INSERT INTO contract_events (contract_instance_id, event_type, event_data_json, actor_type, actor_label)
-         VALUES (?, 'CONTRACT_SENT', ?, 'USER', ?)`,
-        [contractInstanceId, JSON.stringify({ templateId, formMode, validityDays: numDays, autoSend: true }), req.ghlUser.name || userId]
+        `INSERT INTO contract_events (contract_instance_id, event_type, event_data_json, actor_type, actor_label, ip_address)
+         VALUES (?, 'CONTRACT_SENT', ?, 'USER', ?, ?)`,
+        [contractInstanceId, JSON.stringify({ templateId, formMode, validityDays: numDays, autoSend: true }), req.ghlUser.name || userId, clientIp]
       );
 
       res.status(201).json({
@@ -508,16 +511,17 @@ router.post('/:id/extend', requirePermission('contract:send'), async (req, res) 
       }, req.ghlUser?.privateToken).catch(err => console.warn('[Contracts] GHL expiry sync note:', err.message));
     }
 
+    const clientIp = getClientIp(req);
     await db.execute(
-      `INSERT INTO contract_audit_logs (contract_instance_id, actor_type, actor_id, actor_name, action, from_state, to_state, metadata_json)
-       VALUES (?, 'USER', ?, ?, 'EXPIRY_EXTENDED', ?, ?, ?)`,
-      [contract.id, userId, req.ghlUser.name || 'User', previousState, newState, JSON.stringify({ extraDays, newExpiry, newToken: isExpired })]
+      `INSERT INTO contract_audit_logs (contract_instance_id, actor_type, actor_id, actor_name, action, from_state, to_state, ip_address, metadata_json)
+       VALUES (?, 'USER', ?, ?, 'EXPIRY_EXTENDED', ?, ?, ?, ?)`,
+      [contract.id, userId, req.ghlUser.name || 'User', previousState, newState, clientIp, JSON.stringify({ extraDays, newExpiry, newToken: isExpired })]
     );
 
     await db.execute(
-      `INSERT INTO contract_events (contract_instance_id, event_type, event_data_json, actor_type, actor_label)
-       VALUES (?, 'EXPIRY_EXTENDED', ?, 'USER', ?)`,
-      [contract.id, JSON.stringify({ extraDays, newExpiry: newExpiry.toISOString() }), req.ghlUser.name || userId]
+      `INSERT INTO contract_events (contract_instance_id, event_type, event_data_json, actor_type, actor_label, ip_address)
+       VALUES (?, 'EXPIRY_EXTENDED', ?, 'USER', ?, ?)`,
+      [contract.id, JSON.stringify({ extraDays, newExpiry: newExpiry.toISOString() }), req.ghlUser.name || userId, clientIp]
     );
 
     const baseUrl    = settingsService.getSigningBaseUrl(req);
@@ -555,16 +559,17 @@ router.post('/:id/revoke', requirePermission('contract:cancel'), async (req, res
       [contract.id]
     );
 
+    const clientIp = getClientIp(req);
     await db.execute(
-      `INSERT INTO contract_audit_logs (contract_instance_id, actor_type, actor_id, actor_name, action, from_state, to_state)
-       VALUES (?, 'USER', ?, ?, 'CONTRACT_REVOKED', ?, 'REVOKED')`,
-      [contract.id, userId, req.ghlUser.name, previousState]
+      `INSERT INTO contract_audit_logs (contract_instance_id, actor_type, actor_id, actor_name, action, from_state, to_state, ip_address)
+       VALUES (?, 'USER', ?, ?, 'CONTRACT_REVOKED', ?, 'REVOKED', ?)`,
+      [contract.id, userId, req.ghlUser.name, previousState, clientIp]
     );
 
     await db.execute(
-      `INSERT INTO contract_events (contract_instance_id, event_type, actor_type, actor_label)
-       VALUES (?, 'CONTRACT_REVOKED', 'USER', ?)`,
-      [contract.id, req.ghlUser.name || userId]
+      `INSERT INTO contract_events (contract_instance_id, event_type, actor_type, actor_label, ip_address)
+       VALUES (?, 'CONTRACT_REVOKED', 'USER', ?, ?)`,
+      [contract.id, req.ghlUser.name || userId, clientIp]
     );
 
     res.json({ success: true, state: 'REVOKED' });
@@ -698,12 +703,19 @@ router.post('/:id/send', requirePermission('contract:send'), async (req, res) =>
       [JSON.stringify(snapshot), signingToken, tokenExpiresAt, expiryDays, contract.id]
     );
 
-    // Audit log
+    // Audit log & event log
+    const clientIp = getClientIp(req);
     await db.execute(
       `INSERT INTO contract_audit_logs
-         (contract_instance_id, actor_type, actor_id, actor_name, action, from_state, to_state, metadata_json)
-       VALUES (?, 'USER', ?, ?, 'CONTRACT_SENT', ?, 'SENT', ?)`,
-      [contract.id, userId, req.ghlUser.name, contract.state, JSON.stringify({ expiryDays, deliveryMethod })]
+         (contract_instance_id, actor_type, actor_id, actor_name, action, from_state, to_state, ip_address, metadata_json)
+       VALUES (?, 'USER', ?, ?, 'CONTRACT_SENT', ?, 'SENT', ?, ?)`,
+      [contract.id, userId, req.ghlUser.name, contract.state, clientIp, JSON.stringify({ expiryDays, deliveryMethod })]
+    );
+
+    await db.execute(
+      `INSERT INTO contract_events (contract_instance_id, event_type, event_data_json, actor_type, actor_label, ip_address)
+       VALUES (?, 'CONTRACT_SENT', ?, 'USER', ?, ?)`,
+      [contract.id, JSON.stringify({ expiryDays, deliveryMethod }), req.ghlUser.name || userId, clientIp]
     );
 
     // Build signing URL
