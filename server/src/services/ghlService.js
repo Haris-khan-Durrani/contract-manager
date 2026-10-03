@@ -751,37 +751,55 @@ async function uploadContactFile(locationId, contactId, pdfBuffer, filename, pri
  * @returns {Promise<string>} Hosted CDN file URL (e.g. https://assets.cdn.filesafe.space/...)
  */
 async function uploadMediaFile({ locationId, buffer, filename = 'asset.png', mimeType = 'image/png', privateToken = null }) {
+  const path = require('path');
+  const fs = require('fs');
+
   const token = privateToken || settingsService.get('GHL_PRIVATE_INTEGRATION_TOKEN') || process.env.GHL_PRIVATE_INTEGRATION_TOKEN;
   const baseURL = settingsService.get('GHL_API_BASE_URL', 'https://services.leadconnectorhq.com');
   const apiVersion = settingsService.get('GHL_API_VERSION', '2021-07-28');
 
+  // 1. Always persist a local copy in server/uploads/branding so the asset is guaranteed to exist
+  const uploadsDir = path.resolve(__dirname, '../../uploads/branding');
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+  const safeFilename = `${Date.now()}_${filename.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+  const localFilePath = path.join(uploadsDir, safeFilename);
+  fs.writeFileSync(localFilePath, buffer);
+  const localUrl = `/uploads/branding/${safeFilename}`;
+
+  // 2. If running with dev mock token, return the permanent local static URL immediately
   if (isDevToken(token)) {
-    console.log(`[GHL Media Dev Mock] File ${filename} (${buffer?.length || 0} bytes) mock uploaded.`);
-    return `https://assets.cdn.filesafe.space/${locationId || 'default'}/media/${Date.now()}_${filename}`;
+    console.log(`[Media Local Upload] File ${safeFilename} (${buffer?.length || 0} bytes) saved locally to ${localUrl}`);
+    return localUrl;
   }
 
-  const FormData = require('form-data');
-  const form = new FormData();
-  form.append('file', buffer, { filename, contentType: mimeType });
-  form.append('name', filename);
+  // 3. If live GHL token is provided, upload to GoHighLevel Media Library
+  try {
+    const FormData = require('form-data');
+    const form = new FormData();
+    form.append('file', buffer, { filename: safeFilename, contentType: mimeType });
+    form.append('name', safeFilename);
 
-  const res = await axios.post(`${baseURL}/medias/upload-file`, form, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Version: apiVersion,
-      ...(locationId ? { 'X-GHL-Location': locationId } : {}),
-      ...form.getHeaders(),
-    },
-    timeout: 45000,
-  });
+    const res = await axios.post(`${baseURL}/medias/upload-file`, form, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Version: apiVersion,
+        ...(locationId ? { 'X-GHL-Location': locationId } : {}),
+        ...form.getHeaders(),
+      },
+      timeout: 45000,
+    });
 
-  const fileUrl = res.data?.fileUrl || res.data?.url || res.data?.media?.url || res.data?.assetUrl;
-  if (!fileUrl) {
-    console.warn('[GHL Media Upload] No direct fileUrl in response, raw:', res.data);
-    throw new Error('GoHighLevel Media upload did not return a valid file URL.');
+    const fileUrl = res.data?.fileUrl || res.data?.url || res.data?.media?.url || res.data?.assetUrl;
+    if (fileUrl) {
+      return fileUrl;
+    }
+  } catch (err) {
+    console.warn('[GHL Media Upload Warning - Falling back to local URL]:', err.response?.data || err.message);
   }
 
-  return fileUrl;
+  return localUrl;
 }
 
 module.exports = {

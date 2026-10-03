@@ -190,33 +190,48 @@ router.get('/:token', async (req, res) => {
     const { DEFAULT_COMPANY_STAMP, DEFAULT_COMPANY_SIGNATURE } = require('../constants/defaultAssets');
 
     let companySignature = snapshot?.companySignature || '';
-    if (!companySignature && contract.assigned_user_id) {
+    const isSigStale = !companySignature || companySignature === DEFAULT_COMPANY_SIGNATURE || (typeof companySignature === 'string' && companySignature.includes('filesafe.space') && (companySignature.includes('sig_user_') || companySignature.includes('company_signature_')));
+
+    if (isSigStale && contract.assigned_user_id) {
       const [uRows] = await db.execute(
         `SELECT signature_png_url FROM app_user_access
          WHERE ghl_user_id = ? AND signature_png_url IS NOT NULL AND signature_png_url != ''
          ORDER BY (location_id = ?) DESC LIMIT 1`,
         [contract.assigned_user_id, contract.location_id]
       ).catch(() => [[]]);
-      if (uRows.length && uRows[0].signature_png_url) {
+      if (uRows.length && uRows[0].signature_png_url && !uRows[0].signature_png_url.includes('sig_user_')) {
         companySignature = uRows[0].signature_png_url;
       }
     }
-    if (!companySignature) {
+    if (!companySignature || companySignature === DEFAULT_COMPANY_SIGNATURE || (typeof companySignature === 'string' && companySignature.includes('sig_user_'))) {
       const [adminRows] = await db.execute(
         `SELECT signature_png_url FROM app_user_access
          WHERE location_id = ? AND signature_png_url IS NOT NULL AND signature_png_url != ''
          LIMIT 1`,
         [contract.location_id]
       ).catch(() => [[]]);
-      if (adminRows.length && adminRows[0].signature_png_url) {
+      if (adminRows.length && adminRows[0].signature_png_url && !adminRows[0].signature_png_url.includes('sig_user_')) {
         companySignature = adminRows[0].signature_png_url;
       }
     }
+    const globalSig = settingsService.get('COMPANY_SIGNATURE_URL');
+    if ((!companySignature || companySignature === DEFAULT_COMPANY_SIGNATURE || companySignature.includes('sig_user_')) && globalSig) {
+      companySignature = globalSig;
+    }
     if (!companySignature) {
-      companySignature = settingsService.get('COMPANY_SIGNATURE_URL') || DEFAULT_COMPANY_SIGNATURE;
+      companySignature = DEFAULT_COMPANY_SIGNATURE;
     }
 
-    let companyStamp = snapshot?.companyStamp || settingsService.get('COMPANY_STAMP_URL') || DEFAULT_COMPANY_STAMP;
+    let companyStamp = snapshot?.companyStamp || '';
+    const globalStamp = settingsService.get('COMPANY_STAMP_URL');
+    const isStampStale = !companyStamp || companyStamp === DEFAULT_COMPANY_STAMP || (typeof companyStamp === 'string' && companyStamp.includes('filesafe.space') && (companyStamp.includes('company_stamp_') || companyStamp.includes('stamp_')));
+    if (isStampStale && globalStamp && !globalStamp.includes('company_stamp_') && !globalStamp.includes('stamp_')) {
+      companyStamp = globalStamp;
+    } else if (isStampStale && globalStamp) {
+      companyStamp = globalStamp;
+    } else if (!companyStamp) {
+      companyStamp = globalStamp || DEFAULT_COMPANY_STAMP;
+    }
 
     let rawHtml = snapshot?.rawHtml || docSchema?.rawHtml || null;
     let customCss = snapshot?.customCss || docSchema?.customCss || null;
@@ -525,33 +540,48 @@ router.post('/:token/submit', async (req, res) => {
     const { DEFAULT_COMPANY_STAMP, DEFAULT_COMPANY_SIGNATURE } = require('../constants/defaultAssets');
 
     let companySignature = snapshot.companySignature || '';
-    if (!companySignature && contract.assigned_user_id) {
+    const isSigStale = !companySignature || companySignature === DEFAULT_COMPANY_SIGNATURE || (typeof companySignature === 'string' && companySignature.includes('filesafe.space') && (companySignature.includes('sig_user_') || companySignature.includes('company_signature_')));
+
+    if (isSigStale && contract.assigned_user_id) {
       const [uRows] = await connection.execute(
         `SELECT signature_png_url FROM app_user_access
          WHERE ghl_user_id = ? AND signature_png_url IS NOT NULL AND signature_png_url != ''
          ORDER BY (location_id = ?) DESC LIMIT 1`,
         [contract.assigned_user_id, contract.location_id]
       ).catch(() => [[]]);
-      if (uRows.length && uRows[0].signature_png_url) {
+      if (uRows.length && uRows[0].signature_png_url && !uRows[0].signature_png_url.includes('sig_user_')) {
         companySignature = uRows[0].signature_png_url;
       }
     }
-    if (!companySignature) {
+    if (!companySignature || companySignature === DEFAULT_COMPANY_SIGNATURE || (typeof companySignature === 'string' && companySignature.includes('sig_user_'))) {
       const [adminRows] = await connection.execute(
         `SELECT signature_png_url FROM app_user_access
          WHERE location_id = ? AND signature_png_url IS NOT NULL AND signature_png_url != ''
          LIMIT 1`,
         [contract.location_id]
       ).catch(() => [[]]);
-      if (adminRows.length && adminRows[0].signature_png_url) {
+      if (adminRows.length && adminRows[0].signature_png_url && !adminRows[0].signature_png_url.includes('sig_user_')) {
         companySignature = adminRows[0].signature_png_url;
       }
     }
+    const globalSig = settingsService.get('COMPANY_SIGNATURE_URL');
+    if ((!companySignature || companySignature === DEFAULT_COMPANY_SIGNATURE || companySignature.includes('sig_user_')) && globalSig) {
+      companySignature = globalSig;
+    }
     if (!companySignature) {
-      companySignature = settingsService.get('COMPANY_SIGNATURE_URL') || DEFAULT_COMPANY_SIGNATURE;
+      companySignature = DEFAULT_COMPANY_SIGNATURE;
     }
 
-    let companyStamp = snapshot.companyStamp || settingsService.get('COMPANY_STAMP_URL') || DEFAULT_COMPANY_STAMP;
+    let companyStamp = snapshot.companyStamp || '';
+    const globalStamp = settingsService.get('COMPANY_STAMP_URL');
+    const isStampStale = !companyStamp || companyStamp === DEFAULT_COMPANY_STAMP || (typeof companyStamp === 'string' && companyStamp.includes('filesafe.space') && (companyStamp.includes('company_stamp_') || companyStamp.includes('stamp_')));
+    if (isStampStale && globalStamp && !globalStamp.includes('company_stamp_') && !globalStamp.includes('stamp_')) {
+      companyStamp = globalStamp;
+    } else if (isStampStale && globalStamp) {
+      companyStamp = globalStamp;
+    } else if (!companyStamp) {
+      companyStamp = globalStamp || DEFAULT_COMPANY_STAMP;
+    }
 
     snapshot.companySignature = companySignature;
     snapshot.companyStamp = companyStamp;

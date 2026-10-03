@@ -241,7 +241,7 @@
           </div>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 200px; gap: var(--space-6); align-items: start;">
+        <div style="display: grid; grid-template-columns: 1fr 220px; gap: var(--space-6); align-items: start;">
           <div>
             <label class="form-label">Company Stamp Image (PNG or Image URL)</label>
             <div style="display: flex; gap: 8px;">
@@ -251,8 +251,8 @@
                 class="form-control" 
                 placeholder="https://... or click Upload PNG below" 
               />
-              <button type="button" class="btn btn-secondary" @click="triggerStampUpload">
-                📁 Upload PNG
+              <button type="button" class="btn btn-secondary" :disabled="uploadingStampMedia" @click="triggerStampUpload">
+                {{ uploadingStampMedia ? '⏳ Uploading…' : '📁 Upload PNG' }}
               </button>
               <input 
                 ref="stampFileInput" 
@@ -262,13 +262,13 @@
                 @change="onStampFileSelected" 
               />
             </div>
-            <div v-if="form.COMPANY_STAMP_URL" style="margin-top: 10px;">
-              <button type="button" class="btn btn-danger btn-sm" @click="form.COMPANY_STAMP_URL = ''">
+            <div v-if="form.COMPANY_STAMP_URL" style="margin-top: 10px; display: flex; gap: 8px;">
+              <button type="button" class="btn btn-danger btn-sm" @click="clearStamp">
                 🗑️ Remove Stamp
               </button>
             </div>
             <span style="font-size: var(--text-xs); color: var(--color-text-muted); display: block; margin-top: 6px;">
-              Tip: Use a transparent PNG (circular/rectangular company seal). Max size: 2MB.
+              Tip: Use a transparent PNG (circular/rectangular company seal). Max size: 5MB.
             </span>
           </div>
 
@@ -279,15 +279,79 @@
               <div style="font-size: 11px; font-weight: 600; color: #64748b; margin-top: 6px;">Live Stamp Preview</div>
               <div style="margin-top: 4px;">
                 <span v-if="uploadingStampMedia" class="badge badge-warning" style="font-size: 9px; padding: 2px 6px;">
-                  ⏳ Uploading to HighLevel Media…
+                  ⏳ Uploading &amp; Saving…
                 </span>
-                <span v-else-if="form.COMPANY_STAMP_URL && (form.COMPANY_STAMP_URL.includes('filesafe.space') || form.COMPANY_STAMP_URL.startsWith('http'))" class="badge badge-success" style="font-size: 9px; padding: 2px 6px;">
-                  ☁️ Stored in HighLevel Media
+                <span v-else class="badge badge-success" style="font-size: 9px; padding: 2px 6px;">
+                  ✅ Saved in System Branding
                 </span>
               </div>
             </div>
             <div v-else style="color: #94a3b8; font-size: var(--text-xs);">
               <span>No stamp uploaded yet</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6. Official Authorized Company Signature -->
+      <div class="glass-card" style="padding: var(--space-6);">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: var(--space-4);">
+          <div style="font-size: 1.5rem;">✍️</div>
+          <div>
+            <h3 style="margin: 0; font-size: 1.1rem; font-family: var(--font-heading);">Official Authorized Company Signature</h3>
+            <p style="margin: 0; font-size: var(--text-xs); color: var(--color-text-muted);">
+              Upload the official authorized officer signature (transparent PNG recommended). It is automatically stamped and embedded on all legal contracts.
+            </p>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 220px; gap: var(--space-6); align-items: start;">
+          <div>
+            <label class="form-label">Company Signature Image (PNG or Image URL)</label>
+            <div style="display: flex; gap: 8px;">
+              <input 
+                v-model="form.COMPANY_SIGNATURE_URL" 
+                type="text" 
+                class="form-control" 
+                placeholder="https://... or click Upload PNG below" 
+              />
+              <button type="button" class="btn btn-secondary" :disabled="uploadingSigMedia" @click="triggerSigUpload">
+                {{ uploadingSigMedia ? '⏳ Uploading…' : '📁 Upload PNG' }}
+              </button>
+              <input 
+                ref="sigFileInput" 
+                type="file" 
+                accept="image/png,image/jpeg,image/webp" 
+                style="display: none;" 
+                @change="onSigFileSelected" 
+              />
+            </div>
+            <div v-if="form.COMPANY_SIGNATURE_URL" style="margin-top: 10px; display: flex; gap: 8px;">
+              <button type="button" class="btn btn-danger btn-sm" @click="clearSignature">
+                🗑️ Remove Signature
+              </button>
+            </div>
+            <span style="font-size: var(--text-xs); color: var(--color-text-muted); display: block; margin-top: 6px;">
+              Tip: Use a transparent PNG (cursive ink signature). Max size: 5MB.
+            </span>
+          </div>
+
+          <!-- Live Signature Preview -->
+          <div style="border: 1px dashed var(--color-border); border-radius: 8px; padding: 12px; background: #fff; text-align: center; min-height: 120px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: inset 0 0 10px rgba(0,0,0,0.03);">
+            <div v-if="form.COMPANY_SIGNATURE_URL" style="position: relative;">
+              <img :src="form.COMPANY_SIGNATURE_URL" alt="Company Signature Preview" style="max-height: 55px; max-width: 180px; object-fit: contain; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.08));" />
+              <div style="font-size: 11px; font-weight: 600; color: #64748b; margin-top: 6px;">Live Signature Preview</div>
+              <div style="margin-top: 4px;">
+                <span v-if="uploadingSigMedia" class="badge badge-warning" style="font-size: 9px; padding: 2px 6px;">
+                  ⏳ Uploading &amp; Saving…
+                </span>
+                <span v-else class="badge badge-success" style="font-size: 9px; padding: 2px 6px;">
+                  ✅ Saved in System Branding
+                </span>
+              </div>
+            </div>
+            <div v-else style="color: #94a3b8; font-size: var(--text-xs);">
+              <span>No signature uploaded yet</span>
             </div>
           </div>
         </div>
@@ -305,6 +369,7 @@ const saving = ref(false)
 const successMsg = ref('')
 const errorMsg = ref('')
 const stampFileInput = ref(null)
+const sigFileInput = ref(null)
 
 const form = ref({
   GHL_SHARED_SECRET: '',
@@ -321,15 +386,21 @@ const form = ref({
   JWT_EXPIRES_IN: '8h',
   RESTRICT_CONTACTS_TO_ASSIGNED: 'true',
   COMPANY_STAMP_URL: '',
+  COMPANY_SIGNATURE_URL: '',
 })
 
 const uploadingStampMedia = ref(false)
+const uploadingSigMedia = ref(false)
 
 function triggerStampUpload() {
   stampFileInput.value?.click()
 }
 
-function onStampFileSelected(e) {
+function triggerSigUpload() {
+  sigFileInput.value?.click()
+}
+
+async function onStampFileSelected(e) {
   const file = e.target.files?.[0]
   if (!file) return
   if (file.size > 5 * 1024 * 1024) {
@@ -347,16 +418,87 @@ function onStampFileSelected(e) {
         filename: `stamp_${Date.now()}.png`,
         mimeType: file.type || 'image/png',
       })
-      if (res.data?.url) {
-        form.value.COMPANY_STAMP_URL = res.data.url
-      }
+      const finalUrl = res.data?.url || dataBase64
+      form.value.COMPANY_STAMP_URL = finalUrl
+      
+      // Auto-persist immediately to system_settings so it survives restart
+      await api.put('/settings', { settings: { COMPANY_STAMP_URL: finalUrl } })
+      successMsg.value = 'Company stamp uploaded and saved successfully!'
+      setTimeout(() => { successMsg.value = '' }, 4000)
     } catch (err) {
-      console.warn('GHL direct stamp upload notice (will sync on save):', err)
+      console.warn('Stamp upload save fallback:', err)
+      // Save directly as base64 in case of upload failure
+      try {
+        await api.put('/settings', { settings: { COMPANY_STAMP_URL: dataBase64 } })
+        successMsg.value = 'Company stamp saved successfully!'
+        setTimeout(() => { successMsg.value = '' }, 4000)
+      } catch (saveErr) {
+        errorMsg.value = 'Failed to save company stamp.'
+      }
     } finally {
       uploadingStampMedia.value = false
     }
   }
   reader.readAsDataURL(file)
+}
+
+async function clearStamp() {
+  form.value.COMPANY_STAMP_URL = ''
+  try {
+    await api.put('/settings', { settings: { COMPANY_STAMP_URL: '' } })
+    successMsg.value = 'Company stamp removed.'
+    setTimeout(() => { successMsg.value = '' }, 3000)
+  } catch (_) {}
+}
+
+async function onSigFileSelected(e) {
+  const file = e.target.files?.[0]
+  if (!file) return
+  if (file.size > 5 * 1024 * 1024) {
+    alert('File size exceeds 5MB limit.')
+    return
+  }
+  const reader = new FileReader()
+  reader.onload = async (event) => {
+    const dataBase64 = event.target.result
+    form.value.COMPANY_SIGNATURE_URL = dataBase64
+    uploadingSigMedia.value = true
+    try {
+      const res = await api.post('/ghl/media/upload', {
+        dataBase64,
+        filename: `signature_${Date.now()}.png`,
+        mimeType: file.type || 'image/png',
+      })
+      const finalUrl = res.data?.url || dataBase64
+      form.value.COMPANY_SIGNATURE_URL = finalUrl
+
+      // Auto-persist immediately to system_settings so it survives restart
+      await api.put('/settings', { settings: { COMPANY_SIGNATURE_URL: finalUrl } })
+      successMsg.value = 'Company signature uploaded and saved successfully!'
+      setTimeout(() => { successMsg.value = '' }, 4000)
+    } catch (err) {
+      console.warn('Signature upload save fallback:', err)
+      try {
+        await api.put('/settings', { settings: { COMPANY_SIGNATURE_URL: dataBase64 } })
+        successMsg.value = 'Company signature saved successfully!'
+        setTimeout(() => { successMsg.value = '' }, 4000)
+      } catch (saveErr) {
+        errorMsg.value = 'Failed to save company signature.'
+      }
+    } finally {
+      uploadingSigMedia.value = false
+    }
+  }
+  reader.readAsDataURL(file)
+}
+
+async function clearSignature() {
+  form.value.COMPANY_SIGNATURE_URL = ''
+  try {
+    await api.put('/settings', { settings: { COMPANY_SIGNATURE_URL: '' } })
+    successMsg.value = 'Company signature removed.'
+    setTimeout(() => { successMsg.value = '' }, 3000)
+  } catch (_) {}
 }
 
 const showSecret = ref({

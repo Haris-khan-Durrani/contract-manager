@@ -140,35 +140,37 @@
               <span class="doc-nav-title">{{ contract?.snapshot?.documentTitle || contract?.templateName }}</span>
             </div>
             <div class="doc-nav-actions">
-              <!-- Mobile A4 Fit / Zoom Controls -->
-              <div v-if="isMobileScreen" class="mobile-zoom-pill-group">
+              <!-- Mobile View Toggle (Responsive Mobile vs Exact A4 Paper) -->
+              <div v-if="isMobileScreen" class="mobile-view-toggle">
                 <button
                   type="button"
                   class="doc-nav-btn"
-                  :class="{ 'doc-nav-btn-active': Math.abs(mobileZoom - autoFitScale) < 0.05 }"
-                  @click="setZoomFit"
-                  title="Fit Full A4 Page to Screen"
+                  :class="{ 'doc-nav-btn-active': mobileViewMode === 'responsive' }"
+                  @click="mobileViewMode = 'responsive'"
                 >
-                  📱 Fit A4
+                  📱 Mobile
                 </button>
                 <button
                   type="button"
                   class="doc-nav-btn"
-                  :class="{ 'doc-nav-btn-active': Math.abs(mobileZoom - 1.0) < 0.05 }"
-                  @click="setZoom100"
-                  title="Zoom to 100% Actual Size"
+                  :class="{ 'doc-nav-btn-active': mobileViewMode === 'a4' }"
+                  @click="mobileViewMode = 'a4'"
                 >
-                  🔍 100%
+                  📄 A4 Sheet
                 </button>
+              </div>
+
+              <!-- Zoom Controls only if in A4 Sheet mode on mobile -->
+              <div v-if="isMobileScreen && mobileViewMode === 'a4'" class="mobile-zoom-pill-group">
                 <button type="button" class="doc-nav-btn btn-step" @click="changeZoom(-0.1)" title="Zoom Out">−</button>
                 <span class="zoom-pct-label">{{ Math.round(mobileZoom * 100) }}%</span>
                 <button type="button" class="doc-nav-btn btn-step" @click="changeZoom(0.1)" title="Zoom In">+</button>
               </div>
 
-              <button type="button" class="doc-nav-btn" @click="scrollToSection('.page-4, .page:nth-of-type(4)')" title="Jump to Terms of Business">
+              <button v-if="!isMobileScreen" type="button" class="doc-nav-btn" @click="scrollToSection('.page-4, .page:nth-of-type(4)')" title="Jump to Terms of Business">
                 📜 Terms
               </button>
-              <button type="button" class="doc-nav-btn" @click="scrollToSection('.page-7, .page:nth-of-type(7)')" title="Jump to Schedules">
+              <button v-if="!isMobileScreen" type="button" class="doc-nav-btn" @click="scrollToSection('.page-7, .page:nth-of-type(7)')" title="Jump to Schedules">
                 👤 Schedules
               </button>
               <button type="button" class="doc-nav-btn doc-nav-btn-highlight" @click="scrollToSign" title="Jump down to Digital Signature">
@@ -185,6 +187,7 @@
           <div
             v-if="isHtmlTemplate"
             class="html-contract-render-host"
+            :class="{ 'mobile-reader-mode': isMobileScreen && mobileViewMode === 'responsive' }"
             :style="mobileA4Style"
             v-html="renderedHtmlContent"
           ></div>
@@ -479,6 +482,7 @@ const apiBase = import.meta.env.VITE_API_BASE_URL || (typeof window !== 'undefin
 
 // ─── Mobile A4 Fit & Zoom State ───────────────────────────────────────────────
 const isMobileScreen = ref(false)
+const mobileViewMode = ref('responsive') // 'responsive' | 'a4'
 const mobileZoom = ref(1)
 const autoFitScale = ref(1)
 
@@ -488,12 +492,10 @@ function updateScreenDimensions() {
   isMobileScreen.value = w < 840
 
   if (w < 840) {
-    // 794px is standard 210mm A4 width at 96dpi
     const availableWidth = Math.max(260, w - 24)
-    const fit = Math.min(1, Math.round((availableWidth / 800) * 100) / 100)
-    autoFitScale.value = fit
-    if (mobileZoom.value === 1 || mobileZoom.value < 0.3) {
-      mobileZoom.value = fit
+    autoFitScale.value = Math.min(1, Math.round((availableWidth / 800) * 100) / 100)
+    if (!mobileViewMode.value) {
+      mobileViewMode.value = 'responsive'
     }
   } else {
     autoFitScale.value = 1
@@ -517,7 +519,7 @@ function changeZoom(delta) {
 }
 
 const mobileA4Style = computed(() => {
-  if (!isMobileScreen.value) return {}
+  if (!isMobileScreen.value || mobileViewMode.value === 'responsive') return {}
   return {
     zoom: mobileZoom.value,
   }
@@ -832,9 +834,144 @@ const renderedHtmlContent = computed(() => {
       border-radius: 2mm !important;
       background: linear-gradient(90deg, #20383e, #b79b52) !important;
     }
+
+    /* ── Mobile Responsive Reading Mode ── */
+    @media (max-width: 840px) {
+      .sign-html-canvas-pages.mobile-reader-mode {
+        width: 100% !important;
+        padding: 0 !important;
+      }
+      .sign-html-canvas-pages.mobile-reader-mode .document {
+        width: 100% !important;
+        padding: 0 0 16px 0 !important;
+      }
+      .sign-html-canvas-pages.mobile-reader-mode .page {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        height: auto !important;
+        min-height: 0 !important;
+        margin: 0 0 16px 0 !important;
+        padding: 16px 8px 40px 8px !important;
+        overflow: visible !important;
+        box-shadow: 0 2px 12px rgba(15, 23, 42, 0.08) !important;
+        border-radius: 12px !important;
+        border: 1px solid #e2e8f0 !important;
+      }
+      .sign-html-canvas-pages.mobile-reader-mode .page::before {
+        height: 2.5px !important;
+      }
+      .sign-html-canvas-pages.mobile-reader-mode .page::after {
+        left: 8px !important;
+        right: 8px !important;
+        bottom: 24px !important;
+      }
+      .sign-html-canvas-pages.mobile-reader-mode .bilingual-table {
+        width: 100% !important;
+        margin: 0 !important;
+        table-layout: fixed !important;
+      }
+      .sign-html-canvas-pages.mobile-reader-mode .bilingual-table td {
+        padding: 3px 5px !important;
+        font-size: 11.5px !important;
+        line-height: 1.45 !important;
+      }
+      .sign-html-canvas-pages.mobile-reader-mode .clause-number {
+        font-size: 11.5px !important;
+        font-weight: 700 !important;
+      }
+      .sign-html-canvas-pages.mobile-reader-mode .clause-text {
+        font-size: 11.5px !important;
+        line-height: 1.45 !important;
+      }
+      .sign-html-canvas-pages.mobile-reader-mode .section-title {
+        font-size: 13px !important;
+        font-weight: 800 !important;
+        margin-bottom: 4px !important;
+      }
+      .sign-html-canvas-pages.mobile-reader-mode .cover {
+        padding: 14px 8px 24px 8px !important;
+      }
+      .sign-html-canvas-pages.mobile-reader-mode .cover::after {
+        inset: 4px !important;
+      }
+      .sign-html-canvas-pages.mobile-reader-mode .cover .bilingual-table {
+        width: 100% !important;
+        height: auto !important;
+        margin: 0 !important;
+      }
+      .sign-html-canvas-pages.mobile-reader-mode .cover .bilingual-table td {
+        padding: 22px 6px 14px !important;
+      }
+      .sign-html-canvas-pages.mobile-reader-mode .cover .logo {
+        max-height: 52px !important;
+        width: auto !important;
+        max-width: 90% !important;
+        margin-top: 10px !important;
+      }
+      .sign-html-canvas-pages.mobile-reader-mode .cover-title {
+        min-height: 26mm !important;
+        height: auto !important;
+        padding-bottom: 5mm !important;
+      }
+      .sign-html-canvas-pages.mobile-reader-mode .cover-title h1 {
+        font-size: 15px !important;
+        line-height: 1.25 !important;
+      }
+      .sign-html-canvas-pages.mobile-reader-mode .cover-title.arabic {
+        font-size: 15px !important;
+        line-height: 1.3 !important;
+      }
+      .sign-html-canvas-pages.mobile-reader-mode .page-no {
+        position: absolute !important;
+        bottom: 6px !important;
+        right: 8px !important;
+        height: 18px !important;
+        min-width: 22px !important;
+        font-size: 9px !important;
+        padding: 0 4px !important;
+        z-index: 10 !important;
+      }
+      .sign-html-canvas-pages.mobile-reader-mode .page-official-stamp {
+        position: relative !important;
+        bottom: auto !important;
+        right: auto !important;
+        display: flex !important;
+        justify-content: flex-end !important;
+        margin-top: 10px !important;
+        padding-right: 6px !important;
+        z-index: 5 !important;
+      }
+      .sign-html-canvas-pages.mobile-reader-mode .page-official-stamp img {
+        max-height: 18mm !important;
+        max-width: 22mm !important;
+      }
+      .sign-html-canvas-pages.mobile-reader-mode .commercial-terms {
+        font-size: 11px !important;
+        line-height: 1.4 !important;
+      }
+      .sign-html-canvas-pages.mobile-reader-mode .commercial-terms table {
+        width: 100% !important;
+        font-size: 10.5px !important;
+      }
+      .sign-html-canvas-pages.mobile-reader-mode .commercial-terms table th,
+      .sign-html-canvas-pages.mobile-reader-mode .commercial-terms table td {
+        padding: 3px 4px !important;
+      }
+      .sign-html-canvas-pages.mobile-reader-mode .table-like {
+        width: 100% !important;
+        font-size: 11px !important;
+      }
+      .sign-html-canvas-pages.mobile-reader-mode .table-like td {
+        padding: 3px 4px !important;
+      }
+    }
   `
 
-  return `<style>${baseCss}\n${isolationCss}</style>\n<div class="sign-html-canvas-pages">${rendered}</div>`
+  const isReaderActive = isMobileScreen.value && mobileViewMode.value === 'responsive'
+  const wrapperClass = isReaderActive ? 'sign-html-canvas-pages mobile-reader-mode' : 'sign-html-canvas-pages'
+
+  return `<style>${baseCss}\n${isolationCss}</style>\n<div class="${wrapperClass}">${rendered}</div>`
 })
 
 // Interpolate dynamic placeholders in contract blocks (for non-HTML fallback)
@@ -2134,64 +2271,137 @@ async function downloadSignedPdf() {
 }
 
 @media (max-width: 768px) {
+  .portal-header {
+    padding: 0;
+  }
+  .portal-header-inner {
+    padding: 10px 14px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .portal-brand {
+    justify-content: flex-start;
+    gap: 8px;
+  }
+  .brand-shield-icon {
+    width: 30px;
+    height: 30px;
+  }
+  .portal-brand-name {
+    font-size: 0.95rem;
+  }
+  .portal-brand-sub {
+    font-size: 0.68rem;
+  }
+  .portal-header-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .expiry-pill {
+    font-size: 0.72rem;
+    padding: 3px 8px;
+    white-space: nowrap;
+  }
+  .portal-header-meta .badge {
+    font-size: 0.72rem;
+    padding: 3px 8px;
+    white-space: nowrap;
+  }
   .portal-main {
-    padding: 16px 8px 60px 8px;
+    padding: 12px 10px 60px 10px;
+  }
+  .contract-hero-banner {
+    padding: 16px 14px;
+    margin-bottom: 14px;
+    gap: 12px;
+  }
+  .hero-title {
+    font-size: 1.2rem;
+    line-height: 1.3;
+  }
+  .hero-desc {
+    font-size: 0.82rem;
+    line-height: 1.45;
+  }
+  .hero-client-card {
+    padding: 10px 14px;
+  }
+  .doc-nav-sticky-bar {
+    top: 0;
+    padding: 8px 10px;
+    margin-bottom: 14px;
+    border-radius: 10px;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+  }
+  .doc-nav-bar-inner {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+  }
+  .doc-nav-info {
+    display: none;
+  }
+  .doc-nav-actions {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    gap: 6px;
+  }
+  .mobile-view-toggle {
+    display: inline-flex;
+    background: #f1f5f9;
+    padding: 2px;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    gap: 2px;
+  }
+  .mobile-view-toggle .doc-nav-btn {
+    padding: 5px 9px;
+    font-size: 0.76rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: #475569;
+  }
+  .mobile-view-toggle .doc-nav-btn.doc-nav-btn-active {
+    background: #ffffff;
+    color: #0f172a;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  .doc-nav-btn-highlight {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    white-space: nowrap;
+    border-radius: 8px;
+  }
+  .html-mode-paper-wrap {
+    width: 100%;
+    padding: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .html-contract-render-host {
+    width: 100%;
   }
   .document-paper {
-    padding: 24px 20px;
+    padding: 20px 16px;
   }
   .block-bilingual {
     grid-template-columns: 1fr;
   }
   .bilingual-divider {
     display: none;
-  }
-  .contract-hero-banner {
-    flex-direction: column;
-    padding: 18px 16px;
-    gap: 16px;
-  }
-  .html-mode-paper-wrap {
-    width: 100%;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    align-items: safe center;
-    padding-bottom: 20px;
-  }
-  .html-contract-render-host {
-    width: fit-content;
-    max-width: none;
-    margin: 0 auto;
-  }
-  .doc-nav-sticky-bar {
-    top: 56px;
-    padding: 8px 10px;
-  }
-  .doc-nav-bar-inner {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-  }
-  .doc-nav-info {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-  }
-  .doc-nav-title {
-    display: none;
-  }
-  .doc-nav-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    width: 100%;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .mobile-zoom-pill-group {
-    display: inline-flex;
-    gap: 2px;
   }
 }
 </style>

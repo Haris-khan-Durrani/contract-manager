@@ -30,7 +30,7 @@ router.put('/', ghlAuthMiddleware, loadAppUser, requirePermission('settings:mana
     const { locationId, privateToken } = req.ghlUser;
     const ghlService = require('../services/ghlService');
 
-    // If company stamp was sent as base64, store directly in GoHighLevel Media Library
+    // If company stamp was sent as base64, store directly in GoHighLevel Media Library or persistent local storage
     if (settings.COMPANY_STAMP_URL && settings.COMPANY_STAMP_URL.startsWith('data:image/')) {
       try {
         const matches = settings.COMPANY_STAMP_URL.match(/^data:([A-Za-z0-9-+\/]+);base64,(.+)$/);
@@ -52,6 +52,31 @@ router.put('/', ghlAuthMiddleware, loadAppUser, requirePermission('settings:mana
         }
       } catch (uploadErr) {
         console.warn('[Settings Stamp] GHL Media upload fallback notice:', uploadErr.message);
+      }
+    }
+
+    // If company signature was sent as base64, store directly in GoHighLevel Media Library or persistent local storage
+    if (settings.COMPANY_SIGNATURE_URL && settings.COMPANY_SIGNATURE_URL.startsWith('data:image/')) {
+      try {
+        const matches = settings.COMPANY_SIGNATURE_URL.match(/^data:([A-Za-z0-9-+\/]+);base64,(.+)$/);
+        if (matches) {
+          const mimeType = matches[1];
+          const buffer = Buffer.from(matches[2], 'base64');
+          const ext = mimeType.includes('png') ? 'png' : 'jpg';
+          const filename = `company_signature_${Date.now()}.${ext}`;
+          const ghlUrl = await ghlService.uploadMediaFile({
+            locationId,
+            buffer,
+            filename,
+            mimeType,
+            privateToken,
+          });
+          if (ghlUrl) {
+            settings.COMPANY_SIGNATURE_URL = ghlUrl;
+          }
+        }
+      } catch (uploadErr) {
+        console.warn('[Settings Signature] GHL Media upload fallback notice:', uploadErr.message);
       }
     }
 

@@ -64,6 +64,36 @@ class SettingsService {
         });
       }
 
+      // Ensure COMPANY_STAMP_URL is seeded if not present (never overwrites existing custom stamp)
+      if (!this._cache.has('COMPANY_STAMP_URL')) {
+        await db.execute(
+          `INSERT IGNORE INTO system_settings (setting_key, setting_value, description, is_secret, category)
+           VALUES ('COMPANY_STAMP_URL', ?, 'Official company seal / stamp overlaid on all contracts', 0, 'branding')`,
+          [DEFAULT_COMPANY_STAMP]
+        ).catch(() => {});
+        this._cache.set('COMPANY_STAMP_URL', {
+          value: DEFAULT_COMPANY_STAMP,
+          description: 'Official company seal / stamp overlaid on all contracts',
+          isSecret: false,
+          category: 'branding',
+        });
+      }
+
+      // Ensure COMPANY_SIGNATURE_URL is seeded if not present (never overwrites existing custom signature)
+      if (!this._cache.has('COMPANY_SIGNATURE_URL')) {
+        await db.execute(
+          `INSERT IGNORE INTO system_settings (setting_key, setting_value, description, is_secret, category)
+           VALUES ('COMPANY_SIGNATURE_URL', ?, 'Default authorized officer signature for contracts', 0, 'branding')`,
+          [DEFAULT_COMPANY_SIGNATURE]
+        ).catch(() => {});
+        this._cache.set('COMPANY_SIGNATURE_URL', {
+          value: DEFAULT_COMPANY_SIGNATURE,
+          description: 'Default authorized officer signature for contracts',
+          isSecret: false,
+          category: 'branding',
+        });
+      }
+
       this._initialized = true;
       console.log(`⚙️  [SettingsService] Loaded ${this._cache.size} settings from MySQL.`);
     } catch (err) {
@@ -153,14 +183,15 @@ class SettingsService {
    * Update a setting in MySQL and update cache immediately.
    */
   async set(key, value) {
+    const val = (value !== null && value !== undefined) ? String(value) : '';
     await db.execute(
       `INSERT INTO system_settings (setting_key, setting_value)
        VALUES (?, ?)
        ON DUPLICATE KEY UPDATE setting_value = ?`,
-      [key, String(value), String(value)]
+      [key, val, val]
     );
     const existing = this._cache.get(key) || {};
-    this._cache.set(key, { ...existing, value: String(value) });
+    this._cache.set(key, { ...existing, value: val });
   }
 
   /**

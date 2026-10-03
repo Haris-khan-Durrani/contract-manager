@@ -9,6 +9,9 @@ const cors         = require('cors');
 const helmet       = require('helmet');
 const rateLimit    = require('express-rate-limit');
 
+const path          = require('path');
+const db            = require('./config/db');
+
 const webhookRoutes   = require('./routes/webhook');
 const authRoutes      = require('./routes/auth');
 const contractRoutes  = require('./routes/contracts');
@@ -27,6 +30,14 @@ const retryWorker  = require('./services/retryWorker');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Ensure local uploads folder exists for permanent static serving
+const uploadsDir = path.resolve(__dirname, '../uploads/branding');
+const fs = require('fs');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+app.use('/uploads', express.static(path.resolve(__dirname, '../uploads')));
 
 // Trust reverse proxies (Cloudflare, Nginx, tunnels) for accurate client IP resolution
 app.set('trust proxy', true);
@@ -98,6 +109,9 @@ const server = app.listen(PORT, async () => {
   console.log(`\n🚀 Contract Manager Server running on port ${PORT}`);
   console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
   
+  // Initialize and verify database connection & migrations first
+  await db.init();
+
   // Preload dynamic settings from MySQL
   await settingsService.init();
 

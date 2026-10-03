@@ -56,6 +56,9 @@ class SQLiteAdapter {
     // Replace NOW() with CURRENT_TIMESTAMP
     s = s.replace(/NOW\(\)/gi, "datetime('now')");
 
+    // Replace INSERT IGNORE INTO with SQLite compatible INSERT OR IGNORE INTO
+    s = s.replace(/INSERT IGNORE INTO/gi, 'INSERT OR IGNORE INTO');
+
     // Replace ON DUPLICATE KEY UPDATE for known tables
     if (/INSERT INTO app_user_access/i.test(s) && /ON DUPLICATE KEY UPDATE/i.test(s)) {
       s = s.replace(/ON DUPLICATE KEY UPDATE[\s\S]*/i, `
@@ -715,10 +718,13 @@ async function initMysqlTables(pool) {
       `ALTER TABLE contract_instances ADD COLUMN revoked_at TIMESTAMP NULL`,
       `ALTER TABLE contract_instances ADD COLUMN assigned_user_name VARCHAR(255) NULL`,
       `ALTER TABLE contract_instances ADD COLUMN validity_days INT NULL DEFAULT 7`,
-      `ALTER TABLE app_user_access ADD COLUMN signature_png_url MEDIUMTEXT NULL`,
+      `ALTER TABLE app_user_access ADD COLUMN signature_png_url LONGTEXT NULL`,
+      `ALTER TABLE app_user_access MODIFY COLUMN signature_png_url LONGTEXT NULL`,
       `ALTER TABLE app_user_access ADD COLUMN can_fill_client_summary TINYINT(1) NOT NULL DEFAULT 0`,
       `ALTER TABLE app_user_access ADD COLUMN user_name VARCHAR(255) NULL`,
       `ALTER TABLE app_user_access ADD COLUMN user_email VARCHAR(255) NULL`,
+      `ALTER TABLE system_settings MODIFY COLUMN setting_value LONGTEXT NULL`,
+      `ALTER TABLE system_settings MODIFY COLUMN description TEXT NULL`,
     ];
     for (const stmt of [...formAlters, ...instanceAlters]) {
       try { await pool.execute(stmt); } catch (e) { /* column already exists — skip */ }
