@@ -38,30 +38,86 @@
 
     <!-- Page Body -->
     <div class="page-body animate-fade-in">
-      <!-- Search & Filters -->
-      <div class="filter-bar">
-        <div class="search-input-wrap">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="11" cy="11" r="8"/>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          </svg>
-          <input
-            type="text"
-            v-model="searchQuery"
-            placeholder="Search templates by name or contract type…"
-            class="search-input"
-          />
+      <!-- Filter & Search Bar -->
+      <div class="filter-controls-card">
+        <div class="filter-tabs-row">
+          <div class="status-tabs">
+            <button
+              type="button"
+              class="status-tab-btn"
+              :class="{ 'is-active': statusFilter === 'all' }"
+              @click="statusFilter = 'all'"
+            >
+              All Templates
+              <span class="tab-count-pill">{{ templates.length }}</span>
+            </button>
+            <button
+              type="button"
+              class="status-tab-btn"
+              :class="{ 'is-active': statusFilter === 'active' }"
+              @click="statusFilter = 'active'"
+            >
+              <span class="status-tab-dot dot-active"></span>
+              Active
+              <span class="tab-count-pill">{{ activeCount }}</span>
+            </button>
+            <button
+              type="button"
+              class="status-tab-btn"
+              :class="{ 'is-active': statusFilter === 'draft' }"
+              @click="statusFilter = 'draft'"
+            >
+              <span class="status-tab-dot dot-draft"></span>
+              Drafts
+              <span class="tab-count-pill">{{ draftCount }}</span>
+            </button>
+          </div>
+
+          <div class="templates-count-badge">
+            Showing <strong>{{ filteredTemplates.length }}</strong> of {{ templates.length }}
+          </div>
         </div>
 
-        <div class="filter-group">
-          <select v-model="typeFilter" class="filter-select">
-            <option value="">All Contract Types</option>
-            <option value="Service Agreement">Service Agreement</option>
-            <option value="Non-Disclosure Agreement">NDA</option>
-            <option value="Master Services Agreement">MSA</option>
-            <option value="Sales Proposal">Sales Proposal</option>
-            <option value="Retainer">Retainer</option>
-          </select>
+        <div class="search-filter-inputs-row">
+          <div class="search-input-wrap">
+            <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input
+              type="text"
+              v-model="searchQuery"
+              placeholder="Search templates by program, country, visa, or type…"
+              class="search-input"
+            />
+            <button
+              v-if="searchQuery"
+              type="button"
+              class="btn-clear-search"
+              @click="searchQuery = ''"
+              title="Clear Search"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div class="filter-group">
+            <select v-model="categoryFilter" class="filter-select">
+              <option value="">All Categories</option>
+              <option v-for="cat in availableCategories" :key="cat" :value="cat">
+                {{ cat }}
+              </option>
+            </select>
+          </div>
+
+          <button
+            v-if="searchQuery || categoryFilter || statusFilter !== 'all'"
+            type="button"
+            class="btn-reset-filters"
+            @click="resetFilters"
+          >
+            Clear Filters
+          </button>
         </div>
       </div>
 
@@ -71,8 +127,26 @@
         <p class="text-muted" style="margin-top: var(--space-4);">Loading templates…</p>
       </div>
 
-      <!-- Empty State -->
-      <div v-else-if="!filteredTemplates.length" class="glass-card empty-card">
+      <!-- No Filter Results State -->
+      <div v-else-if="!filteredTemplates.length && templates.length > 0" class="glass-card empty-card">
+        <div class="empty-icon">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="11" cy="11" r="8"/>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            <line x1="8" y1="11" x2="14" y2="11"/>
+          </svg>
+        </div>
+        <h2 style="margin: var(--space-4) 0 var(--space-2); font-size: 1.25rem;">No matching templates found</h2>
+        <p class="text-muted" style="max-width: 420px; margin: 0 auto var(--space-5); font-size: 0.9rem;">
+          No templates match your current search and filter criteria. Try adjusting your search query or reset filters.
+        </p>
+        <button class="btn btn-secondary" @click="resetFilters">
+          Reset All Filters
+        </button>
+      </div>
+
+      <!-- Empty Workspace State -->
+      <div v-else-if="!templates.length" class="glass-card empty-card">
         <div class="empty-icon">
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -99,18 +173,18 @@
           class="template-card"
           @click="openBuilder(t.id)"
         >
-          <!-- Top Accent Bar -->
+          <!-- Top Gradient Accent Bar -->
           <div class="card-accent-bar" :class="{ 'accent-active': t.is_active }"></div>
 
           <!-- Card Header & Badges -->
           <div class="card-header">
             <div class="card-badges">
-              <span class="badge-type" :title="t.contract_type">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <span class="badge-category" :title="t.contract_type">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                   <polyline points="14 2 14 8 20 8"></polyline>
                 </svg>
-                <span>{{ t.contract_type }}</span>
+                <span>{{ getCategoryLabel(t) }}</span>
               </span>
               <span class="badge-version">v{{ t.current_version }}</span>
               <span v-if="t.is_active" class="badge-status-active">
@@ -118,8 +192,8 @@
                 Active
               </span>
               <span v-else class="badge-status-draft">Draft</span>
-              <span v-if="t.name && (t.name.includes('Cyprus') || t.name.includes('Bilingual') || t.is_html_template)" class="badge-format">
-                ✨ HTML Studio
+              <span v-if="isHtmlTemplate(t)" class="badge-format">
+                ⚡ HTML Studio
               </span>
             </div>
 
@@ -149,10 +223,10 @@
             </div>
           </div>
 
-          <!-- Title Block with Document Icon -->
+          <!-- Title Block with Document Icon & Kicker -->
           <div class="template-title-block">
             <div class="template-doc-icon" :class="{ 'icon-active': t.is_active }">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                 <polyline points="14 2 14 8 20 8"></polyline>
                 <line x1="16" y1="13" x2="8" y2="13"></line>
@@ -160,50 +234,71 @@
                 <polyline points="10 9 9 9 8 9"></polyline>
               </svg>
             </div>
-            <h3 class="template-name">{{ t.name }}</h3>
+            <div class="template-title-content">
+              <span class="template-kicker">{{ getKickerText(t) }}</span>
+              <h3 class="template-name" :title="t.name">{{ formatTitle(t.name) }}</h3>
+            </div>
           </div>
 
-          <!-- Structured Metadata Cardlet -->
-          <div class="template-meta-cardlet">
-            <div class="meta-row">
-              <span class="meta-label">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <!-- Structured 2x2 Metadata Grid -->
+          <div class="template-meta-grid">
+            <div class="meta-cell" :title="t.form_name || 'Standard Service Intake Form'">
+              <span class="meta-cell-label">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
                   <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
                 </svg>
-                Associated Form
+                Intake Form
               </span>
-              <span class="meta-value form-value" :title="t.form_name">
-                {{ t.form_name || 'Standard Service Intake Form' }}
+              <span class="meta-cell-value">
+                {{ t.form_name ? truncateText(t.form_name, 22) : 'Standard Intake' }}
               </span>
             </div>
-            <div class="meta-row">
-              <span class="meta-label">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+
+            <div class="meta-cell">
+              <span class="meta-cell-label">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <circle cx="12" cy="12" r="10"></circle>
                   <polyline points="12 6 12 12 16 14"></polyline>
                 </svg>
-                Signing Validity
+                Signing Window
               </span>
-              <span class="meta-value validity-badge">
-                {{ t.validity_days || 7 }} days
+              <span class="meta-cell-value validity-val">
+                {{ t.validity_days || 7 }} Days
               </span>
             </div>
-            <div class="meta-row">
-              <span class="meta-label">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+
+            <div class="meta-cell">
+              <span class="meta-cell-label">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                   <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                 </svg>
-                Last Modified
+                Updated
               </span>
-              <span class="meta-value text-muted">{{ formatDate(t.updated_at) }}</span>
+              <span class="meta-cell-value">
+                {{ formatDate(t.updated_at) }}
+              </span>
+            </div>
+
+            <div class="meta-cell">
+              <span class="meta-cell-label">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                  <polyline points="2 17 12 22 22 17"></polyline>
+                  <polyline points="2 12 12 17 22 12"></polyline>
+                </svg>
+                Engine
+              </span>
+              <span class="meta-cell-value engine-val">
+                {{ isHtmlTemplate(t) ? 'HTML A4 Paired' : 'Visual Clauses' }}
+              </span>
             </div>
           </div>
 
           <!-- Card Footer -->
           <div class="card-footer">
-            <div class="template-id-tag">
+            <div class="template-id-tag" title="Template ID">
               <span class="id-hash">#</span>
               <span class="id-num">{{ t.id }}</span>
             </div>
@@ -432,7 +527,153 @@ const loading = ref(true)
 const templates = ref([])
 const availableForms = ref([])
 const searchQuery = ref('')
-const typeFilter = ref('')
+const categoryFilter = ref('')
+const statusFilter = ref('all') // 'all' | 'active' | 'draft'
+
+const activeCount = computed(() => {
+  return templates.value.filter(t => t.is_active).length
+})
+
+const draftCount = computed(() => {
+  return templates.value.filter(t => !t.is_active).length
+})
+
+const availableCategories = computed(() => {
+  const set = new Set()
+  templates.value.forEach(t => {
+    const cat = getCategoryLabel(t)
+    if (cat) set.add(cat)
+  })
+  return Array.from(set).sort()
+})
+
+const filteredTemplates = computed(() => {
+  return templates.value.filter(t => {
+    // Status tab filter
+    if (statusFilter.value === 'active' && !t.is_active) return false
+    if (statusFilter.value === 'draft' && t.is_active) return false
+
+    // Category filter
+    if (categoryFilter.value && getCategoryLabel(t) !== categoryFilter.value) {
+      return false
+    }
+
+    // Text search
+    if (searchQuery.value.trim()) {
+      const q = searchQuery.value.toLowerCase().trim()
+      const rawName = (t.name || '').toLowerCase()
+      const prettyName = formatTitle(t.name || '').toLowerCase()
+      const contractType = (t.contract_type || '').toLowerCase()
+      const formName = (t.form_name || '').toLowerCase()
+      const idStr = String(t.id || '')
+
+      const matches = rawName.includes(q) ||
+        prettyName.includes(q) ||
+        contractType.includes(q) ||
+        formName.includes(q) ||
+        idStr === q
+
+      if (!matches) return false
+    }
+
+    return true
+  })
+})
+
+function resetFilters() {
+  searchQuery.value = ''
+  categoryFilter.value = ''
+  statusFilter.value = 'all'
+}
+
+function isHtmlTemplate(t) {
+  if (!t) return false
+  const n = (t.name || '').toLowerCase()
+  const ct = (t.contract_type || '').toLowerCase()
+  return (
+    Boolean(t.is_html_template) ||
+    n.includes('cyprus') ||
+    n.includes('bilingual') ||
+    n.includes('france') ||
+    n.includes('netherlands') ||
+    n.includes('portugal') ||
+    n.includes('innovator') ||
+    n.includes('residence') ||
+    ct.includes('residence')
+  )
+}
+
+function getCategoryLabel(t) {
+  if (!t) return 'Agreement'
+  const nameUpper = (t.name || '').toUpperCase()
+  const typeUpper = (t.contract_type || '').toUpperCase()
+
+  if (nameUpper.includes('LEGAL SERVICES') || typeUpper.includes('LEGAL SERVICES')) {
+    return 'Legal Services'
+  }
+  if (nameUpper.includes('NDA') || typeUpper.includes('NON-DISCLOSURE')) {
+    return 'NDA'
+  }
+  if (nameUpper.includes('MSA') || typeUpper.includes('MASTER SERVICES')) {
+    return 'MSA'
+  }
+  if (nameUpper.includes('RETAINER') || typeUpper.includes('RETAINER')) {
+    return 'Retainer'
+  }
+  if (nameUpper.includes('EMPLOYMENT') || typeUpper.includes('EMPLOYMENT')) {
+    return 'Employment'
+  }
+  if (t.contract_type && !t.contract_type.includes('_') && t.contract_type.length < 24) {
+    return t.contract_type
+  }
+  return 'Legal Agreement'
+}
+
+function getKickerText(t) {
+  if (!t) return 'CONTRACT BLUEPRINT'
+  const nameUpper = (t.name || '').toUpperCase()
+  if (nameUpper.includes('LEGAL SERVICES')) {
+    return 'LEGAL SERVICES AGREEMENT'
+  }
+  if (nameUpper.includes('NON-DISCLOSURE') || nameUpper.includes('NDA')) {
+    return 'CONFIDENTIALITY & NDA'
+  }
+  if (nameUpper.includes('MASTER SERVICES') || nameUpper.includes('MSA')) {
+    return 'MASTER SERVICES'
+  }
+  return 'DOCUMENT BLUEPRINT'
+}
+
+function formatTitle(name) {
+  if (!name) return 'Untitled Template'
+  
+  // Strip repetitive prefixes
+  let cleaned = name.replace(/^LEGAL[\s_]+SERVICES[\s_]+AGREEMENT[\s_]*[-–—_]?\s*/i, '')
+  if (!cleaned.trim()) return name
+
+  // If there are underscores, replace with spaces
+  cleaned = cleaned.replace(/_/g, ' ').replace(/\s+/g, ' ').trim()
+
+  // If it's screaming uppercase, convert to Title Case gracefully preserving known acronyms
+  if (cleaned === cleaned.toUpperCase()) {
+    const keepUpper = new Set(['UK', 'D8', 'D7', 'D2', 'CBI', 'USA', 'NDA', 'MSA', 'EU', 'UAE', 'VAT', 'LLC', 'A4', 'HTML', 'CSS'])
+    const lowerWords = new Set(['and', 'or', 'of', 'in', 'for', 'the', 'to', 'a', 'an'])
+
+    cleaned = cleaned.toLowerCase().split(' ').map((word, index) => {
+      const upperCheck = word.toUpperCase()
+      if (keepUpper.has(upperCheck)) return upperCheck
+      if (index > 0 && lowerWords.has(word)) return word
+      return word.charAt(0).toUpperCase() + word.slice(1)
+    }).join(' ')
+  }
+
+  return cleaned
+}
+
+function truncateText(str, max = 22) {
+  if (!str) return ''
+  return str.length > max ? str.substring(0, max - 1) + '…' : str
+}
 
 const showCreateModal = ref(false)
 const creating = ref(false)
@@ -466,16 +707,6 @@ function getHeaders() {
     'X-GHL-Context': auth.userContextToken || '',
   }
 }
-
-const filteredTemplates = computed(() => {
-  return templates.value.filter(t => {
-    const matchSearch = !searchQuery.value.trim() ||
-      (t.name || '').toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      (t.contract_type || '').toLowerCase().includes(searchQuery.value.toLowerCase())
-    const matchType = !typeFilter.value || t.contract_type === typeFilter.value
-    return matchSearch && matchType
-  })
-})
 
 async function fetchTemplates() {
   loading.value = true
@@ -679,59 +910,212 @@ onMounted(() => {
   margin-top: var(--space-1);
 }
 
-.filter-bar {
+/* Filter Controls Card */
+.filter-controls-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
   display: flex;
-  gap: var(--space-4);
-  margin-bottom: var(--space-6);
+  flex-direction: column;
+  gap: 14px;
+}
+
+.filter-tabs-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 12px;
+}
+
+.status-tabs {
+  display: inline-flex;
+  background: #f1f5f9;
+  padding: 3px;
+  border-radius: 10px;
+  gap: 2px;
+}
+
+.status-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.status-tab-btn:hover {
+  color: #0f172a;
+}
+
+.status-tab-btn.is-active {
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.status-tab-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.dot-active {
+  background: #10b981;
+}
+
+.dot-draft {
+  background: #f59e0b;
+}
+
+.tab-count-pill {
+  background: rgba(148, 163, 184, 0.2);
+  color: inherit;
+  font-size: 0.72rem;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.status-tab-btn.is-active .tab-count-pill {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.templates-count-badge {
+  font-size: 0.84rem;
+  color: #64748b;
+}
+
+.templates-count-badge strong {
+  color: #0f172a;
+}
+
+.search-filter-inputs-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
   flex-wrap: wrap;
 }
 
 .search-input-wrap {
   flex: 1;
-  min-width: 260px;
+  min-width: 280px;
   position: relative;
   display: flex;
   align-items: center;
 }
 
-.search-input-wrap svg {
+.search-icon {
   position: absolute;
-  left: 12px;
-  color: var(--color-text-muted);
+  left: 14px;
+  color: #94a3b8;
+  pointer-events: none;
 }
 
 .search-input {
   width: 100%;
-  padding: var(--space-3) var(--space-3) var(--space-3) 38px;
-  background: var(--color-bg-card);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  color: var(--color-text-base);
-  font-size: 0.9rem;
+  padding: 9px 36px 9px 38px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  color: #0f172a;
+  font-size: 0.88rem;
+  transition: all 0.2s ease;
+}
+
+.search-input:focus {
+  outline: none;
+  background: #ffffff;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
+.btn-clear-search {
+  position: absolute;
+  right: 12px;
+  background: #e2e8f0;
+  border: none;
+  color: #64748b;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.btn-clear-search:hover {
+  background: #cbd5e1;
+  color: #0f172a;
 }
 
 .filter-select {
-  padding: var(--space-3) var(--space-4);
-  background: var(--color-bg-card);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  color: var(--color-text-base);
-  font-size: 0.9rem;
+  padding: 9px 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  color: #1e293b;
+  font-size: 0.88rem;
+  font-weight: 500;
+  min-width: 170px;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
+.filter-select:focus {
+  outline: none;
+  background: #ffffff;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
+.btn-reset-filters {
+  background: none;
+  border: none;
+  color: #6366f1;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 6px;
+  transition: background 0.15s ease;
+}
+
+.btn-reset-filters:hover {
+  background: #eff6ff;
+  text-decoration: underline;
+}
+
+/* Templates Grid */
 .templates-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: var(--space-6);
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 22px;
 }
 
+/* Template Card */
 .template-card {
   position: relative;
   overflow: hidden;
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  padding: 22px 20px 18px;
+  border-radius: 16px;
+  padding: 20px 20px 16px;
   cursor: pointer;
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
@@ -740,9 +1124,9 @@ onMounted(() => {
 }
 
 .template-card:hover {
-  transform: translateY(-4px);
+  transform: translateY(-3px);
   border-color: #cbd5e1;
-  box-shadow: 0 16px 32px -8px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(99, 102, 241, 0.25);
+  box-shadow: 0 14px 28px -6px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(99, 102, 241, 0.25);
 }
 
 /* Top Accent Line */
@@ -777,12 +1161,13 @@ onMounted(() => {
   gap: 6px;
   align-items: center;
   flex-wrap: wrap;
+  max-width: 80%;
 }
 
-.badge-type {
+.badge-category {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   padding: 3px 9px;
   border-radius: 999px;
   background: #eff6ff;
@@ -863,6 +1248,7 @@ onMounted(() => {
   display: flex;
   gap: 4px;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .btn-card-action {
@@ -901,8 +1287,8 @@ onMounted(() => {
 }
 
 .template-doc-icon {
-  width: 38px;
-  height: 38px;
+  width: 42px;
+  height: 42px;
   border-radius: 10px;
   background: #f1f5f9;
   border: 1px solid #e2e8f0;
@@ -912,6 +1298,7 @@ onMounted(() => {
   justify-content: center;
   flex-shrink: 0;
   transition: all 0.2s ease;
+  margin-top: 2px;
 }
 
 .template-doc-icon.icon-active {
@@ -924,13 +1311,32 @@ onMounted(() => {
   transform: scale(1.05);
 }
 
+.template-title-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.template-kicker {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #64748b;
+  margin-bottom: 2px;
+}
+
 .template-name {
   font-family: var(--font-heading);
-  font-size: 1.15rem;
+  font-size: 1.08rem;
   font-weight: 700;
   color: #0f172a;
-  line-height: 1.38;
+  line-height: 1.35;
   margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
   transition: color 0.15s ease;
 }
 
@@ -938,68 +1344,57 @@ onMounted(() => {
   color: #2563eb;
 }
 
-/* Metadata Cardlet */
-.template-meta-cardlet {
+/* Structured 2x2 Metadata Grid */
+.template-meta-grid {
   background: #f8fafc;
   border: 1px solid #f1f5f9;
   border-radius: 10px;
   padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
   flex: 1;
 }
 
-.meta-row {
+.meta-cell {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.82rem;
-  gap: 8px;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
-.meta-label {
+.meta-cell-label {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
+  font-size: 0.72rem;
   color: #64748b;
   font-weight: 500;
-  font-size: 0.8rem;
-  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
-.meta-label svg {
+.meta-cell-label svg {
   color: #94a3b8;
   flex-shrink: 0;
 }
 
-.meta-value {
+.meta-cell-value {
+  font-size: 0.82rem;
   font-weight: 600;
   color: #1e293b;
-  max-width: 60%;
-  text-align: right;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.82rem;
 }
 
-.form-value {
-  color: #334155;
-  font-weight: 500;
-}
-
-.validity-badge {
-  display: inline-flex;
-  align-items: center;
-  background: #e0f2fe;
+.validity-val {
   color: #0369a1;
-  padding: 1px 7px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 0.75rem;
-  border: 1px solid #bae6fd;
+}
+
+.engine-val {
+  color: #6b21a8;
 }
 
 /* Card Footer */
