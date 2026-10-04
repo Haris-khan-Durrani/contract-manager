@@ -35,6 +35,7 @@ router.use(ghlAuthMiddleware, loadAppUser);
 router.get('/', async (req, res) => {
   try {
     const { userId, locationId } = req.ghlUser;
+    const role = req.appUser?.role || req.ghlUser?.role || 'SALES';
     const {
       state,
       templateId,

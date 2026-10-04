@@ -39,8 +39,8 @@ if (!fs.existsSync(uploadsDir)) {
 }
 app.use('/uploads', express.static(path.resolve(__dirname, '../uploads')));
 
-// Trust reverse proxies (Cloudflare, Nginx, tunnels) for accurate client IP resolution
-app.set('trust proxy', true);
+// Trust reverse proxies (Nginx 1-hop on VPS) for accurate client IP resolution
+app.set('trust proxy', 1);
 
 // ─── Security ────────────────────────────────────────────────────────────────
 // Allow embedding in GoHighLevel Custom Menu Link iframes
@@ -69,6 +69,10 @@ app.use('/api/', rateLimit({
   max:      200,
   standardHeaders: true,
   legacyHeaders:   false,
+  validate: {
+    trustProxy: false,
+    xForwardedForHeader: false,
+  },
 }));
 
 // ─── Body Parsing ─────────────────────────────────────────────────────────────

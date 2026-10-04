@@ -31,16 +31,133 @@
               </div>
 
               <div class="form-grid-2">
-                <div class="form-group">
-                  <label class="field-label">Contract Template <span class="req">*</span></label>
+                <div class="form-group" style="position: relative;" ref="templateSearchContainerRef">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <label class="field-label" style="margin-bottom: 0;">Contract Template <span class="req">*</span></label>
+                    <span v-if="templates.length" style="font-size: 0.75rem; color: #64748b; font-weight: 500;">
+                      {{ templates.length }} available templates
+                    </span>
+                  </div>
+
                   <div v-if="loadingTemplates" class="spinner-inline">Loading templates…</div>
-                  <div v-else class="select-wrap">
-                    <select v-model="form.templateId" class="form-control form-select" @change="onTemplateChange">
-                      <option value="">— Select a template —</option>
-                      <option v-for="t in templates" :key="t.id" :value="t.id">
-                        {{ t.name }} (v{{ t.current_version }}) · {{ t.contract_type }}
-                      </option>
-                    </select>
+                  <div v-else class="template-combobox-wrap">
+                    <!-- Search Input Box -->
+                    <div class="template-search-bar" :class="{ 'has-selection': !!selectedTemplate }">
+                      <div class="search-input-wrap">
+                        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <circle cx="11" cy="11" r="8"/>
+                          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                        </svg>
+                        <input
+                          type="text"
+                          v-model="templateSearch"
+                          class="form-control search-input template-input"
+                          placeholder="Search template by name, country, visa type (e.g. Cyprus, France, CBI)..."
+                          @focus="onTemplateSearchFocus"
+                          @input="onTemplateSearchInput"
+                          @keydown.esc="showTemplateDropdown = false"
+                        />
+                        <button
+                          v-if="templateSearch"
+                          type="button"
+                          class="clear-input-btn"
+                          @click="clearTemplateSearch"
+                          title="Clear search"
+                        >
+                          ✕
+                        </button>
+                        <button
+                          type="button"
+                          class="dropdown-arrow-btn"
+                          @click="toggleTemplateDropdown"
+                          :title="showTemplateDropdown ? 'Close list' : 'Open list'"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" :style="showTemplateDropdown ? 'transform: rotate(180deg);' : ''" style="transition: transform 0.2s ease;">
+                            <polyline points="6 9 12 15 18 9"/>
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+
+                    <!-- Dropdown Results Floating Menu -->
+                    <div v-if="showTemplateDropdown" class="template-results-dropdown animate-fade-in">
+                      <div class="dropdown-header-bar">
+                        <span class="dropdown-header-count">
+                          <strong>{{ filteredTemplates.length }}</strong> template{{ filteredTemplates.length === 1 ? '' : 's' }}
+                          <template v-if="templateSearch && (!selectedTemplate || templateSearch.toLowerCase() !== selectedTemplate.name.toLowerCase())">
+                            matching "<span class="dropdown-header-query">{{ templateSearch }}</span>"
+                          </template>
+                        </span>
+                        <span v-if="selectedTemplate" class="dropdown-active-hint">
+                          ✓ {{ selectedTemplate.name.slice(0, 22) }}… selected
+                        </span>
+                      </div>
+
+                      <div class="template-results-list">
+                        <div
+                          v-for="t in filteredTemplates"
+                          :key="t.id"
+                          class="template-result-row"
+                          :class="{ selected: form.templateId === t.id }"
+                          @click="selectTemplate(t)"
+                        >
+                          <div class="template-result-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                              <polyline points="14 2 14 8 20 8"/>
+                              <line x1="16" y1="13" x2="8" y2="13"/>
+                              <line x1="16" y1="17" x2="8" y2="17"/>
+                              <polyline points="10 9 9 9 8 9"/>
+                            </svg>
+                          </div>
+                          <div class="template-result-meta">
+                            <div class="template-result-title-row">
+                              <span class="template-result-name">{{ t.name }}</span>
+                              <span class="badge badge-neutral badge-xs">v{{ t.current_version || 1 }}</span>
+                            </div>
+                            <div class="template-result-tags">
+                              <span v-if="t.contract_type" class="type-tag">{{ t.contract_type }}</span>
+                              <span v-if="t.form_name" class="form-tag">📋 {{ t.form_name }}</span>
+                            </div>
+                          </div>
+                          <div class="template-result-status">
+                            <span v-if="form.templateId === t.id" class="badge badge-primary badge-xs">Active</span>
+                            <span v-else class="select-indicator-hint">Select</span>
+                          </div>
+                        </div>
+
+                        <div v-if="filteredTemplates.length === 0" class="no-templates-found">
+                          <div style="font-size: 1.5rem; margin-bottom: 4px;">🔍</div>
+                          <strong>No templates found</strong>
+                          <p style="margin: 4px 0 10px; font-size: 0.82rem; color: #64748b;">
+                            No agreement matches "<strong>{{ templateSearch }}</strong>". Try searching for country, visa name, or "CBI".
+                          </p>
+                          <button type="button" class="btn btn-secondary btn-xs" @click="clearTemplateSearch">
+                            Show All {{ templates.length }} Templates
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Selected Template Banner / Confirmation Chip -->
+                    <div v-if="selectedTemplate" class="selected-template-chip animate-fade-in">
+                      <div class="selected-template-info">
+                        <span class="chip-check-badge">✓</span>
+                        <div class="chip-details">
+                          <span class="chip-sub-label">Selected Agreement:</span>
+                          <strong class="chip-name">{{ selectedTemplate.name }}</strong>
+                          <span class="badge badge-neutral badge-xs" style="margin-left: 6px;">v{{ selectedTemplate.current_version || 1 }}</span>
+                          <span v-if="selectedTemplate.contract_type" class="badge badge-neutral badge-xs" style="margin-left: 4px;">
+                            {{ selectedTemplate.contract_type }}
+                          </span>
+                        </div>
+                      </div>
+                      <div class="chip-actions">
+                        <button type="button" class="btn-chip-action" @click="openTemplatePicker" title="Pick another template">
+                          Change Template
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -857,10 +974,13 @@ function onScheduleThreeChange(html) {
 // Team members repeater (Applicant 2, 3, ...)
 const teamMembers = ref([])
 
-const templates        = ref([])
-const forms            = ref([])
-const loadingTemplates = ref(false)
-const selectedTemplate = ref(null)
+const templates                  = ref([])
+const forms                      = ref([])
+const loadingTemplates           = ref(false)
+const selectedTemplate           = ref(null)
+const templateSearch             = ref('')
+const showTemplateDropdown       = ref(false)
+const templateSearchContainerRef = ref(null)
 
 // Location Users / Staff Members
 const locationUsers        = ref([])
@@ -890,6 +1010,21 @@ const validityOptions = [
 ]
 
 // ─── Computed ─────────────────────────────────────────────────────────────────
+const filteredTemplates = computed(() => {
+  const q = (templateSearch.value || '').trim().toLowerCase()
+  if (!q || (selectedTemplate.value && selectedTemplate.value.name.toLowerCase() === q)) {
+    return templates.value
+  }
+  return templates.value.filter(t => {
+    const nameMatch = t.name && t.name.toLowerCase().includes(q)
+    const typeMatch = t.contract_type && t.contract_type.toLowerCase().includes(q)
+    const formMatch = t.form_name && t.form_name.toLowerCase().includes(q)
+    const descMatch = t.description && t.description.toLowerCase().includes(q)
+    const verMatch  = t.current_version && String(t.current_version).toLowerCase().includes(q)
+    return nameMatch || typeMatch || formMatch || descMatch || verMatch
+  })
+})
+
 const filteredContacts = computed(() => {
   const q = (contactSearch.value || '').trim().toLowerCase()
   if (!q) return allContacts.value.slice(0, 10)
@@ -955,6 +1090,13 @@ async function loadTemplates() {
   try {
     const res = await api.get('/templates', { headers: getHeaders() })
     templates.value = res.data.templates || []
+    if (form.value.templateId && !selectedTemplate.value) {
+      const found = templates.value.find(t => t.id === form.value.templateId)
+      if (found) {
+        selectedTemplate.value = found
+        templateSearch.value = found.name
+      }
+    }
   } catch (e) {
     console.error('Templates load error', e)
   } finally {
@@ -998,11 +1140,47 @@ async function loadLocationUsers() {
   }
 }
 
+// ─── Template Combobox Controls ───────────────────────────────────────────────
+function onTemplateSearchFocus(e) {
+  showTemplateDropdown.value = true
+  if (e?.target) {
+    e.target.select()
+  }
+}
+
+function onTemplateSearchInput() {
+  showTemplateDropdown.value = true
+}
+
+function toggleTemplateDropdown() {
+  showTemplateDropdown.value = !showTemplateDropdown.value
+}
+
+function clearTemplateSearch() {
+  templateSearch.value = ''
+  showTemplateDropdown.value = true
+}
+
+function openTemplatePicker() {
+  templateSearch.value = ''
+  showTemplateDropdown.value = true
+}
+
+function selectTemplate(t) {
+  form.value.templateId = t.id
+  selectedTemplate.value = t
+  form.value.validityDays = 1
+  if (t?.form_id) form.value.formId = t.form_id
+  templateSearch.value = t.name
+  showTemplateDropdown.value = false
+}
+
 function onTemplateChange() {
   const t = templates.value.find(t => t.id === form.value.templateId)
   selectedTemplate.value = t || null
   form.value.validityDays = 1
   if (t?.form_id) form.value.formId = t.form_id
+  if (t) templateSearch.value = t.name
 }
 
 // ─── Contact Search ───────────────────────────────────────────────────────────
@@ -1066,6 +1244,9 @@ function clearContact() {
 function handleClickOutside(e) {
   if (searchContainerRef.value && !searchContainerRef.value.contains(e.target)) {
     showContactDropdown.value = false
+  }
+  if (templateSearchContainerRef.value && !templateSearchContainerRef.value.contains(e.target)) {
+    showTemplateDropdown.value = false
   }
 }
 
@@ -1224,6 +1405,8 @@ function resetForm() {
     companySignatureRequired: false,
   }
   selectedTemplate.value = null
+  templateSearch.value = ''
+  showTemplateDropdown.value = false
 }
 
 // ─── Lifecycle ────────────────────────────────────────────────────────────────
@@ -1456,6 +1639,303 @@ onUnmounted(() => {
 
 .select-wrap select {
   cursor: pointer;
+}
+
+/* Template Combobox & Search */
+.template-combobox-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.template-search-bar {
+  position: relative;
+}
+
+.template-input {
+  padding-left: 36px;
+  padding-right: 64px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.template-combobox-wrap .clear-input-btn {
+  position: absolute;
+  right: 34px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #e2e8f0;
+  border: none;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 0.72rem;
+  line-height: 1;
+  transition: all 0.15s ease;
+}
+
+.template-combobox-wrap .clear-input-btn:hover {
+  background: #cbd5e1;
+  color: #0f172a;
+}
+
+.template-combobox-wrap .dropdown-arrow-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border-radius: 6px;
+  transition: color 0.15s ease;
+}
+
+.template-combobox-wrap .dropdown-arrow-btn:hover {
+  color: #334155;
+}
+
+/* Template Results Dropdown */
+.template-results-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 12px;
+  box-shadow: 0 16px 36px -4px rgba(0, 0, 0, 0.16), 0 4px 12px rgba(0, 0, 0, 0.08);
+  z-index: 150;
+  overflow: hidden;
+  max-height: 380px;
+  display: flex;
+  flex-direction: column;
+}
+
+.dropdown-header-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 14px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.dropdown-header-query {
+  color: #4f46e5;
+  font-weight: 600;
+}
+
+.dropdown-active-hint {
+  color: #059669;
+  font-weight: 600;
+}
+
+.template-results-list {
+  overflow-y: auto;
+  max-height: 330px;
+}
+
+.template-result-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid #f1f5f9;
+  transition: background 0.12s ease;
+}
+
+.template-result-row:last-child {
+  border-bottom: none;
+}
+
+.template-result-row:hover {
+  background: #f8fafc;
+}
+
+.template-result-row.selected {
+  background: #eef2ff;
+  border-left: 3px solid #6366f1;
+}
+
+.template-result-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #f1f5f9;
+  color: #4f46e5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.template-result-row.selected .template-result-icon {
+  background: #e0e7ff;
+  color: #4338ca;
+}
+
+.template-result-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.template-result-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.template-result-name {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.template-result-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.type-tag {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #64748b;
+  background: #f1f5f9;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.form-tag {
+  font-size: 0.72rem;
+  color: #059669;
+  font-weight: 600;
+  background: #ecfdf5;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.template-result-status {
+  flex-shrink: 0;
+}
+
+.select-indicator-hint {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #94a3b8;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.template-result-row:hover .select-indicator-hint {
+  opacity: 1;
+  color: #6366f1;
+}
+
+.no-templates-found {
+  padding: 24px 16px;
+  text-align: center;
+  color: #334155;
+  background: #ffffff;
+}
+
+/* Selected Template Chip / Banner */
+.selected-template-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  padding: 8px 14px;
+  border-radius: 10px;
+  margin-top: 8px;
+}
+
+.selected-template-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.chip-check-badge {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #16a34a;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.chip-details {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-width: 0;
+  font-size: 0.82rem;
+}
+
+.chip-sub-label {
+  color: #166534;
+  font-weight: 600;
+}
+
+.chip-name {
+  color: #14532d;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 320px;
+}
+
+.btn-chip-action {
+  background: #ffffff;
+  border: 1px solid #86efac;
+  color: #15803d;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.btn-chip-action:hover {
+  background: #dcfce7;
+  border-color: #4ade80;
+  color: #166534;
 }
 
 /* GHL Search Bar */
