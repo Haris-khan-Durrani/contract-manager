@@ -338,7 +338,7 @@ router.post('/:token/review', async (req, res) => {
     const { token } = req.params;
 
     const [rows] = await db.execute(
-      'SELECT id, state, token_expires_at, recipient_name FROM contract_instances WHERE signing_token = ? LIMIT 1',
+      'SELECT id, state, token_expires_at, recipient_name, location_id, ghl_contact_id, assigned_user_id FROM contract_instances WHERE signing_token = ? LIMIT 1',
       [token]
     );
     if (!rows.length) return res.status(404).json({ error: 'Contract not found.' });
@@ -363,6 +363,15 @@ router.post('/:token/review', async (req, res) => {
        VALUES (?, 'AGREEMENT_REVIEWED', 'CLIENT', ?, ?)`,
       [contract.id, contract.recipient_name || 'Client', clientIp]
     );
+
+    // Post audit event to GHL Conversation stream (InternalComment) & Contact Notes
+    ghlService.syncAuditLogToGHL(contract.location_id, {
+      contactId: contract.ghl_contact_id,
+      userId:    contract.assigned_user_id,
+      title:     `Client Reviewed Contract #${contract.id}`,
+      details:   `Client verified clauses and proceeded to execution step. IP: ${clientIp || '—'}`,
+      actorName: contract.recipient_name || 'Client',
+    }).catch(err => console.warn('[Sign] GHL review note failed:', err.message));
 
     res.json({ success: true, reviewedAt: new Date().toISOString() });
   } catch (err) {

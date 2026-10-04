@@ -475,6 +475,16 @@ router.post('/manual', requirePermission('contract:create'), async (req, res) =>
         [contractInstanceId, JSON.stringify({ templateId, formMode, validityDays: numDays, autoSend: true }), req.ghlUser.name || userId, clientIp]
       );
 
+      // Sync sent event to GHL Conversation stream (InternalComment) & Contact Notes
+      ghlService.syncAuditLogToGHL(locationId, {
+        contactId: ghlContactId,
+        userId,
+        title: `Contract #${contractInstanceId} Created & Dispatched (${template.name})`,
+        details: `Auto-Sent via GoHighLevel | Link Validity: ${numDays} days | Channels: ${Object.keys(deliveryResults || {}).filter(k => deliveryResults[k]).join(', ') || 'SMS/Email'}`,
+        actorName: req.ghlUser?.name || 'Staff User',
+        privateToken: req.ghlUser?.privateToken,
+      }).catch(err => console.warn('[Contracts] GHL auto-send note failed:', err.message));
+
       res.status(201).json({
         contractInstanceId,
         state: 'SENT',
@@ -551,6 +561,16 @@ router.post('/:id/extend', requirePermission('contract:send'), async (req, res) 
       [contract.id, JSON.stringify({ extraDays, newExpiry: newExpiry.toISOString() }), req.ghlUser.name || userId, clientIp]
     );
 
+    // Sync extend event to GHL Conversation stream (InternalComment) & Contact Notes
+    ghlService.syncAuditLogToGHL(locationId, {
+      contactId: contract.ghl_contact_id,
+      userId,
+      title: `Contract #${contract.id} Expiry Extended`,
+      details: `Validity extended by +${extraDays} days. New Expiry: ${newExpiry.toLocaleDateString('en-GB')}`,
+      actorName: req.ghlUser?.name || 'Staff User',
+      privateToken: req.ghlUser?.privateToken,
+    }).catch(err => console.warn('[Contracts] GHL extend note failed:', err.message));
+
     const baseUrl    = settingsService.getSigningBaseUrl(req);
     const signingUrl = `${baseUrl}/sign/${newToken}`;
 
@@ -567,7 +587,7 @@ router.post('/:id/revoke', requirePermission('contract:cancel'), async (req, res
     const { userId, locationId } = req.ghlUser;
 
     const [rows] = await db.execute(
-      'SELECT id, state FROM contract_instances WHERE id = ? AND location_id = ?',
+      'SELECT id, state, ghl_contact_id FROM contract_instances WHERE id = ? AND location_id = ?',
       [req.params.id, locationId]
     );
     if (!rows.length) return res.status(404).json({ error: 'Contract not found.' });
@@ -598,6 +618,16 @@ router.post('/:id/revoke', requirePermission('contract:cancel'), async (req, res
        VALUES (?, 'CONTRACT_REVOKED', 'USER', ?, ?)`,
       [contract.id, req.ghlUser.name || userId, clientIp]
     );
+
+    // Sync revoke event to GHL Conversation stream (InternalComment) & Contact Notes
+    ghlService.syncAuditLogToGHL(locationId, {
+      contactId: contract.ghl_contact_id,
+      userId,
+      title: `Contract #${contract.id} Revoked / Cancelled`,
+      details: `Previous State: ${previousState}. Signing link has been deactivated.`,
+      actorName: req.ghlUser?.name || 'Staff User',
+      privateToken: req.ghlUser?.privateToken,
+    }).catch(err => console.warn('[Contracts] GHL revoke note failed:', err.message));
 
     res.json({ success: true, state: 'REVOKED' });
   } catch (err) {
@@ -744,6 +774,16 @@ router.post('/:id/send', requirePermission('contract:send'), async (req, res) =>
        VALUES (?, 'CONTRACT_SENT', ?, 'USER', ?, ?)`,
       [contract.id, JSON.stringify({ expiryDays, deliveryMethod }), req.ghlUser.name || userId, clientIp]
     );
+
+    // Sync manual send event to GHL Conversation stream (InternalComment) & Contact Notes
+    ghlService.syncAuditLogToGHL(locationId, {
+      contactId: contract.ghl_contact_id,
+      userId: contract.assigned_user_id || userId,
+      title: `Contract #${contract.id} Dispatched via GHL`,
+      details: `Delivery: ${deliveryMethod || 'SMS/Email'} | Link Validity: ${expiryDays} days`,
+      actorName: req.ghlUser?.name || 'Staff User',
+      privateToken: req.ghlUser?.privateToken,
+    }).catch(err => console.warn('[Contracts] GHL manual send note failed:', err.message));
 
     // Build signing URL
     const baseUrl = settingsService.getSigningBaseUrl(req);

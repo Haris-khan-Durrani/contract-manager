@@ -482,11 +482,25 @@
       <!-- ─── TAB 3: AUDIT TRAIL ───────────────────────────────────────────── -->
       <div v-show="activeTab === 'audit'" class="tab-content animate-fade-in">
         <div class="glass-card audit-card">
-          <div class="audit-header">
-            <h3>Contract Audit Trail</h3>
-            <p class="text-muted">
-              Immutable chronological record of every view, form edit, signature, and HighLevel sync event.
-            </p>
+          <div class="audit-header" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px;">
+            <div>
+              <h3>Contract Audit Trail</h3>
+              <p class="text-muted">
+                Immutable chronological record of every view, form edit, signature, and HighLevel sync event.
+              </p>
+            </div>
+            <button
+              v-if="auditLogs.length"
+              type="button"
+              class="btn btn-secondary btn-sm"
+              @click="syncAuditLogsToGhl"
+              :disabled="syncingAuditToGhl"
+              style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; white-space: nowrap;"
+              title="Push all recorded audit events to GoHighLevel internal comments and contact notes"
+            >
+              <span v-if="syncingAuditToGhl" class="spinner-inline">Syncing…</span>
+              <span v-else>💬 Sync to GHL Internal Comments</span>
+            </button>
           </div>
 
           <div v-if="loadingAudit" style="padding: var(--space-6); text-align: center;">
@@ -840,6 +854,19 @@ async function fetchAuditLogs() {
     console.warn('Audit fetch error:', err)
   } finally {
     loadingAudit.value = false
+  }
+}
+
+const syncingAuditToGhl = ref(false)
+async function syncAuditLogsToGhl() {
+  syncingAuditToGhl.value = true
+  try {
+    const res = await axios.post(`${apiBase}/contracts/${contractId}/sync-ghl-notes`, {}, { headers: getHeaders() })
+    alert(res.data.message || 'Audit trail events synced to GoHighLevel!')
+  } catch (err) {
+    alert(err.response?.data?.error || 'Failed to sync audit logs to GHL.')
+  } finally {
+    syncingAuditToGhl.value = false
   }
 }
 

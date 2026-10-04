@@ -893,61 +893,110 @@ const renderedHtmlContent = computed(() => {
         margin-bottom: 4px !important;
       }
       .sign-html-canvas-pages.mobile-reader-mode .cover {
-        padding: 14px 8px 24px 8px !important;
+        padding: 28px 16px 28px 16px !important;
+        background: #ffffff !important;
+        border-radius: 14px !important;
+        box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06) !important;
+        border: 1px solid #e2e8f0 !important;
+        border-top: 4px solid #15325b !important;
+        margin-bottom: 20px !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important;
       }
+      .sign-html-canvas-pages.mobile-reader-mode .cover::before,
       .sign-html-canvas-pages.mobile-reader-mode .cover::after {
-        inset: 4px !important;
+        display: none !important;
+      }
+      .sign-html-canvas-pages.mobile-reader-mode .cover .page-official-stamp {
+        display: none !important;
+      }
+      .sign-html-canvas-pages.mobile-reader-mode .cover .page-no {
+        display: none !important;
       }
       .sign-html-canvas-pages.mobile-reader-mode .cover .bilingual-table {
         width: 100% !important;
         height: auto !important;
         margin: 0 !important;
+        display: block !important;
+        table-layout: auto !important;
+      }
+      .sign-html-canvas-pages.mobile-reader-mode .cover .bilingual-table colgroup {
+        display: none !important;
+      }
+      .sign-html-canvas-pages.mobile-reader-mode .cover .bilingual-table tbody,
+      .sign-html-canvas-pages.mobile-reader-mode .cover .bilingual-table tr {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        width: 100% !important;
       }
       .sign-html-canvas-pages.mobile-reader-mode .cover .bilingual-table td {
-        padding: 22px 6px 14px !important;
-      }
-      .sign-html-canvas-pages.mobile-reader-mode .cover .logo {
-        max-height: 52px !important;
-        width: auto !important;
-        max-width: 90% !important;
-        margin-top: 10px !important;
-      }
-      .sign-html-canvas-pages.mobile-reader-mode .cover-title {
-        min-height: 26mm !important;
-        height: auto !important;
-        padding-bottom: 5mm !important;
-      }
-      .sign-html-canvas-pages.mobile-reader-mode .cover-title h1 {
-        font-size: 15px !important;
-        line-height: 1.25 !important;
-      }
-      .sign-html-canvas-pages.mobile-reader-mode .cover-title.arabic {
-        font-size: 15px !important;
-        line-height: 1.3 !important;
-      }
-      .sign-html-canvas-pages.mobile-reader-mode .page-no {
-        position: absolute !important;
-        bottom: 6px !important;
-        right: 8px !important;
-        height: 18px !important;
-        min-width: 22px !important;
-        font-size: 9px !important;
-        padding: 0 4px !important;
-        z-index: 10 !important;
-      }
-      .sign-html-canvas-pages.mobile-reader-mode .page-official-stamp {
-        position: relative !important;
-        bottom: auto !important;
-        right: auto !important;
         display: flex !important;
-        justify-content: flex-end !important;
-        margin-top: 10px !important;
-        padding-right: 6px !important;
-        z-index: 5 !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        width: 100% !important;
+        padding: 4px 8px !important;
+        border: none !important;
+        text-align: center !important;
+        box-sizing: border-box !important;
       }
-      .sign-html-canvas-pages.mobile-reader-mode .page-official-stamp img {
-        max-height: 18mm !important;
-        max-width: 22mm !important;
+      .sign-html-canvas-pages.mobile-reader-mode .cover .en-cell {
+        border-right: none !important;
+        order: 1 !important;
+      }
+      .sign-html-canvas-pages.mobile-reader-mode .cover .ar-cell {
+        order: 2 !important;
+        border-top: 1px dashed #cbd5e1 !important;
+        margin-top: 16px !important;
+        padding-top: 16px !important;
+      }
+      .sign-html-canvas-pages.mobile-reader-mode .cover .ar-cell .logo {
+        display: none !important;
+      }
+      .sign-html-canvas-pages.mobile-reader-mode .cover .en-cell .logo {
+        display: block !important;
+        max-height: 75px !important;
+        width: auto !important;
+        max-width: 180px !important;
+        object-fit: contain !important;
+        margin: 0 auto 16px auto !important;
+        order: -1 !important;
+      }
+      .sign-html-canvas-pages.mobile-reader-mode .cover .en-cell .cover-title {
+        min-height: auto !important;
+        height: auto !important;
+        padding-bottom: 14px !important;
+        text-align: center !important;
+        width: 100% !important;
+        margin: 0 !important;
+      }
+      .sign-html-canvas-pages.mobile-reader-mode .cover .en-cell .cover-title h1 {
+        font-size: 19px !important;
+        font-weight: 800 !important;
+        line-height: 1.25 !important;
+        letter-spacing: 1.5px !important;
+        color: #15325b !important;
+        margin: 0 !important;
+        text-transform: uppercase !important;
+      }
+      .sign-html-canvas-pages.mobile-reader-mode .cover .cover-title::after {
+        width: 44px !important;
+        height: 2.5px !important;
+        bottom: 0 !important;
+        background: linear-gradient(90deg, #15325b, #b79b52) !important;
+      }
+      .sign-html-canvas-pages.mobile-reader-mode .cover .ar-cell .cover-title.arabic {
+        font-size: 19px !important;
+        font-weight: 800 !important;
+        line-height: 1.35 !important;
+        color: #15325b !important;
+        padding-bottom: 0 !important;
+        margin: 0 !important;
+        text-align: center !important;
+        width: 100% !important;
+      }
+      .sign-html-canvas-pages.mobile-reader-mode .cover .ar-cell .cover-title.arabic::after {
+        display: none !important;
       }
       .sign-html-canvas-pages.mobile-reader-mode .commercial-terms {
         font-size: 11px !important;
@@ -1383,6 +1432,17 @@ async function downloadSignedPdf() {
   padding: 28px 32px;
   margin-bottom: 28px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+}
+
+.hero-top-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.mobile-client-pill {
+  display: none;
 }
 
 .hero-title {
@@ -2276,68 +2336,104 @@ async function downloadSignedPdf() {
 @media (max-width: 768px) {
   .portal-header {
     padding: 0;
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid #e2e8f0;
   }
   .portal-header-inner {
-    padding: 10px 14px;
-    flex-direction: column;
-    align-items: stretch;
+    padding: 8px 12px;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
     gap: 8px;
   }
   .portal-brand {
     justify-content: flex-start;
-    gap: 8px;
+    gap: 6px;
+    min-width: 0;
   }
   .brand-shield-icon {
-    width: 30px;
-    height: 30px;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+  }
+  .brand-shield-icon svg {
+    width: 15px;
+    height: 15px;
   }
   .portal-brand-name {
-    font-size: 0.95rem;
+    font-size: 0.9rem;
+    font-weight: 700;
   }
   .portal-brand-sub {
-    font-size: 0.68rem;
+    display: none !important;
   }
   .portal-header-meta {
-    display: flex;
-    justify-content: space-between;
+    display: inline-flex;
     align-items: center;
-    width: 100%;
+    gap: 4px;
+    width: auto;
+    flex-wrap: nowrap;
+  }
+  .expiry-pill {
+    font-size: 0.68rem;
+    padding: 2.5px 6px;
+    white-space: nowrap;
+    border-radius: 6px;
+  }
+  .portal-header-meta .badge {
+    font-size: 0.68rem;
+    padding: 2.5px 6px;
+    white-space: nowrap;
+    border-radius: 6px;
+  }
+  .portal-main {
+    padding: 8px 8px 60px 8px;
+  }
+  .contract-hero-banner {
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    gap: 4px;
+    border-radius: 10px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .hero-top-row {
+    display: flex;
+    align-items: center;
     gap: 6px;
     flex-wrap: wrap;
   }
-  .expiry-pill {
+  .mobile-client-pill {
+    display: inline-flex !important;
+    align-items: center;
     font-size: 0.72rem;
-    padding: 3px 8px;
-    white-space: nowrap;
-  }
-  .portal-header-meta .badge {
-    font-size: 0.72rem;
-    padding: 3px 8px;
-    white-space: nowrap;
-  }
-  .portal-main {
-    padding: 12px 10px 60px 10px;
-  }
-  .contract-hero-banner {
-    padding: 16px 14px;
-    margin-bottom: 14px;
-    gap: 12px;
+    font-weight: 600;
+    color: #1e293b;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 2px 7px;
   }
   .hero-title {
-    font-size: 1.2rem;
-    line-height: 1.3;
+    font-size: 1.05rem;
+    line-height: 1.25;
+    font-weight: 700;
+    margin: 2px 0 0 0;
   }
   .hero-desc {
-    font-size: 0.82rem;
-    line-height: 1.45;
+    display: none !important;
   }
-  .hero-client-card {
-    padding: 10px 14px;
+  .hero-right {
+    display: none !important;
   }
   .doc-nav-sticky-bar {
-    top: 0;
-    padding: 8px 10px;
-    margin-bottom: 14px;
+    top: 43px;
+    padding: 6px 8px;
+    margin-bottom: 10px;
     border-radius: 10px;
     box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
   }
@@ -2349,13 +2445,13 @@ async function downloadSignedPdf() {
     width: 100%;
   }
   .doc-nav-info {
-    display: none;
+    display: none !important;
   }
   .doc-nav-actions {
     display: flex;
     flex-direction: row;
-    justify-content: space-between;
     align-items: center;
+    justify-content: space-between;
     width: 100%;
     gap: 6px;
   }
