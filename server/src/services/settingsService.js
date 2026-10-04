@@ -166,6 +166,15 @@ class SettingsService {
       return configured.trim().replace(/\/+$/, '');
     }
 
+    const envUrl = process.env.SIGNING_BASE_URL || process.env.APP_URL;
+    if (envUrl && envUrl.trim() && !envUrl.includes('localhost')) {
+      return envUrl.trim().replace(/\/+$/, '');
+    }
+
+    if (process.env.NODE_ENV === 'production') {
+      return 'https://contract.onesol.ae';
+    }
+
     return (configured || 'http://localhost:5173').replace(/\/+$/, '');
   }
 

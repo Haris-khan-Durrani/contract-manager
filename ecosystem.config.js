@@ -11,6 +11,8 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         PORT: 3001,
+        SIGNING_BASE_URL: 'https://contract.onesol.ae',
+        APP_URL: 'https://contract.onesol.ae',
       },
     },
     {

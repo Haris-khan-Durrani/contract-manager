@@ -513,6 +513,16 @@ router.post('/:token/submit', async (req, res) => {
       }
     }
 
+    snapshot.contractInstanceId = contract.id;
+    snapshot.id = contract.id;
+    snapshot.contractId = contract.id;
+    snapshot.recipientInfo = {
+      name: contract.recipient_name,
+      email: contract.recipient_email,
+      phone: contract.recipient_phone,
+    };
+    snapshot.recipient = snapshot.recipientInfo;
+
     snapshot.signingPartiesResult = [
       ...(snapshot.signingPartiesResult || []),
       {

@@ -63,6 +63,13 @@ async function getContractPdfBuffer(contractId, locationId) {
     };
   }
 
+  if (snapshot) {
+    snapshot.contractInstanceId = snapshot.contractInstanceId || contract.id;
+    snapshot.id = snapshot.id || contract.id;
+    snapshot.contractId = snapshot.contractId || contract.id;
+    snapshot.templateName = snapshot.templateName || contract.template_name;
+  }
+
   const isSigned = ['SIGNED', 'COMPLETED'].includes(contract.state);
   const { buffer } = isSigned
     ? await pdfService.generateSigned(snapshot)

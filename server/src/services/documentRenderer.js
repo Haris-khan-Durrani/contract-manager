@@ -259,16 +259,19 @@ function buildQrSvg(url) {
  * Build the high-fidelity audit certificate block appended at the bottom of signed contracts.
  */
 function renderAuditCertificate(snapshot) {
+  const settingsService = require('./settingsService');
   const parties = snapshot.signingPartiesResult || [];
-  const contractId = snapshot.contractInstanceId || snapshot.id || '—';
+  const rawId = snapshot.contractInstanceId || snapshot.id || snapshot.contractId || '';
+  const hasValidId = rawId && String(rawId).trim() !== '—' && String(rawId).trim() !== '-';
+  const contractId = hasValidId ? String(rawId).trim() : '';
   const templateName = snapshot.templateName || 'Legal Services Agreement';
   const templateVer = snapshot.templateVersion || 1;
   const frozenDate = formatDateTime(snapshot.frozenAt || snapshot.signedAt || new Date().toISOString());
-  const hash = snapshot.pdfSha256 || snapshot.hash || 'SHA256:' + (snapshot.contractInstanceId ? String(snapshot.contractInstanceId * 94812371).padStart(64, '0') : 'SECURE_EXECUTION_SEAL');
+  const hash = snapshot.pdfSha256 || snapshot.hash || 'SHA256:' + (contractId ? String(Number(contractId || 1) * 94812371).padStart(64, '0') : 'SECURE_EXECUTION_SEAL');
 
-  // Build QR code pointing to the public verification page
-  const baseUrl = process.env.SIGNING_BASE_URL || 'http://localhost:5173';
-  const verifyUrl = `${baseUrl}/verify/${contractId}`;
+  // Build QR code pointing to the public verification page using the live domain
+  const baseUrl = settingsService.getSigningBaseUrl();
+  const verifyUrl = contractId ? `${baseUrl}/verify/${contractId}` : `${baseUrl}/verify`;
   const qrSvg = buildQrSvg(verifyUrl);
 
   const rows = parties.map((p, idx) => `
