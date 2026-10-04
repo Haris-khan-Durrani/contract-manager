@@ -111,7 +111,10 @@
         <!-- Banner Header -->
         <div class="contract-hero-banner">
           <div class="hero-left">
-            <span class="badge badge-primary badge-sm" style="margin-bottom:6px;">Legal Agreement</span>
+            <div class="hero-top-row">
+              <span class="badge badge-primary badge-sm">Legal Agreement</span>
+              <span v-if="recipientInfo.name" class="mobile-client-pill">👤 {{ recipientInfo.name }}</span>
+            </div>
             <h1 class="hero-title">{{ contract?.snapshot?.documentTitle || contract?.templateName }}</h1>
             <p class="hero-desc">
               Please review all agreement clauses, commercial terms, and personal details below. When ready, provide your signature at the bottom to execute this contract.

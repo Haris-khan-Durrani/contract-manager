@@ -285,10 +285,15 @@ function renderHtmlTemplate(html, css, context = {}, options = {}) {
     );
   }
 
-  // Inject official company stamp onto EVERY page of the agreement
+  // Inject official company stamp onto agreement body pages (excluding cover page)
   if (companyStamp && !rendered.includes('class="page-official-stamp"')) {
     const pageStampHtml = `\n  <div class="page-official-stamp" style="position: absolute; right: 18mm; bottom: 3.2mm; z-index: 9; pointer-events: none;"><img src="${companyStamp}" alt="Company Stamp" style="max-height: 19mm; max-width: 24mm; opacity: 0.86; transform: rotate(-6deg); filter: drop-shadow(0 1px 2px rgba(0,0,0,0.12)); display: block;" /></div>\n</section>`;
-    rendered = rendered.replace(/<\/section>/gi, pageStampHtml);
+    rendered = rendered.replace(/(<section\b[^>]*class=["'][^"']*\bpage\b[^"']*["'][\s\S]*?)<\/section>/gi, (match, p1) => {
+      if (/class=["'][^"']*\bcover\b[^"']*["']/i.test(p1)) {
+        return match;
+      }
+      return `${p1}${pageStampHtml}`;
+    });
   }
 
   // Wrap in standalone document HTML if requested or if missing outer wrapper
