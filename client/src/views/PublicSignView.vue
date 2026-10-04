@@ -708,6 +708,16 @@ const renderedHtmlContent = computed(() => {
     );
   }
 
+  // Official company stamp on every page (except cover) — always uses the latest Settings stamp
+  rendered = rendered.replace(/<div class=["']page-official-stamp["'][^>]*>[\s\S]*?<\/div>/gi, '')
+  if (companySeal) {
+    const pageStampHtml = `<div class="page-official-stamp"><img src="${companySeal}" alt="Company Stamp" /></div>`
+    rendered = rendered.replace(/(<section\b[^>]*class=["'][^"']*\bpage\b[^"']*["'][^>]*>)([\s\S]*?)(<\/section>)/gi, (match, open, body, close) => {
+      if (/\bcover\b/i.test(open)) return match
+      return `${open}${body}${pageStampHtml}${close}`
+    })
+  }
+
   // Extract embedded <style> tags from rawHtml if present
   let extractedCss = ''
   rendered = rendered.replace(/<style[^>]*>([\s\S]*?)<\/style>/gi, (_, css) => {
@@ -768,7 +778,26 @@ const renderedHtmlContent = computed(() => {
       overflow: visible !important;
       box-sizing: border-box !important;
     }
+    .sign-html-canvas-pages .page:not(.cover) {
+      padding-bottom: 20mm !important;
+    }
     .sign-html-canvas-pages .page .page-official-stamp {
+      display: block !important;
+      position: absolute !important;
+      right: 18mm !important;
+      bottom: 2mm !important;
+      z-index: 9 !important;
+      pointer-events: none !important;
+    }
+    .sign-html-canvas-pages .page .page-official-stamp img {
+      display: block !important;
+      max-height: 17mm !important;
+      max-width: 26mm !important;
+      object-fit: contain !important;
+      opacity: 0.9 !important;
+      transform: rotate(-6deg) !important;
+    }
+    .sign-html-canvas-pages .cover .page-official-stamp {
       display: none !important;
     }
     .sign-html-canvas-pages td,

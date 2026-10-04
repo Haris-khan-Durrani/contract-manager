@@ -286,7 +286,9 @@ function renderHtmlTemplate(html, css, context = {}, options = {}) {
   }
 
   // Inject official company stamp onto agreement body pages (excluding cover page)
-  if (companyStamp && !rendered.includes('class="page-official-stamp"')) {
+  // Strip any previously-injected stamps first so the latest Settings stamp is always used
+  rendered = rendered.replace(/\n?\s*<div class=["']page-official-stamp["'][^>]*>[\s\S]*?<\/div>/gi, '');
+  if (companyStamp) {
     const pageStampHtml = `\n  <div class="page-official-stamp" style="position: absolute; right: 18mm; bottom: 3.2mm; z-index: 9; pointer-events: none;"><img src="${companyStamp}" alt="Company Stamp" style="max-height: 19mm; max-width: 24mm; opacity: 0.86; transform: rotate(-6deg); filter: drop-shadow(0 1px 2px rgba(0,0,0,0.12)); display: block;" /></div>\n</section>`;
     rendered = rendered.replace(/(<section\b[^>]*class=["'][^"']*\bpage\b[^"']*["'][\s\S]*?)<\/section>/gi, (match, p1) => {
       if (/class=["'][^"']*\bcover\b[^"']*["']/i.test(p1)) {
