@@ -64,6 +64,7 @@ async function getBrowser() {
         // Try known system executable paths (e.g. Linux VPS or Windows paths)
         const fs = require('fs');
         const systemCandidates = [
+          process.env.CHROME_PATH,
           '/usr/bin/google-chrome-stable',
           '/usr/bin/google-chrome',
           '/usr/bin/chromium',

@@ -406,6 +406,8 @@ router.post('/:contractId', async (req, res) => {
     const completedByName = validStatus === 'COMPLETED' ? (name || userId) : null;
     const completedByUserId = validStatus === 'COMPLETED' ? userId : null;
     const completedAt = validStatus === 'COMPLETED' ? new Date().toISOString() : null;
+    // MySQL DATETIME format (strict mode rejects ISO 'T...Z' strings)
+    const completedAtDb = completedAt ? completedAt.slice(0, 19).replace('T', ' ') : null;
 
     await db.execute(
       `INSERT INTO contract_client_summaries (
@@ -427,7 +429,7 @@ router.post('/:contractId', async (req, res) => {
         summaryJson,
         completedByUserId,
         completedByName,
-        completedAt,
+        completedAtDb,
       ]
     );
 
