@@ -143,8 +143,16 @@
               <span class="doc-nav-title">{{ contract?.snapshot?.documentTitle || contract?.templateName }}</span>
             </div>
             <div class="doc-nav-actions">
-              <!-- Mobile View Toggle (Responsive Mobile vs Exact A4 Paper) -->
+              <!-- Mobile View Toggle (Exact A4 Paper vs Responsive Mobile) -->
               <div v-if="isMobileScreen" class="mobile-view-toggle">
+                <button
+                  type="button"
+                  class="doc-nav-btn"
+                  :class="{ 'doc-nav-btn-active': mobileViewMode === 'a4' }"
+                  @click="mobileViewMode = 'a4'; setZoomFit()"
+                >
+                  📄 A4 Sheet
+                </button>
                 <button
                   type="button"
                   class="doc-nav-btn"
@@ -153,21 +161,13 @@
                 >
                   📱 Mobile
                 </button>
-                <button
-                  type="button"
-                  class="doc-nav-btn"
-                  :class="{ 'doc-nav-btn-active': mobileViewMode === 'a4' }"
-                  @click="mobileViewMode = 'a4'"
-                >
-                  📄 A4 Sheet
-                </button>
               </div>
 
               <!-- Zoom Controls only if in A4 Sheet mode on mobile -->
               <div v-if="isMobileScreen && mobileViewMode === 'a4'" class="mobile-zoom-pill-group">
-                <button type="button" class="doc-nav-btn btn-step" @click="changeZoom(-0.1)" title="Zoom Out">−</button>
-                <span class="zoom-pct-label">{{ Math.round(mobileZoom * 100) }}%</span>
-                <button type="button" class="doc-nav-btn btn-step" @click="changeZoom(0.1)" title="Zoom In">+</button>
+                <button type="button" class="doc-nav-btn btn-step" @click="changeZoom(-0.06)" title="Zoom Out">−</button>
+                <button type="button" class="doc-nav-btn btn-fit" @click="setZoomFit" title="Fit A4 to Screen">{{ Math.round(mobileZoom * 100) }}%</button>
+                <button type="button" class="doc-nav-btn btn-step" @click="changeZoom(0.06)" title="Zoom In">+</button>
               </div>
 
               <button v-if="!isMobileScreen" type="button" class="doc-nav-btn" @click="scrollToSection('.page-4, .page:nth-of-type(4)')" title="Jump to Terms of Business">
@@ -485,9 +485,10 @@ const apiBase = import.meta.env.VITE_API_BASE_URL || (typeof window !== 'undefin
 
 // ─── Mobile A4 Fit & Zoom State ───────────────────────────────────────────────
 const isMobileScreen = ref(false)
-const mobileViewMode = ref('responsive') // 'responsive' | 'a4'
-const mobileZoom = ref(1)
+const mobileViewMode = ref('a4') // Default to 'a4' so user always gets the exact A4 desktop layout
 const autoFitScale = ref(1)
+const userHasAdjustedZoom = ref(false)
+const mobileZoom = ref(1)
 
 function updateScreenDimensions() {
   if (typeof window === 'undefined') return
@@ -495,28 +496,38 @@ function updateScreenDimensions() {
   isMobileScreen.value = w < 840
 
   if (w < 840) {
-    const availableWidth = Math.max(260, w - 24)
-    autoFitScale.value = Math.min(1, Math.round((availableWidth / 800) * 100) / 100)
+    const availableWidth = Math.max(260, w - 16)
+    // 210mm at 96 DPI is ~794px
+    const fit = Math.min(1, Math.round((availableWidth / 794) * 100) / 100)
+    autoFitScale.value = fit
+    if (!userHasAdjustedZoom.value) {
+      mobileZoom.value = fit
+    }
     if (!mobileViewMode.value) {
-      mobileViewMode.value = 'responsive'
+      mobileViewMode.value = 'a4'
     }
   } else {
     autoFitScale.value = 1
-    mobileZoom.value = 1
+    if (!userHasAdjustedZoom.value) {
+      mobileZoom.value = 1
+    }
   }
 }
 
 function setZoomFit() {
+  userHasAdjustedZoom.value = false
   mobileZoom.value = autoFitScale.value
 }
 
 function setZoom100() {
+  userHasAdjustedZoom.value = true
   mobileZoom.value = 1.0
 }
 
 function changeZoom(delta) {
+  userHasAdjustedZoom.value = true
   const next = Math.round((mobileZoom.value + delta) * 100) / 100
-  if (next >= 0.35 && next <= 1.5) {
+  if (next >= 0.30 && next <= 1.8) {
     mobileZoom.value = next
   }
 }
@@ -696,16 +707,6 @@ const renderedHtmlContent = computed(() => {
     );
   }
 
-  // Ensure Official Stamp on every page
-  if (companySeal && !rendered.includes('class="page-official-stamp"')) {
-    const pageStampBadge = `
-<div class="page-official-stamp" style="position: absolute; bottom: 8mm; right: 12mm; pointer-events: none; z-index: 99; opacity: 0.85;">
-  <img src="${companySeal}" alt="Official Company Stamp" style="max-height: 24mm; max-width: 28mm; transform: rotate(-4deg); filter: drop-shadow(0 2px 4px rgba(0,0,0,0.12));" />
-</div>
-</section>`;
-    rendered = rendered.replace(/<\/section>/gi, pageStampBadge);
-  }
-
   // Extract embedded <style> tags from rawHtml if present
   let extractedCss = ''
   rendered = rendered.replace(/<style[^>]*>([\s\S]*?)<\/style>/gi, (_, css) => {
@@ -756,14 +757,18 @@ const renderedHtmlContent = computed(() => {
       min-width: 210mm !important;
       max-width: 210mm !important;
       min-height: 297mm !important;
+      height: auto !important;
       background: #ffffff !important;
       color: #202629 !important;
       margin: 0 auto 28px auto !important;
       box-shadow: 0 14px 40px rgba(15, 23, 42, 0.12), 0 1px 3px rgba(15, 23, 42, 0.08) !important;
       border: 1px solid #e2e8f0 !important;
       position: relative !important;
-      overflow: hidden !important;
+      overflow: visible !important;
       box-sizing: border-box !important;
+    }
+    .sign-html-canvas-pages .page .page-official-stamp {
+      display: none !important;
     }
     .sign-html-canvas-pages td,
     .sign-html-canvas-pages th,
@@ -2353,20 +2358,22 @@ async function downloadSignedPdf() {
   .portal-brand {
     justify-content: flex-start;
     gap: 6px;
-    min-width: 0;
+    flex-shrink: 0;
   }
   .brand-shield-icon {
     width: 26px;
     height: 26px;
     border-radius: 6px;
+    flex-shrink: 0;
   }
   .brand-shield-icon svg {
     width: 15px;
     height: 15px;
   }
   .portal-brand-name {
-    font-size: 0.9rem;
+    font-size: 0.88rem;
     font-weight: 700;
+    white-space: nowrap;
   }
   .portal-brand-sub {
     display: none !important;
@@ -2375,20 +2382,23 @@ async function downloadSignedPdf() {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    width: auto;
-    flex-wrap: nowrap;
+    flex-shrink: 1;
+    min-width: 0;
+    overflow: hidden;
   }
   .expiry-pill {
-    font-size: 0.68rem;
+    font-size: 0.65rem;
     padding: 2.5px 6px;
     white-space: nowrap;
     border-radius: 6px;
+    flex-shrink: 0;
   }
   .portal-header-meta .badge {
-    font-size: 0.68rem;
+    font-size: 0.65rem;
     padding: 2.5px 6px;
     white-space: nowrap;
     border-radius: 6px;
+    flex-shrink: 0;
   }
   .portal-main {
     padding: 8px 8px 60px 8px;
@@ -2476,6 +2486,34 @@ async function downloadSignedPdf() {
     background: #ffffff;
     color: #0f172a;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  .mobile-zoom-pill-group {
+    display: inline-flex;
+    align-items: center;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 2px 4px;
+    gap: 2px;
+  }
+  .mobile-zoom-pill-group .doc-nav-btn {
+    border: none;
+    background: transparent;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #334155;
+    padding: 3px 6px;
+    cursor: pointer;
+    border-radius: 4px;
+  }
+  .mobile-zoom-pill-group .doc-nav-btn:hover {
+    background: #e2e8f0;
+  }
+  .mobile-zoom-pill-group .btn-fit {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #1e293b;
+    padding: 3px 5px;
   }
   .doc-nav-btn-highlight {
     padding: 6px 12px;
