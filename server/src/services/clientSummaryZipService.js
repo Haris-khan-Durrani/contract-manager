@@ -46,29 +46,23 @@ async function compileClientPackageZip(contractId, locationId) {
     .replace(/[^a-z0-9]+/g, '_')
     .slice(0, 30);
 
-  // 3. Generate or retrieve Signed Contract PDF Buffer
+  // 3. Generate or retrieve Signed Contract PDF Buffer (strictly genuine PDF format)
   console.log(`[ZIP Service] Compiling Contract #${contractId} PDF…`);
-  let contractPdfBuffer;
-  try {
-    contractPdfBuffer = await getContractPdfBuffer(contractId, locationId);
-    zip.file(`1_Signed_Contract_${contractId}.pdf`, contractPdfBuffer);
-  } catch (err) {
-    console.error(`[ZIP Service] Contract PDF error:`, err.message);
-    zip.file(`1_Signed_Contract_${contractId}_ERROR.txt`, `Could not generate contract PDF: ${err.message}`);
+  const contractPdfBuffer = await getContractPdfBuffer(contractId, locationId);
+  if (!contractPdfBuffer || !Buffer.isBuffer(contractPdfBuffer) || contractPdfBuffer.slice(0, 4).toString() !== '%PDF') {
+    throw new Error(`Failed to generate genuine PDF for Contract #${contractId}. Output was not a valid PDF buffer.`);
   }
+  zip.file(`1_Signed_Contract_${contractId}.pdf`, contractPdfBuffer);
 
-  // 4. Generate Client Summary PDF Buffer
+  // 4. Generate Client Summary PDF Buffer (strictly genuine PDF format)
   console.log(`[ZIP Service] Generating Client Summary PDF for Contract #${contractId}…`);
-  let summaryPdfBuffer;
-  try {
-    summaryPdfBuffer = await generateSummaryPdf(contract, summaryData);
-    zip.file(`2_Client_Summary_Contract_${contractId}.pdf`, summaryPdfBuffer);
-  } catch (err) {
-    console.error(`[ZIP Service] Summary PDF error:`, err.message);
-    zip.file(`2_Client_Summary_Contract_${contractId}_ERROR.txt`, `Could not generate summary PDF: ${err.message}`);
+  const summaryPdfBuffer = await generateSummaryPdf(contract, summaryData);
+  if (!summaryPdfBuffer || !Buffer.isBuffer(summaryPdfBuffer) || summaryPdfBuffer.slice(0, 4).toString() !== '%PDF') {
+    throw new Error(`Failed to generate genuine PDF for Client Summary #${contractId}. Output was not a valid PDF buffer.`);
   }
+  zip.file(`2_Client_Summary_Contract_${contractId}.pdf`, summaryPdfBuffer);
 
-  // 5. Download and bundle all Attached Files
+  // 5. Download and bundle all Attached Files with genuine formats and extensions
   const attachments = Array.isArray(summaryData.attachments) ? summaryData.attachments : [];
   const attachmentsManifest = [];
 
@@ -76,8 +70,7 @@ async function compileClientPackageZip(contractId, locationId) {
     const attachFolder = zip.folder('3_Supporting_Attachments');
     for (let i = 0; i < attachments.length; i++) {
       const att = attachments[i];
-      const safeName = (att.name || `attachment_${i + 1}`).replace(/[^a-zA-Z0-9._-]/g, '_');
-      const filename = `${i + 1}_${safeName}`;
+      let safeName = (att.name || `attachment_${i + 1}`).replace(/[^a-zA-Z0-9._-]/g, '_');
 
       try {
         let fileBuffer = null;
@@ -89,15 +82,34 @@ async function compileClientPackageZip(contractId, locationId) {
           fileBuffer = Buffer.from(base64Data, 'base64');
         }
 
-        if (fileBuffer) {
+        if (fileBuffer && Buffer.isBuffer(fileBuffer)) {
+          // Detect and guarantee genuine file extension if missing or generic
+          if (!safeName.includes('.') || safeName.endsWith('.bin')) {
+            const head4 = fileBuffer.slice(0, 4).toString();
+            if (head4 === '%PDF') {
+              safeName = safeName.replace(/\.bin$/, '') + '.pdf';
+            } else if (fileBuffer[0] === 0xFF && fileBuffer[1] === 0xD8) {
+              safeName = safeName.replace(/\.bin$/, '') + '.jpg';
+            } else if (fileBuffer[0] === 0x89 && fileBuffer.slice(1, 4).toString() === 'PNG') {
+              safeName = safeName.replace(/\.bin$/, '') + '.png';
+            } else if (att.mimeType === 'application/pdf') {
+              safeName += '.pdf';
+            } else if (att.mimeType?.includes('png')) {
+              safeName += '.png';
+            } else if (att.mimeType?.includes('jpeg') || att.mimeType?.includes('jpg')) {
+              safeName += '.jpg';
+            }
+          }
+
+          const filename = `${i + 1}_${safeName}`;
           attachFolder.file(filename, fileBuffer);
           attachmentsManifest.push(`- 3_Supporting_Attachments/${filename} (${Math.round(fileBuffer.length / 1024)} KB)`);
         } else {
-          attachmentsManifest.push(`- ${filename} (URL: ${att.url || 'Not available'})`);
+          attachmentsManifest.push(`- ${safeName} (URL: ${att.url || 'Not available'})`);
         }
       } catch (attErr) {
         console.warn(`[ZIP Service] Failed to fetch attachment ${safeName}:`, attErr.message);
-        attachmentsManifest.push(`- ${filename} (Download error: ${attErr.message})`);
+        attachmentsManifest.push(`- ${safeName} (Download error: ${attErr.message})`);
       }
     }
   }

@@ -507,7 +507,7 @@ router.get('/:contractId/package-zip', async (req, res) => {
     res.send(zipBuffer);
   } catch (err) {
     console.error('[Client Summary] Package ZIP error:', err.message);
-    res.status(500).json({ error: 'Failed to compile Case Package ZIP.' });
+    res.status(500).json({ error: err.message || 'Failed to compile Case Package ZIP.' });
   }
 });
 

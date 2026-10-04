@@ -80,7 +80,11 @@ async function getBrowser() {
         if (foundPath) {
           browser = await playwright.chromium.launch({ ...launchOptions, executablePath: foundPath });
         } else {
-          throw new Error(`Chromium browser could not be launched. ${errDefault.message}`);
+          const detail = errDefault.message || '';
+          const hint = detail.includes('cannot open shared object file') || detail.includes('shared libraries')
+            ? ` Host is missing Linux libraries. Run 'npx playwright install-deps' on the VPS.`
+            : '';
+          throw new Error(`Chromium browser could not be launched.${hint} Details: ${detail}`);
         }
       }
     }
