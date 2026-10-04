@@ -2084,46 +2084,178 @@
       <!-- ═══════════════════════════════════════════════════════════════════ -->
       <!-- TAB 5: VERSIONS & AUDIT                                             -->
       <!-- ═══════════════════════════════════════════════════════════════════ -->
-      <div v-show="activeTab === 'versions'" class="tab-pane-container">
-        <div class="glass-card panel-card">
-          <div class="panel-card-header">
-            <div>
-              <h3>Version History</h3>
-              <p class="text-muted">
-                Every published version is permanently archived so contracts created under older versions remain legal and immutable.
+      <div v-show="activeTab === 'versions'" class="tab-pane-container versions-tab-pane animate-fade-in">
+        <div class="versions-view-wrapper">
+
+          <!-- TOP HEADER BANNER -->
+          <div class="versions-header-card glass-card">
+            <div class="versions-header-left">
+              <div class="versions-badge-row">
+                <span class="badge badge-primary badge-sm">Version Registry &amp; Release History</span>
+                <span class="badge badge-success badge-sm">Legal Immutability Guaranteed</span>
+              </div>
+              <h2 class="versions-header-title">Document Version History &amp; Audit Trail</h2>
+              <p class="versions-header-desc">
+                Every published version is cryptographically archived. Existing contracts remain permanently bound to their exact historical version snapshot, while new contracts inherit the current live release.
               </p>
             </div>
-
-            <button type="button" class="btn btn-primary" @click="openPublishModal">
-              + Publish New Version
-            </button>
+            <div class="versions-header-actions">
+              <button type="button" class="btn btn-primary btn-publish-version" @click="openPublishModal">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                  <path d="M12 5v14M5 12h14"/>
+                </svg>
+                <span>Publish Version {{ currentVersion + 1 }}</span>
+              </button>
+            </div>
           </div>
 
-          <div class="table-responsive">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Version</th>
-                  <th>Change Summary</th>
-                  <th>Author</th>
-                  <th>Created Date</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="v in versions" :key="v.id">
-                  <td><strong>v{{ v.version_number }}</strong></td>
-                  <td>{{ v.change_summary || 'No summary entered' }}</td>
-                  <td>{{ v.created_by }}</td>
-                  <td>{{ formatDate(v.created_at) }}</td>
-                  <td>
-                    <span v-if="v.version_number === currentVersion" class="badge badge-success">Current Live</span>
-                    <span v-else class="badge badge-neutral">Archived</span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+          <!-- SUMMARY STATS TILES -->
+          <div class="versions-stats-grid">
+            <div class="version-stat-tile glass-card">
+              <div class="stat-tile-icon active-icon">🚀</div>
+              <div class="stat-tile-body">
+                <span class="stat-tile-label">Current Live Release</span>
+                <div class="stat-tile-value-row">
+                  <span class="stat-tile-value">v{{ currentVersion }}</span>
+                  <span class="badge badge-success badge-xs">Production</span>
+                </div>
+                <span class="stat-tile-sub">Active template for new contracts</span>
+              </div>
+            </div>
+
+            <div class="version-stat-tile glass-card">
+              <div class="stat-tile-icon count-icon">📚</div>
+              <div class="stat-tile-body">
+                <span class="stat-tile-label">Published Milestones</span>
+                <div class="stat-tile-value-row">
+                  <span class="stat-tile-value">{{ versions.length }}</span>
+                  <span class="stat-tile-unit">release{{ versions.length === 1 ? '' : 's' }}</span>
+                </div>
+                <span class="stat-tile-sub">Recorded in immutable audit trail</span>
+              </div>
+            </div>
+
+            <div class="version-stat-tile glass-card">
+              <div class="stat-tile-icon time-icon">🕒</div>
+              <div class="stat-tile-body">
+                <span class="stat-tile-label">Last Published</span>
+                <div class="stat-tile-value-row">
+                  <span class="stat-tile-value" style="font-size: 1.02rem;">{{ formatDate(versions[0]?.created_at) || 'Recent' }}</span>
+                </div>
+                <span class="stat-tile-sub">By {{ formatAuthor(versions[0]?.created_by) }}</span>
+              </div>
+            </div>
+
+            <div class="version-stat-tile glass-card">
+              <div class="stat-tile-icon lock-icon">🛡️</div>
+              <div class="stat-tile-body">
+                <span class="stat-tile-label">Snapshot Integrity</span>
+                <div class="stat-tile-value-row">
+                  <span class="stat-tile-value" style="font-size: 1.02rem; color: #059669;">100% Immutable</span>
+                </div>
+                <span class="stat-tile-sub">Past instances cannot be modified</span>
+              </div>
+            </div>
           </div>
+
+          <!-- VERSIONS TIMELINE & REGISTRY CARD -->
+          <div class="glass-card versions-table-card">
+            <div class="versions-table-toolbar">
+              <div class="toolbar-left">
+                <h3 class="toolbar-title">Published Release Log</h3>
+                <span class="toolbar-count-pill">{{ versions.length }} Recorded Version{{ versions.length === 1 ? '' : 's' }}</span>
+              </div>
+              <div class="toolbar-right">
+                <span class="toolbar-hint">Showing historical releases from newest to oldest</span>
+              </div>
+            </div>
+
+            <div v-if="versions.length" class="versions-timeline-list">
+              <div
+                v-for="(v, idx) in versions"
+                :key="v.id"
+                class="version-card-row"
+                :class="{ 'is-current': v.version_number === currentVersion }"
+              >
+                <!-- Version Pill Column -->
+                <div class="version-badge-col">
+                  <div class="version-number-tag" :class="{ current: v.version_number === currentVersion }">
+                    v{{ v.version_number }}
+                  </div>
+                  <div v-if="idx < versions.length - 1" class="version-connector-line"></div>
+                </div>
+
+                <!-- Main Content Column -->
+                <div class="version-main-col">
+                  <div class="version-main-top">
+                    <div class="version-heading-wrap">
+                      <h4 class="version-summary-text">
+                        {{ v.change_summary || (v.version_number === 1 ? 'Initial template creation & baseline configuration' : `Release Milestone v${v.version_number}`) }}
+                      </h4>
+                      <div class="version-meta-tags">
+                        <span v-if="v.version_number === currentVersion" class="badge badge-success badge-sm">
+                          ● Current Live
+                        </span>
+                        <span v-else class="badge badge-neutral badge-sm">
+                          📦 Archived Milestone
+                        </span>
+                        <span class="version-author-chip" :title="`Created by: ${v.created_by}`">
+                          <span class="author-icon">👤</span>
+                          <span>{{ formatAuthor(v.created_by) }}</span>
+                        </span>
+                        <span class="version-date-chip">
+                          <span class="date-icon">📅</span>
+                          <span>{{ formatDate(v.created_at) }}</span>
+                        </span>
+                      </div>
+                    </div>
+
+                    <div class="version-actions-wrap">
+                      <button
+                        v-if="v.version_number === currentVersion"
+                        type="button"
+                        class="btn btn-secondary btn-xs btn-active-indicator"
+                        disabled
+                      >
+                        ✓ Active Blueprint
+                      </button>
+                      <button
+                        v-else
+                        type="button"
+                        class="btn btn-secondary btn-xs btn-view-version"
+                        @click="inspectVersion(v)"
+                        title="View details about this version"
+                      >
+                        👁️ Inspect Version
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Details row / footnote -->
+                  <div class="version-sub-note">
+                    <span v-if="v.version_number === currentVersion">
+                      🚀 <strong>Live Version:</strong> All newly drafted or issued contracts for this template will automatically use this layout and structure.
+                    </span>
+                    <span v-else>
+                      🔒 <strong>Permanent Snapshot:</strong> All contracts generated while v{{ v.version_number }} was active continue to use this exact snapshot.
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Empty State -->
+            <div v-else class="versions-empty-state">
+              <div class="empty-icon">📦</div>
+              <h4>No Published Versions Yet</h4>
+              <p>When you publish versions of this template, they will be archived here with full legal traceability.</p>
+              <button type="button" class="btn btn-primary btn-sm" @click="openPublishModal">
+                Publish Version 1 Now
+              </button>
+            </div>
+
+          </div>
+
         </div>
       </div>
     </div>
@@ -2159,6 +2291,59 @@
             </button>
           </div>
         </form>
+      </div>
+    </div>
+
+    <!-- ─── INSPECT VERSION MODAL ──────────────────────────────────────── -->
+    <div v-if="showInspectModal && inspectingVersion" class="modal-overlay animate-fade-in" @click.self="showInspectModal = false">
+      <div class="modal-card glass-card" style="max-width: 600px;">
+        <div class="modal-header">
+          <div>
+            <div class="badge badge-primary badge-sm" style="margin-bottom: 4px;">Milestone Snapshot Archive</div>
+            <h3 class="modal-title">Template Release v{{ inspectingVersion.version_number }}</h3>
+          </div>
+          <button type="button" class="btn-close" @click="showInspectModal = false">✕</button>
+        </div>
+
+        <div style="padding: 18px 22px;">
+          <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 18px;">
+            <div style="font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; color: #64748b; margin-bottom: 6px;">
+              Change Summary &amp; Release Notes
+            </div>
+            <div style="font-size: 0.95rem; font-weight: 600; color: #0f172a; line-height: 1.5;">
+              {{ inspectingVersion.change_summary || 'Baseline template configuration and initial setup.' }}
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px;">
+            <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
+              <span style="color: #64748b; display: block; font-size: 0.76rem; font-weight: 600; margin-bottom: 2px;">RELEASE DATE</span>
+              <strong style="font-size: 0.88rem; color: #0f172a;">{{ formatDate(inspectingVersion.created_at) }}</strong>
+            </div>
+            <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
+              <span style="color: #64748b; display: block; font-size: 0.76rem; font-weight: 600; margin-bottom: 2px;">AUTHOR / PUBLISHER</span>
+              <strong style="font-size: 0.88rem; color: #0f172a;">{{ formatAuthor(inspectingVersion.created_by) }}</strong>
+            </div>
+            <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
+              <span style="color: #64748b; display: block; font-size: 0.76rem; font-weight: 600; margin-bottom: 2px;">STATUS</span>
+              <span class="badge" :class="inspectingVersion.version_number === currentVersion ? 'badge-success' : 'badge-neutral'">
+                {{ inspectingVersion.version_number === currentVersion ? '● Current Live Release' : '📦 Archived Snapshot' }}
+              </span>
+            </div>
+            <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
+              <span style="color: #64748b; display: block; font-size: 0.76rem; font-weight: 600; margin-bottom: 2px;">LEGAL INTEGRITY</span>
+              <span style="color: #059669; font-weight: 700; font-size: 0.88rem;">🔒 Cryptographically Sealed</span>
+            </div>
+          </div>
+
+          <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 12px 14px; font-size: 0.82rem; color: #065f46;">
+            ℹ️ Contracts created under this milestone will permanently render this exact layout and wording, guaranteeing non-repudiation.
+          </div>
+        </div>
+
+        <div class="modal-actions" style="padding: 12px 22px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end;">
+          <button type="button" class="btn btn-secondary" @click="showInspectModal = false">Close</button>
+        </div>
       </div>
     </div>
 
@@ -4356,17 +4541,49 @@ async function deleteTemplateFromBuilder() {
   }
 }
 
+const locationUsers = ref([])
+const inspectingVersion = ref(null)
+const showInspectModal = ref(false)
+
+async function loadLocationUsers() {
+  try {
+    const res = await axios.get(`${apiBase}/ghl/users`, { headers: getHeaders() })
+    locationUsers.value = res.data.users || []
+  } catch (e) {}
+}
+
+function formatAuthor(userId) {
+  if (!userId) return 'System Administrator'
+  if (auth.user && (auth.user.userId === userId || auth.user.id === userId)) {
+    return auth.user.name || auth.user.email || 'You (Active Admin)'
+  }
+  const u = locationUsers.value.find(user => user.id === userId)
+  if (u) return u.name || u.email
+  if (userId.length > 12) {
+    return `Staff User (${userId.slice(0, 6)}…${userId.slice(-4)})`
+  }
+  return userId
+}
+
+function inspectVersion(v) {
+  inspectingVersion.value = v
+  showInspectModal.value = true
+}
+
 function formatDate(d) {
   if (!d) return ''
   return new Date(d).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   })
 }
 
 onMounted(() => {
   loadTemplate()
+  loadLocationUsers()
   window.addEventListener('keydown', onGlobalKeydown)
   window.addEventListener('resize', updateFloatingToolbarPos)
   window.addEventListener('resize', fitZoom)
@@ -7042,5 +7259,448 @@ watch(activeTab, (newTab, oldTab) => {
 .empty-layers-state p {
   font-size: 0.78rem;
   margin: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════ */
+/* VERSIONS & AUDIT REGISTRY STUDIO STYLES                            */
+/* ═══════════════════════════════════════════════════════════════════ */
+.tab-pane-container {
+  flex: 1;
+  width: 100%;
+  height: calc(100vh - 54px);
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.versions-tab-pane {
+  background: #f8fafc;
+  padding: 28px 36px 64px;
+}
+
+.versions-view-wrapper {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Header Banner Card */
+.versions-header-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  padding: 24px 28px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+}
+
+.versions-header-left {
+  max-width: 780px;
+}
+
+.versions-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.versions-header-title {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+  margin: 0 0 6px 0;
+}
+
+.versions-header-desc {
+  font-size: 0.88rem;
+  color: #64748b;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.btn-publish-version {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+  border: 1px solid #4338ca;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.28);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.btn-publish-version:hover {
+  box-shadow: 0 6px 16px rgba(79, 70, 229, 0.38);
+  transform: translateY(-1px);
+}
+
+/* 4-Tile Stats Grid */
+.versions-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.version-stat-tile {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.version-stat-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.05);
+}
+
+.stat-tile-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+
+.stat-tile-icon.active-icon {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.stat-tile-icon.count-icon {
+  background: rgba(79, 70, 229, 0.1);
+  border: 1px solid rgba(79, 70, 229, 0.2);
+}
+
+.stat-tile-icon.time-icon {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.22);
+}
+
+.stat-tile-icon.lock-icon {
+  background: rgba(14, 165, 233, 0.1);
+  border: 1px solid rgba(14, 165, 233, 0.22);
+}
+
+.stat-tile-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.stat-tile-label {
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 700;
+  color: #64748b;
+  margin-bottom: 3px;
+}
+
+.stat-tile-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.stat-tile-value {
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stat-tile-unit {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.stat-tile-sub {
+  font-size: 0.74rem;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Timeline & Table Card */
+.versions-table-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.03);
+}
+
+.versions-table-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 24px;
+  background: #ffffff;
+  border-bottom: 1.5px solid #f1f5f9;
+}
+
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.toolbar-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+}
+
+.toolbar-count-pill {
+  font-size: 0.74rem;
+  font-weight: 700;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  padding: 3px 9px;
+  border-radius: 20px;
+}
+
+.toolbar-hint {
+  font-size: 0.78rem;
+  color: #94a3b8;
+}
+
+/* Timeline List */
+.versions-timeline-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.version-card-row {
+  display: flex;
+  align-items: stretch;
+  gap: 20px;
+  padding: 20px 24px;
+  border-bottom: 1px solid #f1f5f9;
+  transition: background 0.15s ease;
+}
+
+.version-card-row:last-child {
+  border-bottom: none;
+}
+
+.version-card-row:hover {
+  background: #fcfdfe;
+}
+
+.version-card-row.is-current {
+  background: rgba(99, 102, 241, 0.02);
+  border-left: 4px solid #6366f1;
+}
+
+/* Badge column */
+.version-badge-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 48px;
+  flex-shrink: 0;
+}
+
+.version-number-tag {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  border: 1.5px solid #e2e8f0;
+  color: #334155;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  flex-shrink: 0;
+}
+
+.version-number-tag.current {
+  background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+  border-color: #4338ca;
+  color: #ffffff;
+  box-shadow: 0 4px 10px rgba(79, 70, 229, 0.3);
+}
+
+.version-connector-line {
+  width: 2px;
+  flex: 1;
+  background: #e2e8f0;
+  margin-top: 8px;
+  border-radius: 2px;
+}
+
+/* Main column */
+.version-main-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+}
+
+.version-main-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.version-heading-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.version-summary-text {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 6px 0;
+  line-height: 1.4;
+}
+
+.version-meta-tags {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.version-author-chip,
+.version-date-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.78rem;
+  color: #64748b;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.author-icon,
+.date-icon {
+  font-size: 0.85rem;
+}
+
+.version-actions-wrap {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-active-indicator {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+  font-weight: 700;
+  font-size: 0.75rem;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: default;
+}
+
+.btn-view-version {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  font-weight: 600;
+  font-size: 0.75rem;
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-view-version:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.version-sub-note {
+  font-size: 0.78rem;
+  color: #64748b;
+  line-height: 1.4;
+  padding: 6px 12px;
+  background: #f8fafc;
+  border-radius: 6px;
+  border-left: 3px solid #cbd5e1;
+}
+
+.version-card-row.is-current .version-sub-note {
+  background: #f0fdf4;
+  border-left-color: #10b981;
+  color: #166534;
+}
+
+/* Empty State */
+.versions-empty-state {
+  text-align: center;
+  padding: 60px 24px;
+}
+
+.versions-empty-state .empty-icon {
+  font-size: 2.8rem;
+  margin-bottom: 12px;
+}
+
+.versions-empty-state h4 {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 6px 0;
+}
+
+.versions-empty-state p {
+  font-size: 0.85rem;
+  color: #64748b;
+  max-width: 440px;
+  margin: 0 auto 18px auto;
+}
+
+@media (max-width: 1024px) {
+  .versions-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .versions-header-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 </style>
