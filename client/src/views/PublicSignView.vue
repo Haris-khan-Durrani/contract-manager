@@ -617,12 +617,34 @@ function ensureSignatureDataFields(html) {
   let processed = String(html || '')
 
   processed = processed.replace(
-    /((?:<p\b|<div\b|<b\b|<td\b)[^>]*>[\s\S]*?<\/(?:p|div|b|td)>\s*)(<div\b(?![^>]*\bdata-field=)[^>]*\bclass=["'][^"']*\bsignature-line\b[^"']*["'][^>]*>[\s\S]*?<\/div>)/gi,
-    (match, preceding, sigDiv) => {
-      if (/360GI|360\s*Global|شركة\s*360|company/i.test(preceding)) {
-        return preceding + sigDiv.replace(/class=["']([^"']*)["']/, 'class="$1" data-field="signature.company"')
-      } else if (/applicant|client|المتقدم|العميل|المتعاقد/i.test(preceding)) {
-        return preceding + sigDiv.replace(/class=["']([^"']*)["']/, 'class="$1" data-field="signature.client"')
+    /([\s\S]{1,300})(<div\b(?![^>]*\bdata-field=)[^>]*\bclass=["'][^"']*\bsignature-line\b[^"']*["'][^>]*>[\s\S]*?<\/div>)/gi,
+    (match, precedingText, sigDiv) => {
+      const clientIndex = Math.max(
+        precedingText.lastIndexOf('Applicant'),
+        precedingText.lastIndexOf('applicant'),
+        precedingText.lastIndexOf('Client'),
+        precedingText.lastIndexOf('client'),
+        precedingText.lastIndexOf('المتقدم'),
+        precedingText.lastIndexOf('العميل'),
+        precedingText.lastIndexOf('المتعاقد')
+      )
+      const companyIndex = Math.max(
+        precedingText.lastIndexOf('360GI'),
+        precedingText.lastIndexOf('360 Global'),
+        precedingText.lastIndexOf('شركة 360')
+      )
+
+      let targetField = ''
+      if (clientIndex !== -1 && companyIndex !== -1) {
+        targetField = clientIndex > companyIndex ? 'signature.client' : 'signature.company'
+      } else if (clientIndex !== -1) {
+        targetField = 'signature.client'
+      } else if (companyIndex !== -1) {
+        targetField = 'signature.company'
+      }
+
+      if (targetField) {
+        return precedingText + sigDiv.replace(/class=["']([^"']*)["']/, `class="$1" data-field="${targetField}"`)
       }
       return match
     }
