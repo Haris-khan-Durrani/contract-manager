@@ -35,8 +35,17 @@ router.use(ghlAuthMiddleware, loadAppUser);
 router.get('/', async (req, res) => {
   try {
     const { userId, locationId } = req.ghlUser;
-    const { role } = req.appUser;
-    const { state, page = 1, limit = 20 } = req.query;
+    const {
+      state,
+      templateId,
+      assignedUserId,
+      formMode,
+      search,
+      startDate,
+      endDate,
+      page = 1,
+      limit = 100,
+    } = req.query;
 
     const offset = (parseInt(page) - 1) * parseInt(limit);
     const params = [locationId];
@@ -49,11 +58,46 @@ router.get('/', async (req, res) => {
     if (!canViewAll) {
       whereClause += ' AND ci.assigned_user_id = ?';
       params.push(userId);
+    } else if (assignedUserId) {
+      whereClause += ' AND ci.assigned_user_id = ?';
+      params.push(assignedUserId);
     }
 
     if (state) {
-      whereClause += ' AND ci.state = ?';
-      params.push(state);
+      if (state.includes(',')) {
+        const states = state.split(',').map(s => s.trim()).filter(Boolean);
+        whereClause += ` AND ci.state IN (${states.map(() => '?').join(',')})`;
+        params.push(...states);
+      } else {
+        whereClause += ' AND ci.state = ?';
+        params.push(state);
+      }
+    }
+
+    if (templateId) {
+      whereClause += ' AND ci.template_id = ?';
+      params.push(templateId);
+    }
+
+    if (formMode) {
+      whereClause += ' AND ci.form_mode = ?';
+      params.push(formMode);
+    }
+
+    if (startDate) {
+      whereClause += ' AND ci.created_at >= ?';
+      params.push(`${startDate} 00:00:00`);
+    }
+
+    if (endDate) {
+      whereClause += ' AND ci.created_at <= ?';
+      params.push(`${endDate} 23:59:59`);
+    }
+
+    if (search && search.trim()) {
+      const q = `%${search.trim()}%`;
+      whereClause += ' AND (ci.id LIKE ? OR ci.recipient_name LIKE ? OR ci.recipient_email LIKE ? OR ci.assigned_user_name LIKE ? OR ct.name LIKE ? OR ci.ghl_contact_id LIKE ?)';
+      params.push(q, q, q, q, q, q);
     }
 
     const [contracts] = await db.execute(
