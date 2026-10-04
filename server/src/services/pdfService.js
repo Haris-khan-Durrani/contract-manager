@@ -19,6 +19,7 @@ const crypto           = require('crypto');
 const documentRenderer = require('./documentRenderer');
 
 let browser = null;
+let autoInstallAttempted = false;
 
 /**
  * Get or create the singleton Playwright browser instance.
@@ -78,14 +79,43 @@ async function getBrowser() {
           try { return fs.existsSync(p); } catch { return false; }
         });
         if (foundPath) {
-          browser = await playwright.chromium.launch({ ...launchOptions, executablePath: foundPath });
-        } else {
-          const detail = errDefault.message || '';
-          const hint = detail.includes('cannot open shared object file') || detail.includes('shared libraries')
-            ? ` Host is missing Linux libraries. Run 'npx playwright install-deps' on the VPS.`
-            : '';
-          throw new Error(`Chromium browser could not be launched.${hint} Details: ${detail}`);
+          try {
+            browser = await playwright.chromium.launch({ ...launchOptions, executablePath: foundPath });
+            return browser;
+          } catch (sysErr) {
+            console.warn('[PDF] System executable launch failed:', sysErr.message);
+          }
         }
+
+        // On Linux, if missing libraries (e.g. libatk-1.0.so.0), attempt automated installation if root
+        const isMissingLibs = errDefault.message && (
+          errDefault.message.includes('cannot open shared object file') ||
+          errDefault.message.includes('shared libraries') ||
+          errDefault.message.includes('libatk')
+        );
+
+        if (process.platform === 'linux' && !autoInstallAttempted && isMissingLibs) {
+          autoInstallAttempted = true;
+          console.log('[PDF] Missing Linux libraries detected. Attempting automated system package installation…');
+          try {
+            const { execSync } = require('child_process');
+            execSync(
+              'DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y libatk1.0-0 libatk-bridge2.0-0 libcups2 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2 libnss3 libxss1 libxtst6 || npx playwright install-deps chromium',
+              { stdio: 'inherit', timeout: 180000 }
+            );
+            console.log('[PDF] Linux dependencies installed successfully. Retrying Chromium launch…');
+            browser = await playwright.chromium.launch(launchOptions);
+            return browser;
+          } catch (autoErr) {
+            console.error('[PDF] Automated dependency installation failed:', autoErr.message);
+          }
+        }
+
+        const detail = errDefault.message || '';
+        const hint = isMissingLibs
+          ? ` Host is missing Linux libraries. Run 'npx playwright install-deps' or 'apt-get install -y libatk1.0-0' on the VPS.`
+          : '';
+        throw new Error(`Chromium browser could not be launched.${hint} Details: ${detail}`);
       }
     }
   }
