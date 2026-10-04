@@ -205,6 +205,228 @@ router.get('/', async (req, res) => {
   }
 });
 
+// ─── GET /api/templates/export — Download templates as a ZIP bundle ──────────
+// ?ids=1,2,3  → only those templates; omitted → every template in the location
+router.get('/export', async (req, res) => {
+  try {
+    const { locationId, userId } = req.ghlUser;
+    const bundleService = require('../services/templateBundleService');
+
+    const ids = String(req.query.ids || '')
+      .split(',')
+      .map((s) => parseInt(s.trim(), 10))
+      .filter((n) => Number.isInteger(n) && n > 0);
+
+    let sql = `SELECT ct.*, cf.name AS form_name, cf.description AS form_description, cf.schema_json AS form_schema
+               FROM contract_templates ct
+               LEFT JOIN contract_forms cf ON cf.id = ct.form_id
+               WHERE (ct.location_id = ? OR ct.location_id = 'loc_default_001' OR ct.location_id = 'GLOBAL' OR LOWER(ct.location_id) = LOWER(?))`;
+    const params = [locationId, locationId];
+    if (ids.length) {
+      sql += ` AND ct.id IN (${ids.map(() => '?').join(',')})`;
+      params.push(...ids);
+    }
+    sql += ' ORDER BY ct.id DESC';
+
+    const [rows] = await db.execute(sql, params);
+
+    // Same de-duplication as the list endpoint
+    const seen = new Set();
+    const unique = (rows || []).filter((t) => {
+      if (seen.has(t.name)) return false;
+      seen.add(t.name);
+      return true;
+    });
+
+    if (!unique.length) return res.status(404).json({ error: 'No templates found to export.' });
+
+    const buffer = await bundleService.buildExportZip(unique, { locationId, exportedBy: userId });
+    const stamp = new Date().toISOString().slice(0, 10);
+    const fileName = unique.length === 1
+      ? `template-${bundleService.slugify(unique[0].name, 50)}-${stamp}.zip`
+      : `contract-templates-${stamp}.zip`;
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition, X-Template-Count');
+    res.setHeader('X-Template-Count', String(unique.length));
+    res.send(buffer);
+  } catch (err) {
+    console.error('[Templates] Export error:', err.message);
+    res.status(500).json({ error: 'Failed to export templates: ' + err.message });
+  }
+});
+
+// ─── POST /api/templates/import-zip — Bulk import from a ZIP bundle ───────────
+// Body: raw ZIP bytes (Content-Type: application/zip)
+// Query: onConflict = overwrite | skip | copy  (default: overwrite)
+//        contractType = default type for plain HTML files
+router.post(
+  '/import-zip',
+  requirePermission('template:create'),
+  express.raw({
+    type: ['application/zip', 'application/x-zip-compressed', 'application/octet-stream', 'multipart/x-zip'],
+    limit: '50mb',
+  }),
+  async (req, res) => {
+    const { locationId, userId } = req.ghlUser;
+    const bundleService = require('../services/templateBundleService');
+    const onConflict = ['overwrite', 'skip', 'copy'].includes(req.query.onConflict) ? req.query.onConflict : 'overwrite';
+
+    if (!Buffer.isBuffer(req.body) || !req.body.length) {
+      return res.status(400).json({ error: 'Upload a .zip file (Content-Type: application/zip).' });
+    }
+
+    let parsed;
+    try {
+      parsed = await bundleService.parseImportZip(req.body, {
+        defaultContractType: req.query.contractType || 'Legal Services Agreement',
+        logoUrl: req.query.logoUrl || undefined,
+      });
+    } catch (err) {
+      return res.status(400).json({ error: 'Could not read ZIP file: ' + err.message });
+    }
+
+    if (!parsed.units.length) {
+      return res.status(400).json({
+        error: 'No templates found in ZIP. Expected template.json folders or .html files.',
+        warnings: parsed.warnings,
+      });
+    }
+
+    // Existing templates in this location, keyed by lowercase name
+    const [existingRows] = await db.execute(
+      `SELECT id, name, current_version FROM contract_templates
+       WHERE location_id = ? OR location_id = 'loc_default_001' OR location_id = 'GLOBAL' OR LOWER(location_id) = LOWER(?)
+       ORDER BY id DESC`,
+      [locationId, locationId]
+    );
+    const existingByName = new Map();
+    (existingRows || []).forEach((r) => {
+      const key = String(r.name).trim().toLowerCase();
+      if (!existingByName.has(key)) existingByName.set(key, r);
+    });
+
+    const formCache = new Map();
+    async function resolveFormId(form) {
+      if (!form || !form.name) return null;
+      const key = form.name.trim().toLowerCase();
+      if (formCache.has(key)) return formCache.get(key);
+
+      const [found] = await db.execute(
+        'SELECT id FROM contract_forms WHERE location_id = ? AND LOWER(name) = LOWER(?) LIMIT 1',
+        [locationId, form.name.trim()]
+      );
+      let formId = found[0]?.id || null;
+      if (!formId && form.schema) {
+        const [ins] = await db.execute(
+          'INSERT INTO contract_forms (location_id, name, description, schema_json, created_by) VALUES (?, ?, ?, ?, ?)',
+          [locationId, form.name.trim(), form.description || '', JSON.stringify(form.schema), userId]
+        );
+        formId = ins.insertId;
+      }
+      formCache.set(key, formId);
+      return formId;
+    }
+
+    const results = [];
+    for (const unit of parsed.units) {
+      try {
+        const formId = await resolveFormId(unit.form);
+        const key = unit.name.toLowerCase();
+        const existing = existingByName.get(key);
+
+        if (existing && onConflict === 'skip') {
+          results.push({ name: unit.name, status: 'skipped', templateId: existing.id, message: 'Already exists' });
+          continue;
+        }
+
+        if (existing && onConflict === 'overwrite') {
+          const newVersion = (Number(existing.current_version) || 1) + 1;
+          await db.execute(
+            `UPDATE contract_templates
+             SET contract_type = ?, validity_days = ?, form_id = COALESCE(?, form_id), is_active = ?,
+                 current_version = ?, document_schema_json = ?, conditional_rules_json = ?,
+                 creation_rules_json = ?, signing_parties_json = ?, updated_at = NOW()
+             WHERE id = ?`,
+            [
+              unit.contractType,
+              unit.validityDays,
+              formId,
+              unit.isActive ? 1 : 0,
+              newVersion,
+              JSON.stringify(unit.documentSchema),
+              JSON.stringify(unit.conditionalRules),
+              JSON.stringify(unit.creationRules),
+              JSON.stringify(unit.signingParties),
+              existing.id,
+            ]
+          );
+          await db.execute(
+            `INSERT INTO contract_template_versions
+               (template_id, version_number, document_schema_json, signing_parties_json, change_summary, created_by)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [existing.id, newVersion, JSON.stringify(unit.documentSchema), JSON.stringify(unit.signingParties), 'Updated via ZIP import', userId]
+          );
+          existing.current_version = newVersion;
+          results.push({ name: unit.name, status: 'updated', templateId: existing.id, version: newVersion });
+          continue;
+        }
+
+        // Create new (no conflict, or onConflict = copy)
+        let finalName = unit.name;
+        if (existing) {
+          let n = 1;
+          finalName = `${unit.name} (Imported)`;
+          while (existingByName.has(finalName.toLowerCase())) {
+            n += 1;
+            finalName = `${unit.name} (Imported ${n})`;
+          }
+        }
+        const schema = { ...unit.documentSchema, title: finalName };
+
+        const [ins] = await db.execute(
+          `INSERT INTO contract_templates
+             (location_id, form_id, name, contract_type, current_version, is_active,
+              validity_days, document_schema_json, conditional_rules_json,
+              creation_rules_json, signing_parties_json)
+           VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)`,
+          [
+            locationId,
+            formId,
+            finalName,
+            unit.contractType,
+            unit.isActive ? 1 : 0,
+            unit.validityDays,
+            JSON.stringify(schema),
+            JSON.stringify(unit.conditionalRules),
+            JSON.stringify(unit.creationRules),
+            JSON.stringify(unit.signingParties),
+          ]
+        );
+        await db.execute(
+          `INSERT INTO contract_template_versions
+             (template_id, version_number, document_schema_json, signing_parties_json, change_summary, created_by)
+           VALUES (?, 1, ?, ?, 'Imported from ZIP bundle', ?)`,
+          [ins.insertId, JSON.stringify(schema), JSON.stringify(unit.signingParties), userId]
+        );
+        existingByName.set(finalName.toLowerCase(), { id: ins.insertId, name: finalName, current_version: 1 });
+        results.push({ name: finalName, status: 'created', templateId: ins.insertId });
+      } catch (err) {
+        console.error('[Templates] ZIP import item error:', unit.name, err.message);
+        results.push({ name: unit.name, status: 'error', message: err.message });
+      }
+    }
+
+    const summary = results.reduce((acc, r) => {
+      acc[r.status] = (acc[r.status] || 0) + 1;
+      return acc;
+    }, { created: 0, updated: 0, skipped: 0, error: 0 });
+
+    res.json({ success: true, onConflict, summary, results, warnings: parsed.warnings });
+  }
+);
+
 // ─── GET /api/templates/:id — Get full template definition ───────────────────
 router.get('/:id', async (req, res) => {
   try {

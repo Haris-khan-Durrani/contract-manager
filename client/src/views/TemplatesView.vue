@@ -17,6 +17,30 @@
           Refresh
         </button>
 
+        <button class="btn btn-secondary" @click="openZipImportModal" title="Import one or many templates from a .zip bundle">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 8v13H3V8"/>
+            <path d="M1 3h22v5H1z"/>
+            <line x1="12" y1="18" x2="12" y2="11"/>
+            <polyline points="9 14 12 11 15 14"/>
+          </svg>
+          Import ZIP
+        </button>
+
+        <button
+          class="btn btn-secondary"
+          @click="exportTemplates()"
+          :disabled="exporting || !templates.length"
+          title="Download every template as a single .zip bundle"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          {{ exporting === 'all' ? 'Exporting…' : 'Export All' }}
+        </button>
+
         <button class="btn btn-secondary" @click="openImportHtmlModal">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -121,6 +145,33 @@
         </div>
       </div>
 
+      <!-- Bulk Selection Bar -->
+      <transition name="bulk-bar">
+        <div v-if="selectedIds.length" class="bulk-action-bar">
+          <div class="bulk-left">
+            <span class="bulk-count">{{ selectedIds.length }}</span>
+            <span>template{{ selectedIds.length === 1 ? '' : 's' }} selected</span>
+            <button type="button" class="bulk-link" @click="selectAllVisible">
+              Select all {{ filteredTemplates.length }} visible
+            </button>
+            <button type="button" class="bulk-link" @click="clearSelection">Clear</button>
+          </div>
+          <button
+            type="button"
+            class="btn btn-primary btn-sm"
+            :disabled="!!exporting"
+            @click="exportTemplates(selectedIds)"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            {{ exporting === 'selected' ? 'Exporting…' : `Export Selected (${selectedIds.length})` }}
+          </button>
+        </div>
+      </transition>
+
       <!-- Loading State -->
       <div v-if="loading" class="glass-card" style="padding: var(--space-12); text-align: center;">
         <div class="spinner"></div>
@@ -171,6 +222,7 @@
           v-for="t in filteredTemplates"
           :key="t.id"
           class="template-card"
+          :class="{ 'is-selected': isSelected(t.id) }"
           @click="openBuilder(t.id)"
         >
           <!-- Top Gradient Accent Bar -->
@@ -198,6 +250,23 @@
             </div>
 
             <div class="card-actions-row">
+              <label class="card-select-box" :title="isSelected(t.id) ? 'Deselect' : 'Select for bulk export'" @click.stop>
+                <input type="checkbox" :checked="isSelected(t.id)" @change="toggleSelected(t.id)" />
+                <span class="card-select-mark"></span>
+              </label>
+              <button
+                type="button"
+                class="btn-card-action"
+                @click.stop="exportTemplates([t.id])"
+                :disabled="exporting === t.id"
+                title="Export as ZIP"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+              </button>
               <button
                 type="button"
                 class="btn-card-action"
@@ -478,6 +547,129 @@
             </button>
           </div>
         </form>
+      </div>
+    </div>
+
+    <!-- ─── IMPORT ZIP BUNDLE MODAL ─────────────────────────────────────── -->
+    <div v-if="showZipModal" class="modal-overlay" @click.self="closeZipModal">
+      <div class="modal-card zip-modal animate-fade-in">
+        <div class="modal-header">
+          <div>
+            <h3 style="margin: 0;">Import Templates from ZIP</h3>
+            <p class="zip-modal-sub">Bulk-load one or many templates in a single upload.</p>
+          </div>
+          <button class="btn-close" @click="closeZipModal">✕</button>
+        </div>
+
+        <!-- Step 1: choose file + options -->
+        <template v-if="!zipResult">
+          <label
+            class="zip-dropzone"
+            :class="{ 'is-dragging': zipDragging, 'has-file': zipFile }"
+            @dragover.prevent="zipDragging = true"
+            @dragleave.prevent="zipDragging = false"
+            @drop.prevent="onZipDrop"
+          >
+            <input type="file" accept=".zip,application/zip" class="zip-file-input" @change="onZipPicked" />
+            <div class="zip-drop-icon">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+            </div>
+            <template v-if="zipFile">
+              <strong class="zip-file-name">{{ zipFile.name }}</strong>
+              <span class="zip-file-meta">{{ formatBytes(zipFile.size) }} · click to choose a different file</span>
+            </template>
+            <template v-else>
+              <strong>Drop a .zip here or click to browse</strong>
+              <span class="zip-file-meta">Max 50 MB</span>
+            </template>
+          </label>
+
+          <div class="zip-format-hint">
+            <div class="zip-hint-col">
+              <span class="zip-hint-title">📦 ContractOS bundle</span>
+              <code>folder/template.json<br>folder/template.html<br>folder/styles.css</code>
+              <small>Created by <b>Export</b>. Restores settings, signing parties, rules &amp; intake form.</small>
+            </div>
+            <div class="zip-hint-col">
+              <span class="zip-hint-title">🗂️ Plain HTML / CSS</span>
+              <code>uruguay/index.html<br>uruguay/styles.css<br>cyprus.html</code>
+              <small>Every .html file becomes a template, paired with the .css next to it.</small>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 14px;">
+            <label class="form-label">If a template with the same name already exists</label>
+            <div class="conflict-options">
+              <label class="conflict-option" :class="{ active: zipConflict === 'overwrite' }">
+                <input type="radio" value="overwrite" v-model="zipConflict" />
+                <span><b>Update it</b><small>Replaces content, saves as a new version</small></span>
+              </label>
+              <label class="conflict-option" :class="{ active: zipConflict === 'skip' }">
+                <input type="radio" value="skip" v-model="zipConflict" />
+                <span><b>Skip it</b><small>Only import templates that are new</small></span>
+              </label>
+              <label class="conflict-option" :class="{ active: zipConflict === 'copy' }">
+                <input type="radio" value="copy" v-model="zipConflict" />
+                <span><b>Import as copy</b><small>Keeps both, adds "(Imported)"</small></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Contract type for plain HTML files</label>
+            <input type="text" v-model="zipContractType" class="form-control" placeholder="Legal Services Agreement" />
+          </div>
+
+          <p v-if="zipError" class="zip-error">{{ zipError }}</p>
+
+          <div class="modal-actions" style="margin-top: 6px;">
+            <button type="button" class="btn btn-secondary" @click="closeZipModal">Cancel</button>
+            <button type="button" class="btn btn-primary" :disabled="!zipFile || zipImporting" @click="submitZipImport">
+              {{ zipImporting ? 'Importing…' : 'Import Templates' }}
+            </button>
+          </div>
+        </template>
+
+        <!-- Step 2: results -->
+        <template v-else>
+          <div class="zip-summary">
+            <div class="zip-stat stat-created"><b>{{ zipResult.summary.created }}</b><span>Created</span></div>
+            <div class="zip-stat stat-updated"><b>{{ zipResult.summary.updated }}</b><span>Updated</span></div>
+            <div class="zip-stat stat-skipped"><b>{{ zipResult.summary.skipped }}</b><span>Skipped</span></div>
+            <div class="zip-stat stat-error"><b>{{ zipResult.summary.error }}</b><span>Failed</span></div>
+          </div>
+
+          <ul class="zip-result-list">
+            <li v-for="(r, i) in zipResult.results" :key="i" :class="`res-${r.status}`">
+              <span class="res-badge">{{ r.status }}</span>
+              <span class="res-name" :title="r.name">{{ r.name }}</span>
+              <span v-if="r.version" class="res-meta">v{{ r.version }}</span>
+              <span v-if="r.message && r.status !== 'created'" class="res-meta">{{ r.message }}</span>
+              <button
+                v-if="r.templateId && r.status !== 'error'"
+                type="button"
+                class="res-open"
+                @click="openBuilder(r.templateId)"
+              >Open →</button>
+            </li>
+          </ul>
+
+          <details v-if="zipResult.warnings && zipResult.warnings.length" class="zip-warnings">
+            <summary>{{ zipResult.warnings.length }} warning{{ zipResult.warnings.length === 1 ? '' : 's' }}</summary>
+            <ul>
+              <li v-for="(w, i) in zipResult.warnings" :key="i">{{ w }}</li>
+            </ul>
+          </details>
+
+          <div class="modal-actions" style="margin-top: 14px;">
+            <button type="button" class="btn btn-secondary" @click="resetZipImport">Import Another</button>
+            <button type="button" class="btn btn-primary" @click="closeZipModal">Done</button>
+          </div>
+        </template>
       </div>
     </div>
 
@@ -890,6 +1082,166 @@ function formatDate(d) {
     day: 'numeric',
     year: 'numeric',
   })
+}
+
+// ─── Bulk Selection ──────────────────────────────────────────────────────────
+const selectedIds = ref([])
+
+function isSelected(id) {
+  return selectedIds.value.includes(id)
+}
+
+function toggleSelected(id) {
+  const idx = selectedIds.value.indexOf(id)
+  if (idx >= 0) selectedIds.value.splice(idx, 1)
+  else selectedIds.value.push(id)
+}
+
+function selectAllVisible() {
+  const visible = filteredTemplates.value.map(t => t.id)
+  selectedIds.value = Array.from(new Set([...selectedIds.value, ...visible]))
+}
+
+function clearSelection() {
+  selectedIds.value = []
+}
+
+// ─── Export Templates as ZIP Bundle ─────────────────────────────────────────
+const exporting = ref(false)
+
+async function exportTemplates(ids = null) {
+  let mode = 'all'
+  let queryIds = ''
+  if (Array.isArray(ids) && ids.length) {
+    mode = ids.length === 1 ? ids[0] : 'selected'
+    queryIds = ids.join(',')
+  }
+  exporting.value = mode
+
+  try {
+    const url = `${apiBase}/templates/export` + (queryIds ? `?ids=${encodeURIComponent(queryIds)}` : '')
+    const res = await axios.get(url, {
+      headers: getHeaders(),
+      responseType: 'blob',
+    })
+
+    let filename = 'contract-templates.zip'
+    const disp = res.headers['content-disposition'] || ''
+    const match = disp.match(/filename="?([^"]+)"?/)
+    if (match && match[1]) {
+      filename = match[1]
+    } else {
+      const stamp = new Date().toISOString().slice(0, 10)
+      filename = `contract-templates-${stamp}.zip`
+    }
+
+    const blobUrl = window.URL.createObjectURL(new Blob([res.data], { type: 'application/zip' }))
+    const link = document.createElement('a')
+    link.href = blobUrl
+    link.setAttribute('download', filename)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(blobUrl)
+  } catch (err) {
+    console.error('Export templates failed:', err)
+    alert('Failed to download templates ZIP: ' + (err.response?.data?.error || err.message))
+  } finally {
+    exporting.value = false
+  }
+}
+
+// ─── Import Templates from ZIP ──────────────────────────────────────────────
+const showZipModal = ref(false)
+const zipFile = ref(null)
+const zipDragging = ref(false)
+const zipConflict = ref('overwrite')
+const zipContractType = ref('Legal Services Agreement')
+const zipImporting = ref(false)
+const zipError = ref('')
+const zipResult = ref(null)
+
+function openZipImportModal() {
+  resetZipImport()
+  showZipModal.value = true
+}
+
+function closeZipModal() {
+  showZipModal.value = false
+  if (zipResult.value) {
+    fetchTemplates()
+  }
+}
+
+function resetZipImport() {
+  zipFile.value = null
+  zipDragging.value = false
+  zipConflict.value = 'overwrite'
+  zipContractType.value = 'Legal Services Agreement'
+  zipImporting.value = false
+  zipError.value = ''
+  zipResult.value = null
+}
+
+function onZipPicked(e) {
+  const f = e.target.files?.[0]
+  if (f) {
+    zipFile.value = f
+    zipError.value = ''
+  }
+}
+
+function onZipDrop(e) {
+  zipDragging.value = false
+  const f = e.dataTransfer?.files?.[0]
+  if (f) {
+    if (!f.name.toLowerCase().endsWith('.zip')) {
+      zipError.value = 'Please select a valid .zip file.'
+      return
+    }
+    zipFile.value = f
+    zipError.value = ''
+  }
+}
+
+function formatBytes(bytes) {
+  if (!bytes || bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+}
+
+async function submitZipImport() {
+  if (!zipFile.value) return
+  zipImporting.value = true
+  zipError.value = ''
+
+  try {
+    const buffer = await zipFile.value.arrayBuffer()
+    const query = new URLSearchParams({
+      onConflict: zipConflict.value,
+      contractType: zipContractType.value || 'Legal Services Agreement',
+    }).toString()
+
+    const res = await axios.post(`${apiBase}/templates/import-zip?${query}`, buffer, {
+      headers: {
+        ...getHeaders(),
+        'Content-Type': 'application/zip',
+      },
+    })
+
+    zipResult.value = res.data
+    await fetchTemplates()
+  } catch (err) {
+    console.error('ZIP import failed:', err)
+    let msg = 'Failed to import templates from ZIP.'
+    if (err.response?.data?.error) msg = err.response.data.error
+    else if (err.message) msg = err.message
+    zipError.value = msg
+  } finally {
+    zipImporting.value = false
+  }
 }
 
 onMounted(() => {
@@ -1558,5 +1910,414 @@ onMounted(() => {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* ─── Bulk Action Bar ────────────────────────────────────────── */
+.bulk-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: #0f172a;
+  color: #ffffff;
+  padding: 10px 18px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.25);
+  flex-wrap: wrap;
+}
+
+.bulk-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+
+.bulk-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #3b82f6;
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.bulk-link {
+  background: none;
+  border: none;
+  color: #93c5fd;
+  text-decoration: underline;
+  font-size: 0.82rem;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.bulk-link:hover {
+  color: #ffffff;
+}
+
+.bulk-bar-enter-active,
+.bulk-bar-leave-active {
+  transition: all 0.25s ease;
+}
+
+.bulk-bar-enter-from,
+.bulk-bar-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
+/* ─── Card Checkbox & Selection ─────────────────────────────── */
+.template-card.is-selected {
+  border-color: #6366f1;
+  background: #fdfdff;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3), 0 10px 20px -5px rgba(99, 102, 241, 0.15);
+}
+
+.card-select-box {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  padding: 2px;
+}
+
+.card-select-box input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.card-select-mark {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1.5px solid #cbd5e1;
+  background: #ffffff;
+  display: inline-block;
+  position: relative;
+  transition: all 0.15s ease;
+}
+
+.card-select-box:hover .card-select-mark {
+  border-color: #6366f1;
+}
+
+.card-select-box input:checked + .card-select-mark {
+  background: #6366f1;
+  border-color: #6366f1;
+}
+
+.card-select-box input:checked + .card-select-mark::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 2px;
+  width: 5px;
+  height: 9px;
+  border: solid #ffffff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* ─── Import ZIP Modal ───────────────────────────────────────── */
+.zip-modal {
+  max-width: 640px !important;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.zip-modal-sub {
+  color: #64748b;
+  font-size: 0.85rem;
+  margin: 2px 0 0;
+}
+
+.zip-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed #cbd5e1;
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 28px 16px;
+  cursor: pointer;
+  text-align: center;
+  position: relative;
+  transition: all 0.2s ease;
+  margin-bottom: 14px;
+}
+
+.zip-dropzone:hover,
+.zip-dropzone.is-dragging {
+  border-color: #6366f1;
+  background: #eff6ff;
+}
+
+.zip-dropzone.has-file {
+  border-color: #10b981;
+  background: #f0fdf4;
+}
+
+.zip-file-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+
+.zip-drop-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #e0e7ff;
+  color: #4f46e5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
+.zip-dropzone.has-file .zip-drop-icon {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.zip-file-name {
+  color: #0f172a;
+  font-size: 0.95rem;
+  word-break: break-all;
+}
+
+.zip-file-meta {
+  color: #64748b;
+  font-size: 0.78rem;
+  margin-top: 4px;
+}
+
+.zip-format-hint {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+}
+
+.zip-hint-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.zip-hint-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.zip-hint-col code {
+  font-family: 'JetBrains Mono', Consolas, monospace;
+  font-size: 0.72rem;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 4px 6px;
+  color: #334155;
+  line-height: 1.4;
+}
+
+.zip-hint-col small {
+  color: #64748b;
+  font-size: 0.72rem;
+  line-height: 1.3;
+}
+
+.conflict-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.conflict-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.15s ease;
+}
+
+.conflict-option:hover {
+  border-color: #cbd5e1;
+  background: #ffffff;
+}
+
+.conflict-option.active {
+  border-color: #6366f1;
+  background: #eff6ff;
+  color: #1e293b;
+}
+
+.conflict-option input {
+  margin-top: 2px;
+}
+
+.conflict-option span {
+  display: flex;
+  flex-direction: column;
+}
+
+.conflict-option small {
+  color: #64748b;
+  font-size: 0.7rem;
+  margin-top: 1px;
+}
+
+.zip-error {
+  color: #dc2626;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  margin: 10px 0 0;
+}
+
+/* ZIP Results Report */
+.zip-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.zip-stat {
+  padding: 10px;
+  border-radius: 8px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.zip-stat b {
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.zip-stat span {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.stat-created { background: #ecfdf5; color: #047857; }
+.stat-updated { background: #eff6ff; color: #1d4ed8; }
+.stat-skipped { background: #fefce8; color: #a16207; }
+.stat-error   { background: #fef2f2; color: #dc2626; }
+
+.zip-result-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  divide-y: 1px solid #f1f5f9;
+}
+
+.zip-result-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 0.82rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.zip-result-list li:last-child {
+  border-bottom: none;
+}
+
+.res-badge {
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.res-created .res-badge { background: #dcfce7; color: #15803d; }
+.res-updated .res-badge { background: #dbeafe; color: #1e40af; }
+.res-skipped .res-badge { background: #fef9c3; color: #854d0e; }
+.res-error   .res-badge { background: #fee2e2; color: #991b1b; }
+
+.res-name {
+  flex: 1;
+  font-weight: 600;
+  color: #0f172a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.res-meta {
+  color: #64748b;
+  font-size: 0.75rem;
+}
+
+.res-open {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #2563eb;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.res-open:hover {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.zip-warnings {
+  margin-top: 10px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.78rem;
+  color: #92400e;
+}
+
+.zip-warnings summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.zip-warnings ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
 }
 </style>
