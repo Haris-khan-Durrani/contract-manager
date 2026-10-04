@@ -123,7 +123,11 @@ body{
 .bilingual-table td{
   vertical-align:top;
   border:0;
-  padding:1.35mm 6mm;
+  padding:1.35mm 5mm;
+  width:50%;
+  max-width:50%;
+  box-sizing:border-box;
+  overflow:hidden;
 }
 
 .bilingual-table td.en-cell{
@@ -131,12 +135,18 @@ body{
   text-align:left;
   font-family:var(--font-en);
   border-right:.28mm solid var(--line-strong);
+  width:50%;
+  max-width:50%;
+  box-sizing:border-box;
 }
 
 .bilingual-table td.ar-cell{
   direction:rtl;
   text-align:right;
   font-family:var(--font-ar);
+  width:50%;
+  max-width:50%;
+  box-sizing:border-box;
 }
 
 /* no visible horizontal row lines: it keeps the V2 look */
@@ -320,7 +330,7 @@ p,li,td,th{
 
 .dynamic{
   display:inline-block;
-  min-width:35mm;
+  max-width:100%;
   min-height:4.7mm;
   padding:.5mm 1.2mm .35mm;
   border:.25mm solid #cbd8db;
@@ -329,6 +339,12 @@ p,li,td,th{
   color:var(--brand-deep);
   font-weight:700;
   vertical-align:baseline;
+  word-break:break-all;
+  overflow-wrap:anywhere;
+  white-space:normal;
+  line-height:1.25;
+  box-sizing:border-box;
+  unicode-bidi:plaintext;
 }
 
 .list{margin:1.8mm 0 0 4mm;padding-left:4.5mm}
@@ -373,26 +389,47 @@ p,li,td,th{
 /* SAME V2 SCHEDULE TABLE */
 .table-like{
   width:100%;
+  max-width:100%;
+  table-layout:fixed;
   border-collapse:separate;
   border-spacing:0;
   overflow:hidden;
   border:.25mm solid #dbe3e5;
   border-radius:2mm;
   background:#fff;
+  box-sizing:border-box;
 }
 
 .table-like tr:nth-child(even){background:#f8fafb}
 
 .table-like td{
-  padding:1.6mm 1.8mm;
+  padding:1.4mm 1.6mm;
   vertical-align:top;
   border-bottom:.2mm solid #e3e9eb;
   font-size:var(--body-size);
-  line-height:1.38;
+  line-height:1.35;
+  word-break:break-word;
+  overflow-wrap:anywhere;
+  box-sizing:border-box;
+  overflow:hidden;
 }
 
 .table-like tr:last-child td{border-bottom:0}
-.table-like td:first-child{width:40%}
+.table-like td:first-child:not([colspan="2"]){width:38%;max-width:38%;}
+.table-like td:last-child:not([colspan="2"]){width:62%;max-width:62%;}
+
+.table-subheading{
+  background:#eef3f4;
+  font-weight:800;
+  color:var(--brand-deep);
+  padding:1.6mm 2mm !important;
+  border-bottom:.25mm solid #dbe3e5;
+}
+
+.table-like .dynamic{
+  display:block;
+  width:100%;
+}
 
 .muted{color:var(--muted)}
 

@@ -18,10 +18,11 @@
 
         <div v-if="contract && !isCompleted" class="portal-header-meta">
           <span v-if="contract.expiresAt" class="expiry-pill">
-            ⏱️ {{ formatRemainingTime(contract.expiresAt) }}
+            {{ formatRemainingTime(contract.expiresAt) }}
           </span>
           <span class="badge badge-success badge-sm">
-            🔒 Encrypted & Verified
+            <span class="badge-text-desktop">🔒 Encrypted & Verified</span>
+            <span class="badge-text-mobile">🔒 Verified</span>
           </span>
         </div>
       </div>
@@ -790,8 +791,9 @@ const renderedHtmlContent = computed(() => {
       max-width: 50% !important;
       box-sizing: border-box !important;
       color: #202629 !important;
-      padding: 1.35mm 6mm !important;
+      padding: 1.35mm 5mm !important;
       vertical-align: top !important;
+      overflow: hidden !important;
     }
     .sign-html-canvas-pages .bilingual-table td.en-cell {
       color: #202629 !important;
@@ -799,12 +801,72 @@ const renderedHtmlContent = computed(() => {
       text-align: left !important;
       font-family: var(--font-en) !important;
       border-right: 0.28mm solid #7f8e93 !important;
+      width: 50% !important;
+      max-width: 50% !important;
+      box-sizing: border-box !important;
+      overflow: hidden !important;
     }
     .sign-html-canvas-pages .bilingual-table td.ar-cell {
       color: #202629 !important;
       direction: rtl !important;
       text-align: right !important;
       font-family: var(--font-ar) !important;
+      width: 50% !important;
+      max-width: 50% !important;
+      box-sizing: border-box !important;
+      overflow: hidden !important;
+    }
+    .sign-html-canvas-pages .data-wrap {
+      width: 100% !important;
+      max-width: 100% !important;
+      box-sizing: border-box !important;
+      overflow: hidden !important;
+    }
+    .sign-html-canvas-pages .table-like {
+      width: 100% !important;
+      max-width: 100% !important;
+      table-layout: fixed !important;
+      border-collapse: separate !important;
+      border-spacing: 0 !important;
+      overflow: hidden !important;
+      box-sizing: border-box !important;
+    }
+    .sign-html-canvas-pages .table-like td {
+      word-break: break-word !important;
+      overflow-wrap: anywhere !important;
+      box-sizing: border-box !important;
+      padding: 1.4mm 1.6mm !important;
+      overflow: hidden !important;
+    }
+    .sign-html-canvas-pages .table-like td:first-child:not([colspan="2"]) {
+      width: 38% !important;
+      max-width: 38% !important;
+      font-weight: 700 !important;
+    }
+    .sign-html-canvas-pages .table-like td:last-child:not([colspan="2"]) {
+      width: 62% !important;
+      max-width: 62% !important;
+    }
+    .sign-html-canvas-pages .table-subheading {
+      background: #eef3f4 !important;
+      font-weight: 800 !important;
+      color: #20383e !important;
+      padding: 1.6mm 2mm !important;
+      border-bottom: 0.25mm solid #dbe3e5 !important;
+    }
+    .sign-html-canvas-pages .dynamic {
+      display: inline-block !important;
+      max-width: 100% !important;
+      word-break: break-all !important;
+      overflow-wrap: anywhere !important;
+      white-space: normal !important;
+      line-height: 1.25 !important;
+      box-sizing: border-box !important;
+      unicode-bidi: plaintext !important;
+    }
+    .sign-html-canvas-pages .table-like .dynamic {
+      display: block !important;
+      width: 100% !important;
     }
     .sign-html-canvas-pages h1,
     .sign-html-canvas-pages h2,
@@ -1098,8 +1160,12 @@ function formatRemainingTime(expiresAt) {
   if (diff <= 0) return 'Expired'
   const days = Math.floor(diff / (1000 * 60 * 60 * 24))
   const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
-  if (days > 0) return `Expires in ${days} day${days > 1 ? 's' : ''}`
-  return `Expires in ${hours} hour${hours > 1 ? 's' : ''}`
+  if (isMobileScreen.value) {
+    if (days > 0) return `⏱️ ${days}d left`
+    return `⏱️ ${hours}h left`
+  }
+  if (days > 0) return `⏱️ Expires in ${days} day${days > 1 ? 's' : ''}`
+  return `⏱️ Expires in ${hours} hour${hours > 1 ? 's' : ''}`
 }
 
 function scrollToSign() {
@@ -2382,9 +2448,14 @@ async function downloadSignedPdf() {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    flex-shrink: 1;
-    min-width: 0;
-    overflow: hidden;
+    flex-shrink: 0;
+    flex-wrap: nowrap;
+  }
+  .badge-text-mobile {
+    display: inline !important;
+  }
+  .badge-text-desktop {
+    display: none !important;
   }
   .expiry-pill {
     font-size: 0.65rem;
