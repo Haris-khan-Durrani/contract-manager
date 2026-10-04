@@ -121,44 +121,6 @@
       </div>
 
       <div class="header-right">
-        <!-- History / Undo Redo Controls -->
-        <div class="history-controls" title="Undo (Ctrl+Z) / Redo (Ctrl+Y)">
-          <button
-            type="button"
-            class="history-btn"
-            :disabled="!canUndo"
-            @click="triggerUndo"
-            title="Undo (Ctrl+Z)"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M9 14 4 9l5-5"/>
-              <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/>
-            </svg>
-          </button>
-          <button
-            type="button"
-            class="history-btn"
-            :disabled="!canRedo"
-            @click="triggerRedo"
-            title="Redo (Ctrl+Y)"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-              <path d="m15 14 5-5-5-5"/>
-              <path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H13"/>
-            </svg>
-          </button>
-        </div>
-
-        <!-- Zoom Controls -->
-        <div class="zoom-controls">
-          <button class="btn-tool" @click="changeZoom(-0.15)" title="Zoom Out">−</button>
-          <span class="zoom-level">{{ Math.round(zoomScale * 100) }}%</span>
-          <button class="btn-tool" @click="changeZoom(0.15)" title="Zoom In">+</button>
-          <button class="btn-tool btn-fit" @click="fitZoom" title="Auto Fit to Screen">Fit</button>
-        </div>
-
-        <div class="header-divider"></div>
-
         <button
           type="button"
           class="btn btn-secondary btn-sm header-action-btn"
@@ -179,7 +141,7 @@
           @click="openPublishModal"
           title="Increment version number and archive snapshot"
         >
-          Publish Version
+          <span>Publish v{{ currentVersion + 1 }}</span>
         </button>
 
         <button class="btn btn-primary btn-sm btn-save-primary" @click="saveTemplate(false)" :disabled="saving">
@@ -697,25 +659,61 @@
 
         <!-- CENTER: A4 PAPER DOCUMENT CANVAS & BOTTOM THUMBNAIL BAR -->
         <main class="canvas-area-wrapper">
-          <!-- Document General Meta Header -->
+          <!-- Canvas Top Viewport & Controls Bar -->
           <div class="canvas-top-meta">
-            <div class="meta-row">
-              <span class="meta-label">Contract:</span>
-              <input
-                type="text"
-                v-model="documentSchema.title"
-                class="doc-title-inline"
-                placeholder="Contract Title"
-                title="Click to edit document title"
-              />
+            <div class="canvas-meta-left">
+              <span class="canvas-doc-badge" :title="templateName">
+                📄 {{ templateName }}
+              </span>
+              <span class="canvas-page-indicator">
+                Page {{ activePageIndex + 1 }} of {{ isHtmlTemplate ? htmlPageList.length : pages.length }}
+              </span>
             </div>
+
+            <!-- Canvas Viewport Controls: Undo/Redo & Zoom -->
+            <div class="canvas-tools-center">
+              <div class="history-controls" title="Undo (Ctrl+Z) / Redo (Ctrl+Y)">
+                <button
+                  type="button"
+                  class="history-btn"
+                  :disabled="!canUndo"
+                  @click="triggerUndo"
+                  title="Undo (Ctrl+Z)"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 14 4 9l5-5"/>
+                    <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/>
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  class="history-btn"
+                  :disabled="!canRedo"
+                  @click="triggerRedo"
+                  title="Redo (Ctrl+Y)"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="m15 14 5-5-5-5"/>
+                    <path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H13"/>
+                  </svg>
+                </button>
+              </div>
+
+              <div class="zoom-controls">
+                <button class="btn-tool" @click="changeZoom(-0.15)" title="Zoom Out">−</button>
+                <span class="zoom-level">{{ Math.round(zoomScale * 100) }}%</span>
+                <button class="btn-tool" @click="changeZoom(0.15)" title="Zoom In">+</button>
+                <button class="btn-tool btn-fit" @click="fitZoom" title="Auto Fit to Screen">Fit</button>
+              </div>
+            </div>
+
             <div class="meta-pills">
-              <span class="pill">Type: <strong>{{ contractType }}</strong></span>
+              <span class="pill" :title="contractType">Type: <strong>{{ formattedContractType }}</strong></span>
               <span class="pill">Validity: <strong>{{ validityDays }}d</strong></span>
               <span class="pill" v-if="associatedForm" :title="associatedForm.name">
-                Form: <strong>{{ associatedForm.name.length > 22 ? associatedForm.name.substring(0, 22) + '…' : associatedForm.name }}</strong>
+                📋 Form: <strong>{{ associatedForm.name.length > 18 ? associatedForm.name.substring(0, 18) + '…' : associatedForm.name }}</strong>
               </span>
-              <span class="pill pill-accent">Pages: <strong>{{ isHtmlTemplate ? htmlPageList.length : pages.length }}</strong></span>
+              <span class="pill pill-accent">Pages: <strong>{{ isHtmlTemplate ? htmlPageList.length : pages.length }} (A4)</strong></span>
             </div>
           </div>
 
@@ -2513,6 +2511,15 @@ const currentVersion = ref(1)
 const isActive = ref(true)
 const validityDays = ref(14)
 const selectedFormId = ref(null)
+
+const formattedContractType = computed(() => {
+  const t = contractType.value || ''
+  if (!t) return 'Standard Contract'
+  let clean = t.replace(/^LEGAL[\s_]+SERVICES[\s_]+AGREEMENT[\s_]*/i, '')
+               .replace(/_/g, ' ')
+               .trim()
+  return clean || t
+})
 
 const documentSchema = ref({
   title: 'LEGAL SERVICES AGREEMENT / اتفاقية خدمات قانونية - 360 Global Immigration',
@@ -4633,24 +4640,25 @@ watch(activeTab, (newTab, oldTab) => {
 
 /* ── Studio Header ── */
 .studio-header {
-  height: 54px;
+  height: 56px;
   background: #ffffff;
   border-bottom: 1px solid #e2e8f0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 16px;
-  gap: 12px;
+  gap: 16px;
   z-index: 30;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .header-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
-  flex-shrink: 1;
+  flex: 1;
+  max-width: 480px;
 }
 
 .btn-back {
@@ -4698,6 +4706,7 @@ watch(activeTab, (newTab, oldTab) => {
   align-items: center;
   gap: 8px;
   min-width: 0;
+  flex: 1;
 }
 
 .template-title-input {
@@ -4706,11 +4715,12 @@ watch(activeTab, (newTab, oldTab) => {
   font-weight: 700;
   color: #0f172a;
   background: transparent;
-  border: 1px solid transparent;
+  border: 1.5px solid transparent;
   padding: 4px 8px;
   border-radius: 6px;
-  max-width: 340px;
-  min-width: 150px;
+  flex: 1;
+  min-width: 160px;
+  max-width: 360px;
   text-overflow: ellipsis;
   white-space: nowrap;
   overflow: hidden;
@@ -4727,7 +4737,7 @@ watch(activeTab, (newTab, oldTab) => {
   background: #ffffff;
   outline: none;
   box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
-  max-width: 440px;
+  max-width: 480px;
 }
 
 .badge-version {
@@ -5303,60 +5313,51 @@ watch(activeTab, (newTab, oldTab) => {
 .canvas-top-meta {
   background: #ffffff;
   border-bottom: 1px solid #e2e8f0;
-  padding: 6px 14px;
+  padding: 0 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   z-index: 10;
-  min-height: 40px;
+  height: 44px;
+  min-height: 44px;
   box-sizing: border-box;
-  gap: 12px;
+  gap: 16px;
 }
 
-.meta-row {
+.canvas-meta-left {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
-  flex: 1;
+  max-width: 320px;
 }
 
-.meta-label {
-  font-size: 0.73rem;
+.canvas-doc-badge {
+  font-size: 0.82rem;
   font-weight: 700;
-  color: #64748b;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  white-space: nowrap;
-}
-
-.doc-title-inline {
-  font-weight: 700;
-  font-size: 0.88rem;
-  border: 1px solid transparent;
-  padding: 3px 8px;
-  background: transparent;
   color: #0f172a;
-  border-radius: 6px;
-  min-width: 140px;
-  max-width: 340px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  transition: all 0.15s ease;
 }
 
-.doc-title-inline:hover {
-  background: #f8fafc;
-  border-color: #e2e8f0;
+.canvas-page-indicator {
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  padding: 2px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.doc-title-inline:focus {
-  border-color: #6366f1;
-  background: #ffffff;
-  outline: none;
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.12);
-  max-width: 440px;
+.canvas-tools-center {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
 .meta-pills {
