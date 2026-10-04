@@ -597,72 +597,186 @@ const canSubmitSign = computed(() => {
   )
 })
 
+function formatContractDate(d) {
+  if (!d) d = new Date()
+  if (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.trim())) {
+    const [y, m, day] = d.trim().split('-').map(Number)
+    const dateObj = new Date(y, m - 1, day)
+    return dateObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+  }
+  try {
+    const dateObj = new Date(d)
+    if (isNaN(dateObj.getTime())) return String(d)
+    return dateObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+  } catch {
+    return String(d)
+  }
+}
+
+function ensureSignatureDataFields(html) {
+  let processed = String(html || '')
+
+  processed = processed.replace(
+    /((?:<p\b|<div\b|<b\b|<td\b)[^>]*>[\s\S]*?<\/(?:p|div|b|td)>\s*)(<div\b(?![^>]*\bdata-field=)[^>]*\bclass=["'][^"']*\bsignature-line\b[^"']*["'][^>]*>[\s\S]*?<\/div>)/gi,
+    (match, preceding, sigDiv) => {
+      if (/360GI|360\s*Global|شركة\s*360|company/i.test(preceding)) {
+        return preceding + sigDiv.replace(/class=["']([^"']*)["']/, 'class="$1" data-field="signature.company"')
+      } else if (/applicant|client|المتقدم|العميل|المتعاقد/i.test(preceding)) {
+        return preceding + sigDiv.replace(/class=["']([^"']*)["']/, 'class="$1" data-field="signature.client"')
+      }
+      return match
+    }
+  )
+
+  processed = processed.replace(/(<section\b[^>]*class=["'][^"']*\bpage-11\b[^"']*["'][\s\S]*?<\/section>)/gi, (pageMatch) => {
+    let count = 0
+    return pageMatch.replace(/<div\b(?![^>]*\bdata-field=)[^>]*\bclass=["'][^"']*\bsignature-line\b[^"']*["'][^>]*>[\s\S]*?<\/div>/gi, (sigDiv) => {
+      count++
+      const field = (count % 2 === 1) ? 'signature.client' : 'signature.company'
+      return sigDiv.replace(/class=["']([^"']*)["']/, `class="$1" data-field="${field}"`)
+    })
+  })
+
+  processed = processed.replace(/(<section\b[^>]*class=["'][^"']*\bpage-12\b[^"']*["'][\s\S]*?<\/section>)/gi, (pageMatch) => {
+    return pageMatch.replace(/<div\b(?![^>]*\bdata-field=)[^>]*\bclass=["'][^"']*\bsignature-line\b[^"']*["'][^>]*>[\s\S]*?<\/div>/gi, (sigDiv) => {
+      return sigDiv.replace(/class=["']([^"']*)["']/, 'class="$1" data-field="signature.client"')
+    })
+  })
+
+  return processed
+}
+
 const renderedHtmlContent = computed(() => {
   const rawHtml = contract.value?.snapshot?.rawHtml || contract.value?.rawHtml
   if (!rawHtml) return ''
   const customCss = contract.value?.snapshot?.customCss || contract.value?.customCss || ''
 
-  let rendered = rawHtml
-  const fd = contract.value?.formData || {}
+  let rendered = ensureSignatureDataFields(rawHtml)
+  const fd = contract.value?.formData || contract.value?.snapshot?.formData || contract.value?.formResponses || {}
   const recipient = recipientInfo.value || {}
 
+  const fullName = recipient.name || fd.client_name || fd.recipientName || 'Valued Client'
+  const passportOrEid = recipient.idNumber || fd.passport_number || fd.passport_eid || '—'
+  const nationality = recipient.nationality || fd.nationality || '—'
+  const mobile = recipient.phone || fd.phone || fd.mobile || '—'
+  const address = recipient.address || fd.address || '—'
+  const email = recipient.email || fd.client_email || fd.email || '—'
+  const dateOfBirth = fd.date_of_birth || fd.dob || '—'
+  const dependents = fd.dependents || fd.note || 'Spouse & Kids under 18 are included.'
+
+  const totalFees = fd.contract_value || '20,000 EUR'
+  const totalAfterDiscount = fd.discounted_amount || fd.contract_value || '15,000 EUR'
+  const currencyText = fd.currency || 'THE GREAT BRITAIN POUND (GBP)'
+  const paymentMode = fd.payment_terms || '50% Upon Signing, 50% on Approval'
+  const additionalInfo = fd.visa_type || fd.additional_information || 'Standard Legal & Immigration Advisory'
+
+  const scheduleThreeContent = fd.schedule_three_content || fd.payment_breakup || fd.commercial_terms || '50% Initial Deposit upon signing, 50% upon Visa Approval'
+  const initialAmount = fd.discounted_amount || fd.initial_deposit || '15,000 EUR'
+
+  const contractDateRaw = fd.contract_date || contract.value?.created_at
+  const formattedContractDate = formatContractDate(contractDateRaw)
+  const jurisdiction = fd.jurisdiction || 'Courts of the Dubai International Financial Centre (“the DIFC COURTS”)'
+
   const replacements = {
-    'applicant.full_name': recipient.name || fd.client_name || 'Valued Client',
-    'applicant.name': recipient.name || fd.client_name || 'Valued Client',
-    'client_name': recipient.name || fd.client_name || 'Valued Client',
+    // Branding & Logo
+    'logo_url': 'https://assets.cdn.filesafe.space/NJOPxsxylG8ulEPo9hX9/media/6ab2a26318891558b460bf74.png',
+    'company_logo': 'https://assets.cdn.filesafe.space/NJOPxsxylG8ulEPo9hX9/media/6ab2a26318891558b460bf74.png',
+    'cover_image': 'https://assets.cdn.filesafe.space/NJOPxsxylG8ulEPo9hX9/media/6ab2a26318891558b460bf74.png',
+    'cover_image_url': 'https://assets.cdn.filesafe.space/NJOPxsxylG8ulEPo9hX9/media/6ab2a26318891558b460bf74.png',
 
-    'applicant.passport_or_eid': recipient.idNumber || fd.passport_number || '—',
-    'applicant.passport': recipient.idNumber || fd.passport_number || '—',
-    'passport_number': recipient.idNumber || fd.passport_number || '—',
+    // Applicant Name
+    'applicant.full_name': fullName,
+    'applicant.name': fullName,
+    'client_name': fullName,
+    'recipient_name': fullName,
+    'main_applicant': fd.main_applicant || fullName,
 
-    'applicant.nationality': recipient.nationality || fd.nationality || '—',
-    'nationality': recipient.nationality || fd.nationality || '—',
+    // Passport / EID
+    'applicant.passport_or_eid': passportOrEid,
+    'applicant.passport': passportOrEid,
+    'passport_number': passportOrEid,
+    'passport_eid': passportOrEid,
+    'passport': passportOrEid,
+    'idNumber': passportOrEid,
 
-    'applicant.mobile': recipient.phone || fd.phone || '—',
-    'applicant.phone': recipient.phone || fd.phone || '—',
-    'phone': recipient.phone || fd.phone || '—',
+    // Nationality
+    'applicant.nationality': nationality,
+    'nationality': nationality,
 
-    'applicant.address': recipient.address || fd.address || '—',
-    'address': recipient.address || fd.address || '—',
+    // Mobile / Phone
+    'applicant.mobile': mobile,
+    'applicant.phone': mobile,
+    'mobile': mobile,
+    'phone': mobile,
+    'contact_number': mobile,
 
-    'applicant.email': recipient.email || fd.client_email || '—',
-    'client_email': recipient.email || fd.client_email || '—',
+    // Address
+    'applicant.address': address,
+    'address': address,
 
-    'applicant.date_of_birth': fd.date_of_birth || fd.dob || '—',
-    'applicant.dob': fd.date_of_birth || fd.dob || '—',
-    'date_of_birth': fd.date_of_birth || fd.dob || '—',
+    // Email
+    'applicant.email': email,
+    'client_email': email,
+    'email': email,
 
-    'applicant.dependents': fd.dependents || fd.note || 'Spouse & Kids under 18 are included.',
-    'dependents': fd.dependents || fd.note || 'Spouse & Kids under 18 are included.',
+    // Date of Birth
+    'applicant.date_of_birth': dateOfBirth,
+    'applicant.dob': dateOfBirth,
+    'date_of_birth': dateOfBirth,
+    'dob': dateOfBirth,
 
-    'jurisdiction': fd.jurisdiction || 'Courts of Dubai International Financial Centre (DIFC)',
+    // Dependents & Note
+    'applicant.dependents': dependents,
+    'dependents': dependents,
+    'note': dependents,
 
-    'fees.total_after_discount': fd.contract_value || '—',
-    'contract_value': fd.contract_value || '—',
+    // Jurisdiction
+    'jurisdiction': jurisdiction,
 
-    'fees.currency_text': fd.currency || 'THE GREAT BRITAIN POUND (GBP)',
-    'currency': fd.currency || 'THE GREAT BRITAIN POUND (GBP)',
+    // Fees & Totals
+    'total_fees': totalFees,
+    'fees.total_fees': totalFees,
+    'discounted_total': totalAfterDiscount,
+    'total_after_discount': totalAfterDiscount,
+    'fees.total_after_discount': totalAfterDiscount,
+    'contract_value': totalFees,
 
-    'fees.payment_mode': fd.payment_terms || '100% Upfront',
-    'payment_terms': fd.payment_terms || '100% Upfront',
+    'fees.currency_text': currencyText,
+    'currency': currencyText,
 
-    'fees.additional_information': fd.visa_type || fd.additional_information || 'Standard Legal & Immigration Advisory',
-    'additional_information': fd.visa_type || fd.additional_information || 'Standard Legal & Immigration Advisory',
+    'fees.payment_mode': paymentMode,
+    'payment_mode': paymentMode,
+    'payment_terms': paymentMode,
 
-    'fees.payment_breakup': fd.schedule_three_content || fd.commercial_terms || fd.payment_breakup || '50% Initial Deposit upon signing, 50% upon Visa Approval',
-    'payment_breakup': fd.schedule_three_content || fd.commercial_terms || fd.payment_breakup || '50% Initial Deposit upon signing, 50% upon Visa Approval',
-    'commercial_terms': fd.schedule_three_content || fd.commercial_terms || fd.payment_breakup || '—',
-    'fees.commercial_terms': fd.schedule_three_content || fd.commercial_terms || fd.payment_breakup || '—',
-    'schedule_three_content': fd.schedule_three_content || fd.commercial_terms || fd.payment_breakup || '—',
-    'schedule_three': fd.schedule_three_content || fd.commercial_terms || fd.payment_breakup || '—',
-    'milestones': fd.schedule_three_content || fd.commercial_terms || fd.payment_breakup || '—',
+    'fees.additional_information': additionalInfo,
+    'additional_information': additionalInfo,
+    'visa_type': additionalInfo,
 
-    'fees.initial_amount': fd.discounted_amount || fd.initial_deposit || '—',
-    'discounted_amount': fd.discounted_amount || fd.initial_deposit || '—',
-    'initial_amount': fd.discounted_amount || fd.initial_deposit || '—',
+    // Schedule Three, Milestones & Commercial Terms
+    'fees.payment_breakup': scheduleThreeContent,
+    'payment_breakup': scheduleThreeContent,
+    'schedule_three_content': scheduleThreeContent,
+    'schedule_three': scheduleThreeContent,
+    'commercial_terms': scheduleThreeContent,
+    'fees.commercial_terms': scheduleThreeContent,
+    'fees.schedule_three': scheduleThreeContent,
+    'milestones': scheduleThreeContent,
+    'fees.milestones': scheduleThreeContent,
 
-    'contract.date': new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
-    'contract_date': new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+    // Initial Deposit / Downpayment
+    'fees.initial_amount': initialAmount,
+    'initial_amount': initialAmount,
+    'discounted_amount': initialAmount,
+    'initial_deposit': initialAmount,
+
+    // Dates
+    'contract.date': formattedContractDate,
+    'contract_date': formattedContractDate,
+    'acceptance_date': formattedContractDate,
+    'declaration_date': formattedContractDate,
+    'date': formattedContractDate,
+    'today': formattedContractDate,
+    'today_date': formattedContractDate,
   }
 
   for (const [k, v] of Object.entries(fd)) {
@@ -673,7 +787,14 @@ const renderedHtmlContent = computed(() => {
 
   rendered = rendered.replace(/\{\{([^}]+)\}\}/g, (match, key) => {
     const k = key.trim()
-    return replacements[k] !== undefined ? replacements[k] : match
+    if (replacements[k] !== undefined) return replacements[k]
+
+    const lowerK = k.toLowerCase()
+    for (const [rk, rv] of Object.entries(replacements)) {
+      if (rk.toLowerCase() === lowerK) return rv
+    }
+
+    return '—'
   })
 
   // Ensure absolute logo paths

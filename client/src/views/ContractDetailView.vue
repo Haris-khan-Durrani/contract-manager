@@ -955,25 +955,171 @@ const renderedContractHtml = computed(() => {
 
   const resp = formResponses.value || {}
   const contact = ghlContact.value || {}
+  const snapFd = snap?.formData || snap?.formResponse || {}
 
-  let html = raw
-    .replace(/\{\{applicant\.full_name\}\}/g, resp.client_name || contact.name || '—')
-    .replace(/\{\{applicant\.passport_or_eid\}\}/g, resp.passport_number || contact.passport || '—')
-    .replace(/\{\{applicant\.nationality\}\}/g, resp.nationality || '—')
-    .replace(/\{\{applicant\.mobile\}\}/g, resp.phone || contact.phone || '—')
-    .replace(/\{\{applicant\.address\}\}/g, resp.address || contact.address1 || '—')
-    .replace(/\{\{applicant\.email\}\}/g, resp.client_email || contact.email || '—')
-    .replace(/\{\{applicant\.date_of_birth\}\}/g, resp.date_of_birth || '—')
-    .replace(/\{\{applicant\.dependents\}\}/g, resp.note || resp.dependents || '—')
-    .replace(/\{\{jurisdiction\}\}/g, 'Courts of Dubai International Financial Centre (DIFC)')
-    .replace(/\{\{fees\.total_after_discount\}\}/g, resp.contract_value || '—')
-    .replace(/\{\{fees\.currency_text\}\}/g, resp.currency || 'THE GREAT BRITAIN POUND (GBP)')
-    .replace(/\{\{fees\.payment_mode\}\}/g, resp.payment_terms || '—')
-    .replace(/\{\{fees\.additional_information\}\}/g, resp.visa_type || resp.additional_information || '—')
-    .replace(/\{\{fees\.payment_breakup\}\}/g, resp.schedule_three_content || resp.commercial_terms || resp.payment_breakup || '—')
-    .replace(/\{\{(?:commercial_terms|schedule_three_content|fees\.commercial_terms|fees\.schedule_three|milestones)\}\}/g, resp.schedule_three_content || resp.commercial_terms || resp.payment_breakup || '—')
-    .replace(/\{\{fees\.initial_amount\}\}/g, resp.discounted_amount || resp.initial_deposit || '—')
-    .replace(/\{\{contract\.date\}\}/g, formatDate(contract.value?.created_at) || new Date().toLocaleDateString('en-GB'))
+  // Merge form responses
+  const fd = { ...snapFd, ...resp }
+
+  // Tag signatures
+  let html = raw.replace(
+    /((?:<p\b|<div\b|<b\b|<td\b)[^>]*>[\s\S]*?<\/(?:p|div|b|td)>\s*)(<div\b(?![^>]*\bdata-field=)[^>]*\bclass=["'][^"']*\bsignature-line\b[^"']*["'][^>]*>[\s\S]*?<\/div>)/gi,
+    (match, preceding, sigDiv) => {
+      if (/360GI|360\s*Global|شركة\s*360|company/i.test(preceding)) {
+        return preceding + sigDiv.replace(/class=["']([^"']*)["']/, 'class="$1" data-field="signature.company"')
+      } else if (/applicant|client|المتقدم|العميل|المتعاقد/i.test(preceding)) {
+        return preceding + sigDiv.replace(/class=["']([^"']*)["']/, 'class="$1" data-field="signature.client"')
+      }
+      return match
+    }
+  )
+
+  html = html.replace(/(<section\b[^>]*class=["'][^"']*\bpage-11\b[^"']*["'][\s\S]*?<\/section>)/gi, (pageMatch) => {
+    let count = 0
+    return pageMatch.replace(/<div\b(?![^>]*\bdata-field=)[^>]*\bclass=["'][^"']*\bsignature-line\b[^"']*["'][^>]*>[\s\S]*?<\/div>/gi, (sigDiv) => {
+      count++
+      const field = (count % 2 === 1) ? 'signature.client' : 'signature.company'
+      return sigDiv.replace(/class=["']([^"']*)["']/, `class="$1" data-field="${field}"`)
+    })
+  })
+
+  html = html.replace(/(<section\b[^>]*class=["'][^"']*\bpage-12\b[^"']*["'][\s\S]*?<\/section>)/gi, (pageMatch) => {
+    return pageMatch.replace(/<div\b(?![^>]*\bdata-field=)[^>]*\bclass=["'][^"']*\bsignature-line\b[^"']*["'][^>]*>[\s\S]*?<\/div>/gi, (sigDiv) => {
+      return sigDiv.replace(/class=["']([^"']*)["']/, 'class="$1" data-field="signature.client"')
+    })
+  })
+
+  const fullName = fd.client_name || fd.recipientName || contact.name || 'Valued Client'
+  const passportOrEid = fd.passport_number || fd.passport_eid || contact.passport || '—'
+  const nationality = fd.nationality || contact.nationality || '—'
+  const mobile = fd.phone || fd.mobile || contact.phone || '—'
+  const address = fd.address || contact.address1 || '—'
+  const email = fd.client_email || fd.email || contact.email || '—'
+  const dateOfBirth = fd.date_of_birth || fd.dob || '—'
+  const dependents = fd.dependents || fd.note || 'Spouse & Kids under 18 are included.'
+
+  const totalFees = fd.contract_value || '20,000 EUR'
+  const totalAfterDiscount = fd.discounted_amount || fd.contract_value || '15,000 EUR'
+  const currencyText = fd.currency || 'THE GREAT BRITAIN POUND (GBP)'
+  const paymentMode = fd.payment_terms || '50% Upon Signing, 50% on Approval'
+  const additionalInfo = fd.visa_type || fd.additional_information || 'Standard Legal & Immigration Advisory'
+
+  const scheduleThreeContent = fd.schedule_three_content || fd.payment_breakup || fd.commercial_terms || '50% Initial Deposit upon signing, 50% upon Visa Approval'
+  const initialAmount = fd.discounted_amount || fd.initial_deposit || '15,000 EUR'
+
+  const rawContractDate = fd.contract_date || contract.value?.created_at
+  let formattedContractDate = '—'
+  try {
+    if (rawContractDate && /^\d{4}-\d{2}-\d{2}$/.test(String(rawContractDate).trim())) {
+      const [y, m, d] = String(rawContractDate).trim().split('-').map(Number)
+      formattedContractDate = new Date(y, m - 1, d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+    } else if (rawContractDate) {
+      formattedContractDate = new Date(rawContractDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+    }
+  } catch {
+    formattedContractDate = String(rawContractDate)
+  }
+
+  const replacements = {
+    'logo_url': 'https://assets.cdn.filesafe.space/NJOPxsxylG8ulEPo9hX9/media/6ab2a26318891558b460bf74.png',
+    'company_logo': 'https://assets.cdn.filesafe.space/NJOPxsxylG8ulEPo9hX9/media/6ab2a26318891558b460bf74.png',
+    'applicant.full_name': fullName,
+    'applicant.name': fullName,
+    'client_name': fullName,
+    'recipient_name': fullName,
+    'main_applicant': fd.main_applicant || fullName,
+
+    'applicant.passport_or_eid': passportOrEid,
+    'applicant.passport': passportOrEid,
+    'passport_number': passportOrEid,
+    'passport_eid': passportOrEid,
+    'passport': passportOrEid,
+    'idNumber': passportOrEid,
+
+    'applicant.nationality': nationality,
+    'nationality': nationality,
+
+    'applicant.mobile': mobile,
+    'applicant.phone': mobile,
+    'mobile': mobile,
+    'phone': mobile,
+
+    'applicant.address': address,
+    'address': address,
+
+    'applicant.email': email,
+    'client_email': email,
+    'email': email,
+
+    'applicant.date_of_birth': dateOfBirth,
+    'applicant.dob': dateOfBirth,
+    'date_of_birth': dateOfBirth,
+    'dob': dateOfBirth,
+
+    'applicant.dependents': dependents,
+    'dependents': dependents,
+    'note': dependents,
+
+    'jurisdiction': fd.jurisdiction || 'Courts of the Dubai International Financial Centre (“the DIFC COURTS”)',
+
+    'total_fees': totalFees,
+    'fees.total_fees': totalFees,
+    'discounted_total': totalAfterDiscount,
+    'total_after_discount': totalAfterDiscount,
+    'fees.total_after_discount': totalAfterDiscount,
+    'contract_value': totalFees,
+
+    'fees.currency_text': currencyText,
+    'currency': currencyText,
+
+    'fees.payment_mode': paymentMode,
+    'payment_mode': paymentMode,
+    'payment_terms': paymentMode,
+
+    'fees.additional_information': additionalInfo,
+    'additional_information': additionalInfo,
+    'visa_type': additionalInfo,
+
+    'fees.payment_breakup': scheduleThreeContent,
+    'payment_breakup': scheduleThreeContent,
+    'schedule_three_content': scheduleThreeContent,
+    'schedule_three': scheduleThreeContent,
+    'commercial_terms': scheduleThreeContent,
+    'fees.commercial_terms': scheduleThreeContent,
+    'fees.schedule_three': scheduleThreeContent,
+    'milestones': scheduleThreeContent,
+    'fees.milestones': scheduleThreeContent,
+
+    'fees.initial_amount': initialAmount,
+    'initial_amount': initialAmount,
+    'discounted_amount': initialAmount,
+    'initial_deposit': initialAmount,
+
+    'contract.date': formattedContractDate,
+    'contract_date': formattedContractDate,
+    'acceptance_date': formattedContractDate,
+    'declaration_date': formattedContractDate,
+    'date': formattedContractDate,
+    'today': formattedContractDate,
+    'today_date': formattedContractDate,
+  }
+
+  for (const [k, v] of Object.entries(fd)) {
+    if (v !== undefined && v !== null && v !== '') {
+      replacements[k] = String(v)
+    }
+  }
+
+  html = html.replace(/\{\{([^}]+)\}\}/g, (match, key) => {
+    const k = key.trim()
+    if (replacements[k] !== undefined) return replacements[k]
+
+    const lowerK = k.toLowerCase()
+    for (const [rk, rv] of Object.entries(replacements)) {
+      if (rk.toLowerCase() === lowerK) return rv
+    }
+
+    return '—'
+  })
     .replace(/src=["'](?:assets\/)?logo-left\.png["']/gi, 'src="https://assets.cdn.filesafe.space/NJOPxsxylG8ulEPo9hX9/media/6ab2a26318891558b460bf74.png"')
     .replace(/src=["'](?:assets\/)?logo-right\.png["']/gi, 'src="https://assets.cdn.filesafe.space/NJOPxsxylG8ulEPo9hX9/media/6ab2a26318891558b460bf74.png"')
 
@@ -992,6 +1138,16 @@ const renderedContractHtml = computed(() => {
       /<div\b[^>]*\bdata-field=["']signature\.company["'][^>]*>[\s\S]*?<\/div>/gi,
       `<div class="signature-line signed" data-field="signature.company" style="display:flex;align-items:center;justify-content:center;position:relative;background:#fff;border-bottom:1.5px solid #0f172a;min-height:36px;">${companyContent}</div>`
     );
+  }
+
+  // Official company stamp on every page (except cover)
+  html = html.replace(/<div class=["']page-official-stamp["'][^>]*>[\s\S]*?<\/div>/gi, '')
+  if (companySeal) {
+    const pageStampHtml = `<div class="page-official-stamp" style="position: absolute; right: 18mm; bottom: 3.2mm; z-index: 9; pointer-events: none;"><img src="${companySeal}" alt="Company Stamp" style="max-height: 19mm; max-width: 24mm; opacity: 0.86; transform: rotate(-6deg); filter: drop-shadow(0 1px 2px rgba(0,0,0,0.12)); display: block;" /></div>`
+    html = html.replace(/(<section\b[^>]*class=["'][^"']*\bpage\b[^"']*["'][^>]*>)([\s\S]*?)(<\/section>)/gi, (match, open, body, close) => {
+      if (/\bcover\b/i.test(open)) return match
+      return `${open}${body}${pageStampHtml}${close}`
+    })
   }
 
   return `<style>${css}</style>\n${html}`

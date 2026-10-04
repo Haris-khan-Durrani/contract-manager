@@ -238,7 +238,7 @@ router.get('/:token', async (req, res) => {
         clientSignature: '',
         companySignature,
         companyStamp,
-        contractDate: new Date(contract.created_at || Date.now()).toLocaleDateString('en-GB'),
+        contractDate: formData.contract_date || contract.created_at || new Date().toLocaleDateString('en-GB'),
       });
     }
 
@@ -597,11 +597,15 @@ router.post('/:token/submit', async (req, res) => {
 
     if (snapshot.rawHtml) {
       const htmlTemplateService = require('../services/htmlTemplateService');
+      const parsedForm = typeof contract.form_response_json === 'string'
+        ? JSON.parse(contract.form_response_json || '{}')
+        : (contract.form_response_json || {});
       snapshot.rawHtml = htmlTemplateService.renderHtmlTemplate(snapshot.rawHtml, snapshot.customCss, {
+        form: parsedForm,
         clientSignature: signatureDataUrl,
         companySignature,
         companyStamp,
-        contractDate: signedAt,
+        contractDate: parsedForm.contract_date || contract.created_at || signedAt,
       });
     }
 

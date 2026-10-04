@@ -196,6 +196,7 @@ router.get('/:id', async (req, res) => {
           clientSignature: snapshot.clientSignature || '',
           companySignature,
           companyStamp,
+          contractDate: formData.contract_date || contract.created_at,
         });
       }
       contract.snapshot_json = snapshot;

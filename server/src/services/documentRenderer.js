@@ -686,7 +686,7 @@ function renderDocument(snapshot, opts = {}) {
     let fullHtml = htmlTemplateService.renderHtmlTemplate(rawHtml, customCss, {
       ...snapshot,
       clientSignature: clientSig,
-      contractDate: snapshot.frozenAt || snapshot.signedAt || new Date().toISOString(),
+      contractDate: snapshot.contractDate || snapshot.formData?.contract_date || snapshot.formResponse?.contract_date || snapshot.form?.contract_date || snapshot.frozenAt || snapshot.signedAt || new Date().toISOString(),
     }, opts);
 
     if (includeAuditCertificate) {

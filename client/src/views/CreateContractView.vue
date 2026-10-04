@@ -20,31 +20,46 @@
         <div class="create-main">
           <div class="glass-card main-form-card">
 
-            <!-- SECTION 1: Agreement Template -->
+            <!-- SECTION 1: Agreement Template & Contract Date -->
             <div class="card-section">
               <div class="section-title-wrap">
                 <span class="section-icon">📄</span>
                 <div>
-                  <h3 class="section-title">1. Agreement Template</h3>
-                  <p class="section-sub">Select your template. Variables and Schedule One applicant details will be linked automatically.</p>
+                  <h3 class="section-title">1. Agreement Template &amp; Contract Date</h3>
+                  <p class="section-sub">Select your template and execution date. Variables and Schedule One applicant details will be linked automatically.</p>
                 </div>
               </div>
 
-              <div class="form-group">
-                <label class="field-label">Contract Template <span class="req">*</span></label>
-                <div v-if="loadingTemplates" class="spinner-inline">Loading templates…</div>
-                <div v-else class="select-wrap">
-                  <select v-model="form.templateId" class="form-control form-select" @change="onTemplateChange">
-                    <option value="">— Select a template —</option>
-                    <option v-for="t in templates" :key="t.id" :value="t.id">
-                      {{ t.name }} (v{{ t.current_version }}) · {{ t.contract_type }}
-                    </option>
-                  </select>
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label class="field-label">Contract Template <span class="req">*</span></label>
+                  <div v-if="loadingTemplates" class="spinner-inline">Loading templates…</div>
+                  <div v-else class="select-wrap">
+                    <select v-model="form.templateId" class="form-control form-select" @change="onTemplateChange">
+                      <option value="">— Select a template —</option>
+                      <option v-for="t in templates" :key="t.id" :value="t.id">
+                        {{ t.name }} (v{{ t.current_version }}) · {{ t.contract_type }}
+                      </option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="field-label">Contract Execution Date <span class="req">*</span></label>
+                  <input
+                    type="date"
+                    v-model="formResponses['contract_date']"
+                    class="form-control"
+                    title="Agreement execution date shown across the contract (Schedule, Page 11, Page 12)"
+                  />
+                  <small style="display:block; margin-top:4px; font-size:0.75rem; color:var(--color-text-muted);">
+                    Select the signing / agreement date appearing on page 11, 12, etc. (Defaults to today).
+                  </small>
                 </div>
               </div>
 
               <!-- Linked Form Banner -->
-              <div v-if="selectedTemplate" class="linked-form-banner animate-fade-in">
+              <div v-if="selectedTemplate" class="linked-form-banner animate-fade-in" style="margin-top: 14px;">
                 <div class="linked-form-icon">📋</div>
                 <div class="linked-form-content">
                   <span class="linked-form-label">Attached Legal Form:</span>
@@ -539,6 +554,10 @@
                 <strong class="summary-v">{{ selectedTemplate?.name || '—' }}</strong>
               </div>
               <div class="summary-row">
+                <span class="summary-k">Contract Date</span>
+                <strong class="summary-v">{{ formatContractDate(formResponses['contract_date']) }}</strong>
+              </div>
+              <div class="summary-row">
                 <span class="summary-k">Application</span>
                 <span class="badge" :class="form.formMode === 'TEAM' ? 'badge-primary' : 'badge-neutral'">
                   {{ form.formMode === 'TEAM' ? `👥 Team (${teamMembers.length + 1} Applicants)` : '👤 Individual (1 Applicant)' }}
@@ -782,8 +801,30 @@ const form = ref({
   companySignatureRequired: false,
 })
 
+function getTodayDateString() {
+  const d = new Date()
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
+function formatContractDate(val) {
+  if (!val) return '—'
+  try {
+    if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val.trim())) {
+      const [y, m, d] = val.trim().split('-').map(Number)
+      return new Date(y, m - 1, d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+    }
+    return new Date(val).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+  } catch {
+    return String(val)
+  }
+}
+
 // Dynamic form questions values
 const formResponses = ref({
+  contract_date: getTodayDateString(),
   note: 'Spouse & Kids under 18 are included.',
   passport_number: '',
   nationality: '',
@@ -1060,9 +1101,10 @@ async function createContract(isDraft = false) {
     const contactId = form.value.ghlContactId || `manual_${Date.now()}`
 
     // Ensure primary recipient values are also inside formResponses
-    formResponses.value['client_name']  = form.value.recipientName
-    formResponses.value['client_email'] = form.value.recipientEmail
-    formResponses.value['phone']        = form.value.recipientPhone
+    formResponses.value['client_name']   = form.value.recipientName
+    formResponses.value['client_email']  = form.value.recipientEmail
+    formResponses.value['phone']         = form.value.recipientPhone
+    formResponses.value['contract_date'] = formResponses.value['contract_date'] || getTodayDateString()
 
     const payload = {
       templateId:       parseInt(form.value.templateId),

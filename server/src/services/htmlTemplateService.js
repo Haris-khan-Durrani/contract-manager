@@ -63,15 +63,60 @@ function extractTemplateMetadata(html) {
 }
 
 /**
- * Format a date nicely
+ * Format a date nicely without timezone shift
  */
 function formatDate(d) {
-  if (!d) return new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  if (!d) d = new Date();
+  if (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.trim())) {
+    const [y, m, day] = d.trim().split('-').map(Number);
+    const dateObj = new Date(y, m - 1, day);
+    return dateObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
   try {
-    return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+    const dateObj = new Date(d);
+    if (isNaN(dateObj.getTime())) return String(d);
+    return dateObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
   } catch {
     return String(d);
   }
+}
+
+/**
+ * Ensure all .signature-line elements have data-field="signature.client" or data-field="signature.company"
+ */
+function ensureSignatureDataFields(html) {
+  let processed = String(html || '');
+
+  // 1. Contextual tagging based on preceding paragraph/heading/cell text
+  processed = processed.replace(
+    /((?:<p\b|<div\b|<b\b|<td\b)[^>]*>[\s\S]*?<\/(?:p|div|b|td)>\s*)(<div\b(?![^>]*\bdata-field=)[^>]*\bclass=["'][^"']*\bsignature-line\b[^"']*["'][^>]*>[\s\S]*?<\/div>)/gi,
+    (match, preceding, sigDiv) => {
+      if (/360GI|360\s*Global|شركة\s*360|company/i.test(preceding)) {
+        return preceding + sigDiv.replace(/class=["']([^"']*)["']/, 'class="$1" data-field="signature.company"');
+      } else if (/applicant|client|المتقدم|العميل|المتعاقد/i.test(preceding)) {
+        return preceding + sigDiv.replace(/class=["']([^"']*)["']/, 'class="$1" data-field="signature.client"');
+      }
+      return match;
+    }
+  );
+
+  // 2. Positional tagging for any remaining untagged .signature-line elements on Page 11 & Page 12
+  processed = processed.replace(/(<section\b[^>]*class=["'][^"']*\bpage-11\b[^"']*["'][\s\S]*?<\/section>)/gi, (pageMatch) => {
+    let count = 0;
+    return pageMatch.replace(/<div\b(?![^>]*\bdata-field=)[^>]*\bclass=["'][^"']*\bsignature-line\b[^"']*["'][^>]*>[\s\S]*?<\/div>/gi, (sigDiv) => {
+      count++;
+      const field = (count % 2 === 1) ? 'signature.client' : 'signature.company';
+      return sigDiv.replace(/class=["']([^"']*)["']/, `class="$1" data-field="${field}"`);
+    });
+  });
+
+  processed = processed.replace(/(<section\b[^>]*class=["'][^"']*\bpage-12\b[^"']*["'][\s\S]*?<\/section>)/gi, (pageMatch) => {
+    return pageMatch.replace(/<div\b(?![^>]*\bdata-field=)[^>]*\bclass=["'][^"']*\bsignature-line\b[^"']*["'][^>]*>[\s\S]*?<\/div>/gi, (sigDiv) => {
+      return sigDiv.replace(/class=["']([^"']*)["']/, 'class="$1" data-field="signature.client"');
+    });
+  });
+
+  return processed;
 }
 
 /**
@@ -80,7 +125,7 @@ function formatDate(d) {
 function renderHtmlTemplate(html, css, context = {}, options = {}) {
   const logoUrl = options.logoUrl || context.logoUrl || DEFAULT_LOGO_URL;
   const { html: normHtml, css: normCss } = normalizeTemplateAssets(html, css, logoUrl);
-  let rendered = normHtml;
+  let rendered = ensureSignatureDataFields(normHtml);
 
   const form = context.form || {};
   const contact = context.contact || {};
@@ -89,27 +134,27 @@ function renderHtmlTemplate(html, css, context = {}, options = {}) {
   const system = context.system || {};
 
   // Resolve values with flexible fallbacks
-  const fullName = applicant.full_name || form.client_name || contact.name || 'Valued Client';
-  const passportOrEid = applicant.passport_or_eid || form.passport_number || form.idNumber || contact.passport || '—';
+  const fullName = applicant.full_name || form.client_name || form.recipientName || contact.name || 'Valued Client';
+  const passportOrEid = applicant.passport_or_eid || form.passport_number || form.passport_eid || form.idNumber || contact.passport || '—';
   const nationality = applicant.nationality || form.nationality || contact.nationality || '—';
-  const mobile = applicant.mobile || form.phone || contact.phone || '—';
+  const mobile = applicant.mobile || form.phone || form.mobile || form.recipientPhone || contact.phone || '—';
   const address = applicant.address || form.address || contact.address || '—';
-  const email = applicant.email || form.client_email || contact.email || '—';
+  const email = applicant.email || form.client_email || form.recipientEmail || contact.email || '—';
   const dateOfBirth = applicant.date_of_birth || form.date_of_birth || form.dob || '—';
   const dependents = applicant.dependents || form.dependents || form.note || 'Spouse & Kids under 18 are included.';
 
-  const totalAfterDiscount = fees.total_after_discount || form.contract_value || '—';
+  const totalFees = fees.total_fees || form.contract_value || '20,000 EUR';
+  const totalAfterDiscount = fees.total_after_discount || form.discounted_amount || form.contract_value || '15,000 EUR';
   const currencyText = fees.currency_text || form.currency || 'THE GREAT BRITAIN POUND (GBP)';
-  const paymentMode = fees.payment_mode || form.payment_terms || '100% Upfront';
+  const paymentMode = fees.payment_mode || form.payment_terms || '50% Upon Signing, 50% on Approval';
   const additionalInfo = fees.additional_information || form.additional_information || form.visa_type || 'Standard Legal & Immigration Advisory';
   
   // Section 5: Commercial Terms & Fees (Schedule Three) rich editor content
-  const scheduleThreeContent = form.schedule_three_content || form.payment_breakup || fees.payment_breakup || '50% Initial Deposit upon signing, 50% upon Visa Approval';
-  const paymentBreakup = scheduleThreeContent;
-  const initialAmount = fees.initial_amount || form.discounted_amount || form.initial_deposit || '—';
+  const scheduleThreeContent = form.schedule_three_content || form.payment_breakup || fees.payment_breakup || form.commercial_terms || fees.commercial_terms || '50% Initial Deposit upon signing, 50% upon Visa Approval';
+  const initialAmount = fees.initial_amount || form.discounted_amount || form.initial_deposit || '15,000 EUR';
 
-  const contractDate = formatDate(context.contractDate || form.contract_date || system.currentDate);
-  const jurisdiction = context.jurisdiction || form.jurisdiction || 'Dubai International Financial Centre (DIFC)';
+  const contractDate = formatDate(form.contract_date || context.contractDate || form.created_at || system.currentDate);
+  const jurisdiction = context.jurisdiction || form.jurisdiction || 'Courts of the Dubai International Financial Centre (“the DIFC COURTS”)';
 
   // Signatures & Company Seal
   const settingsService = require('./settingsService');
@@ -123,56 +168,83 @@ function renderHtmlTemplate(html, css, context = {}, options = {}) {
   const compSigImg = companySignature ? `<img src="${companySignature}" alt="Company Signature" class="comp-sig-img" style="max-height: 13mm; max-width: 82%; display: block; margin: auto;" />` : '';
   const compStampImg = companyStamp ? `<img src="${companyStamp}" alt="Company Seal" class="comp-stamp-img" style="max-height: 22mm; max-width: 26mm; opacity: 0.88; transform: rotate(-5deg); filter: drop-shadow(0 1px 3px rgba(0,0,0,0.12)); display: block;" />` : '';
 
-  // Build replacement dictionary
+  // Build comprehensive replacement dictionary covering Belgium, Uruguay, Cyprus, and custom variants
   const replacements = {
+    // Branding & Logo
     'logo_url': logoUrl,
     'company_logo': logoUrl,
     'cover_image': logoUrl,
     'cover_image_url': logoUrl,
 
+    // Applicant Name
     'applicant.full_name': fullName,
     'applicant.name': fullName,
     'client_name': fullName,
+    'recipient_name': fullName,
+    'main_applicant': form.main_applicant || fullName,
 
+    // Passport / EID
     'applicant.passport_or_eid': passportOrEid,
     'applicant.passport': passportOrEid,
     'passport_number': passportOrEid,
+    'passport_eid': passportOrEid,
+    'passport': passportOrEid,
+    'idNumber': passportOrEid,
 
+    // Nationality
     'applicant.nationality': nationality,
     'nationality': nationality,
 
+    // Mobile / Phone
     'applicant.mobile': mobile,
     'applicant.phone': mobile,
+    'mobile': mobile,
     'phone': mobile,
+    'contact_number': mobile,
 
+    // Address
     'applicant.address': address,
     'address': address,
 
+    // Email
     'applicant.email': email,
     'client_email': email,
+    'email': email,
 
+    // Date of Birth
     'applicant.date_of_birth': dateOfBirth,
     'applicant.dob': dateOfBirth,
     'date_of_birth': dateOfBirth,
+    'dob': dateOfBirth,
 
+    // Dependents & Schedule Note
     'applicant.dependents': dependents,
     'dependents': dependents,
+    'note': dependents,
 
+    // Jurisdiction
     'jurisdiction': jurisdiction,
 
+    // Fees & Totals
+    'total_fees': totalFees,
+    'fees.total_fees': totalFees,
+    'discounted_total': totalAfterDiscount,
+    'total_after_discount': totalAfterDiscount,
     'fees.total_after_discount': totalAfterDiscount,
-    'contract_value': totalAfterDiscount,
+    'contract_value': totalFees,
 
     'fees.currency_text': currencyText,
     'currency': currencyText,
 
     'fees.payment_mode': paymentMode,
+    'payment_mode': paymentMode,
     'payment_terms': paymentMode,
 
     'fees.additional_information': additionalInfo,
     'additional_information': additionalInfo,
+    'visa_type': additionalInfo,
 
-    // Section 5: Commercial Terms & Milestones shortcodes
+    // Schedule Three, Milestones & Commercial Terms
     'fees.payment_breakup': scheduleThreeContent,
     'payment_breakup': scheduleThreeContent,
     'schedule_three_content': scheduleThreeContent,
@@ -183,12 +255,20 @@ function renderHtmlTemplate(html, css, context = {}, options = {}) {
     'milestones': scheduleThreeContent,
     'fees.milestones': scheduleThreeContent,
 
+    // Initial Deposit / Downpayment
     'fees.initial_amount': initialAmount,
     'initial_amount': initialAmount,
     'discounted_amount': initialAmount,
+    'initial_deposit': initialAmount,
 
+    // Dates
     'contract.date': contractDate,
     'contract_date': contractDate,
+    'acceptance_date': contractDate,
+    'declaration_date': contractDate,
+    'date': contractDate,
+    'today': contractDate,
+    'today_date': contractDate,
 
     // Signature & Stamp shortcodes
     'signature.client': clientSigImg,
@@ -208,9 +288,17 @@ function renderHtmlTemplate(html, css, context = {}, options = {}) {
       return replacements[cleanKey];
     }
     // Check nested form object
-    if (form[cleanKey] !== undefined) return String(form[cleanKey]);
-    if (contact[cleanKey] !== undefined) return String(contact[cleanKey]);
-    return match;
+    if (form[cleanKey] !== undefined && form[cleanKey] !== null) return String(form[cleanKey]);
+    if (contact[cleanKey] !== undefined && contact[cleanKey] !== null) return String(contact[cleanKey]);
+
+    // Check case-insensitive match
+    const lowerKey = cleanKey.toLowerCase();
+    for (const [rk, rv] of Object.entries(replacements)) {
+      if (rk.toLowerCase() === lowerKey) return rv;
+    }
+
+    // Return empty fallback instead of displaying broken raw handlebars to the user
+    return '—';
   });
 
   // Handle Team Members Schedule One Repeater if group/team mode
