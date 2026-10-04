@@ -1,89 +1,141 @@
 <template>
   <div class="client-summary-page">
     <!-- Top Action Bar -->
-    <div class="page-header glass-card">
+    <div class="page-header executive-header glass-card">
       <div class="header-left">
-        <div class="title-row">
-          <span class="header-icon">📋</span>
-          <div>
-            <h1 class="page-title">Client Summary Form</h1>
+        <div class="header-brand-badge">
+          <div class="header-icon-box">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+          </div>
+          <div class="header-title-group">
+            <div class="header-title-row">
+              <h1 class="page-title">Client Summary Form</h1>
+              <div v-if="selectedContract" class="contract-id-chip">
+                #{{ selectedContract.id }} • {{ selectedContract.recipient_name }}
+              </div>
+            </div>
             <p class="page-subtitle">Official post-contract immigration onboarding & compliance dossier</p>
           </div>
         </div>
       </div>
 
       <div class="header-right" v-if="selectedContract">
+        <!-- Status indicator -->
         <div class="summary-status-badge">
-          <span v-if="summaryStatus === 'COMPLETED'" class="badge badge-success">
-            ✓ Completed by {{ completedByName || 'Staff' }}
+          <span v-if="summaryStatus === 'COMPLETED'" class="status-pill status-completed" title="Completed Dossier">
+            <span class="status-dot-pulse"></span>
+            <span class="status-text">Completed by <strong>{{ completedByName || 'Staff' }}</strong></span>
           </span>
-          <span v-else-if="summaryStatus === 'DRAFT'" class="badge badge-warning">
-            📝 In Progress (Draft)
+          <span v-else-if="summaryStatus === 'DRAFT'" class="status-pill status-draft" title="Draft in Progress">
+            <span class="status-dot"></span>
+            <span class="status-text">Draft in Progress</span>
           </span>
-          <span v-else class="badge badge-neutral">
-            ⏳ Not Started
+          <span v-else class="status-pill status-neutral" title="Not Started">
+            <span class="status-dot"></span>
+            <span class="status-text">Not Started</span>
           </span>
         </div>
 
-        <button
-          v-if="selectedContract"
-          type="button"
-          class="btn btn-secondary btn-sm"
-          :disabled="downloadingPdf"
-          @click="downloadSummaryPdf"
-          title="Download official Client Summary PDF"
-        >
-          {{ downloadingPdf ? '⏳ Generating…' : '📄 Summary PDF' }}
-        </button>
+        <div class="action-btn-group">
+          <!-- Secondary export actions -->
+          <button
+            type="button"
+            class="action-btn action-btn-secondary"
+            :disabled="downloadingPdf"
+            @click="downloadSummaryPdf"
+            title="Download official Client Summary PDF"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="12" y1="18" x2="12" y2="12"></line>
+              <line x1="9" y1="15" x2="15" y2="15"></line>
+            </svg>
+            <span>{{ downloadingPdf ? 'Generating…' : 'Summary PDF' }}</span>
+          </button>
 
-        <button
-          v-if="selectedContract"
-          type="button"
-          class="btn btn-primary btn-sm"
-          :disabled="downloadingZip"
-          @click="downloadZipPackage"
-          title="Download Complete Compiled Package (Contract + Summary + Attached Files)"
-          style="background: linear-gradient(135deg, #1e3a8a, #2563eb); border: none; font-weight: 600;"
-        >
-          {{ downloadingZip ? '⏳ Compiling ZIP…' : '📦 Download Package (ZIP)' }}
-        </button>
+          <button
+            type="button"
+            class="action-btn action-btn-secondary"
+            @click="printDocument"
+            title="Print or Save as PDF"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 6 2 18 2 18 9"></polyline>
+              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+              <rect x="6" y="14" width="12" height="8"></rect>
+            </svg>
+            <span>Print</span>
+          </button>
 
-        <button
-          type="button"
-          class="btn btn-secondary btn-sm"
-          @click="printDocument"
-          title="Print or Save as PDF"
-        >
-          🖨️ Print
-        </button>
+          <!-- Primary Hero Export Button -->
+          <button
+            type="button"
+            class="action-btn action-btn-primary"
+            :disabled="downloadingZip"
+            @click="downloadZipPackage"
+            title="Download Complete Compiled Package (Contract + Summary + Attached Files)"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+              <line x1="12" y1="22.08" x2="12" y2="12"></line>
+            </svg>
+            <span>{{ downloadingZip ? 'Compiling ZIP…' : 'Download Package (ZIP)' }}</span>
+          </button>
 
-        <button
-          type="button"
-          class="btn btn-secondary btn-sm"
-          :disabled="saving"
-          @click="saveSummary('DRAFT')"
-        >
-          {{ saving && savingMode === 'DRAFT' ? 'Saving…' : '💾 Save Draft' }}
-        </button>
+          <div class="action-divider"></div>
 
-        <button
-          v-if="summaryStatus !== 'COMPLETED'"
-          type="button"
-          class="btn btn-primary btn-sm"
-          :disabled="saving"
-          @click="saveSummary('COMPLETED')"
-        >
-          {{ saving && savingMode === 'COMPLETED' ? 'Completing…' : '✓ Mark as Completed' }}
-        </button>
-        <button
-          v-else
-          type="button"
-          class="btn btn-secondary btn-sm"
-          :disabled="saving"
-          @click="saveSummary('DRAFT')"
-        >
-          🔓 Reopen Draft
-        </button>
+          <!-- Workflow action buttons -->
+          <button
+            type="button"
+            class="action-btn action-btn-neutral"
+            :disabled="saving"
+            @click="saveSummary('DRAFT')"
+            title="Save changes as Draft"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+              <polyline points="17 21 17 13 7 13 7 21"></polyline>
+              <polyline points="7 3 7 8 15 8"></polyline>
+            </svg>
+            <span>{{ saving && savingMode === 'DRAFT' ? 'Saving…' : 'Save Draft' }}</span>
+          </button>
+
+          <button
+            v-if="summaryStatus !== 'COMPLETED'"
+            type="button"
+            class="action-btn action-btn-success"
+            :disabled="saving"
+            @click="saveSummary('COMPLETED')"
+            title="Mark dossier as completed and finalized"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            <span>{{ saving && savingMode === 'COMPLETED' ? 'Completing…' : 'Mark Completed' }}</span>
+          </button>
+          <button
+            v-else
+            type="button"
+            class="action-btn action-btn-reopen"
+            :disabled="saving"
+            @click="saveSummary('DRAFT')"
+            title="Re-open dossier for editing"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
+            </svg>
+            <span>Reopen Draft</span>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -2263,44 +2315,255 @@ onMounted(async () => {
   margin: 0 auto;
 }
 
-/* Page Header */
-.page-header {
+/* Page Header — Executive Suite */
+.page-header.executive-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--space-4) var(--space-6);
+  padding: 16px 24px;
   margin-bottom: var(--space-6);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.03);
+  gap: 20px;
+  flex-wrap: wrap;
 }
 
-.title-row {
+.header-left {
+  flex: 1 1 auto;
+  min-width: 260px;
+}
+
+.header-brand-badge {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: 14px;
 }
 
-.header-icon {
-  font-size: 2rem;
+.header-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  border: 1px solid #bfdbfe;
+  color: #2563eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.12);
+}
+
+.header-title-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.header-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .page-title {
   font-family: var(--font-heading);
-  font-size: 1.6rem;
+  font-size: 1.35rem;
   font-weight: 700;
+  color: #0f172a;
   margin: 0;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.contract-id-chip {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  letter-spacing: 0.2px;
 }
 
 .page-subtitle {
-  color: var(--color-text-muted);
-  font-size: 0.85rem;
-  margin: 2px 0 0;
+  color: #64748b;
+  font-size: 0.8rem;
+  margin: 3px 0 0;
+  line-height: 1.35;
 }
 
 .header-right {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Status Pills */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.1px;
+  border: 1px solid transparent;
+  user-select: none;
+}
+
+.status-completed {
+  background: #ecfdf5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+
+.status-draft {
+  background: #fffbeb;
+  color: #92400e;
+  border-color: #fde68a;
+}
+
+.status-neutral {
+  background: #f8fafc;
+  color: #475569;
+  border-color: #e2e8f0;
+}
+
+.status-dot-pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
+  animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.7;
+}
+
+@keyframes pulse-ring {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
+  }
+  50% {
+    transform: scale(1.15);
+    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.4);
+  }
+}
+
+/* Action Button Toolbar */
+.action-btn-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f8fafc;
+  padding: 4px 6px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 7px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  user-select: none;
+  line-height: 1.2;
+}
+
+.action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.action-btn-secondary {
+  background: #ffffff;
+  color: #334155;
+  border-color: #e2e8f0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.action-btn-secondary:hover:not(:disabled) {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+.action-btn-primary {
+  background: linear-gradient(135deg, #1d4ed8, #2563eb);
+  color: #ffffff;
+  border: none;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+}
+
+.action-btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #1e40af, #1d4ed8);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+  transform: translateY(-0.5px);
+}
+
+.action-divider {
+  width: 1px;
+  height: 20px;
+  background: #cbd5e1;
+  margin: 0 2px;
+}
+
+.action-btn-neutral {
+  background: #ffffff;
+  color: #475569;
+  border-color: #e2e8f0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.action-btn-neutral:hover:not(:disabled) {
+  background: #f8fafc;
+  color: #1e293b;
+  border-color: #cbd5e1;
+}
+
+.action-btn-success {
+  background: #059669;
+  color: #ffffff;
+  border: none;
+  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.2);
+}
+
+.action-btn-success:hover:not(:disabled) {
+  background: #047857;
+  box-shadow: 0 4px 10px rgba(5, 150, 105, 0.3);
+}
+
+.action-btn-reopen {
+  background: #ffffff;
+  color: #b45309;
+  border-color: #fde68a;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.action-btn-reopen:hover:not(:disabled) {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #fcd34d;
 }
 
 /* Contract Selector Card */
