@@ -1044,39 +1044,51 @@ router.get('/:id/events', async (req, res) => {
       return res.status(403).json({ error: 'Access denied.' });
     }
 
-    // Merge contract_events + audit_logs into a unified timeline
+    // Merge contract_events + audit_logs into a unified timeline without SQL collation issues
     const [events] = await db.execute(
-      `SELECT CONVERT('event' USING utf8mb4) COLLATE utf8mb4_unicode_ci AS source,
-              CONVERT(event_type USING utf8mb4) COLLATE utf8mb4_unicode_ci AS action,
-              CONVERT(actor_label USING utf8mb4) COLLATE utf8mb4_unicode_ci AS actor_name,
-              CONVERT(CAST(event_data_json AS CHAR) USING utf8mb4) COLLATE utf8mb4_unicode_ci AS metadata_json,
-              CONVERT(ip_address USING utf8mb4) COLLATE utf8mb4_unicode_ci AS ip_address,
+      `SELECT 'event' AS source,
+              event_type AS action,
+              actor_label AS actor_name,
+              event_data_json AS metadata_json,
+              ip_address,
               created_at
        FROM contract_events
-       WHERE contract_instance_id = ?
-       UNION ALL
-       SELECT CONVERT('audit' USING utf8mb4) COLLATE utf8mb4_unicode_ci AS source,
-              CONVERT(action USING utf8mb4) COLLATE utf8mb4_unicode_ci AS action,
-              CONVERT(COALESCE(actor_name, actor_id) USING utf8mb4) COLLATE utf8mb4_unicode_ci AS actor_name,
-              CONVERT(CAST(metadata_json AS CHAR) USING utf8mb4) COLLATE utf8mb4_unicode_ci AS metadata_json,
-              CONVERT(ip_address USING utf8mb4) COLLATE utf8mb4_unicode_ci AS ip_address,
-              created_at
-       FROM contract_audit_logs
-       WHERE contract_instance_id = ?
-       ORDER BY created_at ASC`,
-      [contract.id, contract.id]
+       WHERE contract_instance_id = ?`,
+      [contract.id]
     );
 
-    const timeline = events.map(e => ({
-      source:       e.source,
-      action:       e.action,
-      actorName:    e.actor_name,
-      ipAddress:    e.ip_address,
-      metadata:     e.metadata_json ? (typeof e.metadata_json === 'string' ? JSON.parse(e.metadata_json) : e.metadata_json) : {},
-      createdAt:    e.created_at,
-    }));
+    const [auditLogs] = await db.execute(
+      `SELECT 'audit' AS source,
+              action,
+              COALESCE(actor_name, actor_id) AS actor_name,
+              metadata_json,
+              ip_address,
+              created_at
+       FROM contract_audit_logs
+       WHERE contract_instance_id = ?`,
+      [contract.id]
+    );
 
-    res.json({ timeline });
+    const combined = [
+      ...events.map(e => ({
+        source:    e.source,
+        action:    e.action,
+        actorName: e.actor_name,
+        ipAddress: e.ip_address,
+        metadata:  e.metadata_json ? (typeof e.metadata_json === 'string' ? JSON.parse(e.metadata_json) : e.metadata_json) : {},
+        createdAt: e.created_at,
+      })),
+      ...auditLogs.map(a => ({
+        source:    a.source,
+        action:    a.action,
+        actorName: a.actor_name,
+        ipAddress: a.ip_address,
+        metadata:  a.metadata_json ? (typeof a.metadata_json === 'string' ? JSON.parse(a.metadata_json) : a.metadata_json) : {},
+        createdAt: a.created_at,
+      })),
+    ].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+    res.json({ timeline: combined });
   } catch (err) {
     console.error('[Contracts] Events error:', err.message);
     res.status(500).json({ error: 'Failed to get activity timeline.' });
