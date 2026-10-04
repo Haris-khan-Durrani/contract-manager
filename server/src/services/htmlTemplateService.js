@@ -262,9 +262,9 @@ function renderHtmlTemplate(html, css, context = {}, options = {}) {
 
   // Handle Client Signature Injection into .signature-line
   if (clientSignature) {
-    const sigImgTag = `<img src="${clientSignature}" alt="Client Signature" class="client-sig-img" style="max-height: 12mm; max-width: 90%; display: block; margin: auto;" />`;
+    const sigImgTag = `<img src="${clientSignature}" alt="Client Signature" class="client-sig-img" style="max-height: 14mm; max-width: 90%; display: block; margin: auto;" />`;
     rendered = rendered.replace(
-      /<div class=["']signature-line["'] data-field=["']signature\.client["']>[\s\S]*?<\/div>/gi,
+      /<div\b[^>]*\bdata-field=["']signature\.client["'][^>]*>[\s\S]*?<\/div>/gi,
       `<div class="signature-line signed" data-field="signature.client" style="display:flex;align-items:center;justify-content:center;background:#fff;">${sigImgTag}</div>`
     );
   }
@@ -280,7 +280,7 @@ function renderHtmlTemplate(html, css, context = {}, options = {}) {
     }
 
     rendered = rendered.replace(
-      /<div class=["']signature-line["'] data-field=["']signature\.company["']>[\s\S]*?<\/div>/gi,
+      /<div\b[^>]*\bdata-field=["']signature\.company["'][^>]*>[\s\S]*?<\/div>/gi,
       `<div class="signature-line signed" data-field="signature.company" style="display:flex;align-items:center;justify-content:center;position:relative;background:#fff;overflow:visible;">${innerHtml}</div>`
     );
   }

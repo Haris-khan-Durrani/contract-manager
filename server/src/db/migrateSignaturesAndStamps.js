@@ -29,11 +29,11 @@ async function run() {
       setting_value = IF(setting_value IS NULL OR setting_value = '', VALUES(setting_value), setting_value)
   `, [DEFAULT_COMPANY_SIGNATURE]).catch(e => console.warn('Signature setting notice:', e.message));
 
-  // 2. Seed app_user_access for user_admin_001 if null
+  // 2. Seed app_user_access for user_admin_001 only if currently null/empty
   await db.execute(`
     UPDATE app_user_access
-    SET signature_png_url = COALESCE(NULLIF(signature_png_url, ''), ?)
-    WHERE ghl_user_id = 'user_admin_001' OR signature_png_url IS NULL
+    SET signature_png_url = ?
+    WHERE (ghl_user_id = 'user_admin_001' OR signature_png_url IS NULL) AND (signature_png_url IS NULL OR signature_png_url = '')
   `, [DEFAULT_COMPANY_SIGNATURE]).catch(e => console.warn('User signature update notice:', e.message));
 
   // 3. Update existing contract_instances with HTML templates

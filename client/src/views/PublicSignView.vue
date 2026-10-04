@@ -686,14 +686,14 @@ const renderedHtmlContent = computed(() => {
   if (currentSignatureUrl.value) {
     const sigImgTag = `<img src="${currentSignatureUrl.value}" alt="Client Signature" style="max-height: 14mm; max-width: 90%; display: block; margin: auto;" />`
     rendered = rendered.replace(
-      /<div class=["']signature-line["'] data-field=["']signature\.client["']>[\s\S]*?<\/div>/gi,
+      /<div\b[^>]*\bdata-field=["']signature\.client["'][^>]*>[\s\S]*?<\/div>/gi,
       `<div class="signature-line signed" data-field="signature.client" style="display:flex;align-items:center;justify-content:center;background:#fff;border-bottom:1.5px solid #0f172a;min-height:36px;">${sigImgTag}</div>`
     )
   }
 
   // Ensure Company Signature & Stamp are displayed in .signature-line
-  const companySig = contract.value?.snapshot?.companySignature || contract.value?.companySignature || DEFAULT_COMPANY_SIGNATURE;
-  const companySeal = contract.value?.snapshot?.companyStamp || contract.value?.companyStamp || DEFAULT_COMPANY_STAMP;
+  const companySig = contract.value?.companySignature || contract.value?.snapshot?.companySignature || DEFAULT_COMPANY_SIGNATURE;
+  const companySeal = contract.value?.companyStamp || contract.value?.snapshot?.companyStamp || DEFAULT_COMPANY_STAMP;
   if (companySig || companySeal) {
     let companyContent = '';
     if (companySig) {
@@ -703,7 +703,7 @@ const renderedHtmlContent = computed(() => {
       companyContent += `<img src="${companySeal}" alt="Company Seal" class="comp-stamp-img" style="max-height: 22mm; position: absolute; right: 2mm; top: -5mm; opacity: 0.88; transform: rotate(-5deg); z-index: 1; pointer-events: none;" />`;
     }
     rendered = rendered.replace(
-      /<div class=["']signature-line["'] data-field=["']signature\.company["']>[\s\S]*?<\/div>/gi,
+      /<div\b[^>]*\bdata-field=["']signature\.company["'][^>]*>[\s\S]*?<\/div>/gi,
       `<div class="signature-line signed" data-field="signature.company" style="display:flex;align-items:center;justify-content:center;position:relative;background:#fff;border-bottom:1.5px solid #0f172a;min-height:36px;">${companyContent}</div>`
     );
   }
