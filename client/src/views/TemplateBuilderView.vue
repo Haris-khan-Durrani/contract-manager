@@ -1982,101 +1982,14 @@
       <!-- TAB CODE: HTML & CSS SOURCE EDITOR                                  -->
       <!-- ═══════════════════════════════════════════════════════════════════ -->
       <div v-show="activeTab === 'code'" class="tab-pane-container html-code-tab">
-        <div class="code-editor-layout glass-card">
-          <!-- Editor Controls Bar -->
-          <div class="code-editor-bar">
-            <div class="code-editor-title-wrap">
-              <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 2px;">
-                <span class="badge badge-primary badge-sm">Source Code Studio</span>
-                <span class="badge badge-neutral badge-sm">{{ codeSubTab === 'html' ? 'HTML 5' : 'CSS 3' }}</span>
-              </div>
-              <h3 style="margin: 4px 0 2px; font-size: 1.05rem; font-weight: 700;">Template Source Code</h3>
-              <p class="text-muted small-text">Directly edit raw HTML markup, layout classes, responsive styles, and dynamic tokens.</p>
-            </div>
-
-            <div class="code-subtabs">
-              <button
-                type="button"
-                class="code-subtab-btn"
-                :class="{ active: codeSubTab === 'html' }"
-                @click="codeSubTab = 'html'"
-              >
-                <span>📄 HTML Markup</span>
-                <span class="subtab-count">{{ (documentSchema.rawHtml || '').length.toLocaleString() }} chars</span>
-              </button>
-              <button
-                type="button"
-                class="code-subtab-btn"
-                :class="{ active: codeSubTab === 'css' }"
-                @click="codeSubTab = 'css'"
-              >
-                <span>🎨 CSS Stylesheet</span>
-                <span class="subtab-count">{{ (documentSchema.customCss || '').length.toLocaleString() }} chars</span>
-              </button>
-            </div>
-
-            <div class="code-editor-quick-actions">
-              <button type="button" class="btn btn-secondary btn-sm" @click="loadCyprusPreset">
-                🔄 Load Cyprus Preset
-              </button>
-              <button type="button" class="btn btn-secondary btn-sm" @click="copyActiveCode">
-                📋 Copy Code
-              </button>
-            </div>
-          </div>
-
-          <!-- Variable helper quick-insert ribbon -->
-          <div class="variable-chips-ribbon">
-            <div class="ribbon-title">
-              <span>⚡ Click token to insert at cursor:</span>
-            </div>
-            <div class="chips-scroll">
-              <button
-                v-for="v in quickVariables"
-                :key="v"
-                type="button"
-                class="var-chip-btn"
-                @click="insertTokenAtCursor(v)"
-                :title="`Insert {{${v}}}`"
-              >
-                + &#123;&#123;{{ v }}&#125;&#125;
-              </button>
-            </div>
-          </div>
-
-          <!-- Code Editor Body -->
-          <div class="code-editor-panes">
-            <div v-show="codeSubTab === 'html'" class="code-pane">
-              <div class="pane-status-line">
-                <span class="lang-tag">HTML5 Paired-Table Template</span>
-                <span>Encoding: UTF-8</span>
-                <span class="pane-stats">{{ (documentSchema.rawHtml || '').split('\n').length }} lines</span>
-              </div>
-              <textarea
-                id="raw-html-editor"
-                v-model="documentSchema.rawHtml"
-                class="code-editor-textarea"
-                placeholder="Enter HTML document structure..."
-                spellcheck="false"
-              ></textarea>
-            </div>
-
-            <div v-show="codeSubTab === 'css'" class="code-pane">
-              <div class="pane-status-line">
-                <span class="lang-tag">CSS3 Stylesheet</span>
-                <span>Encoding: UTF-8</span>
-                <span class="pane-stats">{{ (documentSchema.customCss || '').split('\n').length }} lines</span>
-              </div>
-              <textarea
-                id="raw-css-editor"
-                v-model="documentSchema.customCss"
-                class="code-editor-textarea"
-                placeholder="Enter CSS rules..."
-                spellcheck="false"
-              ></textarea>
-            </div>
-          </div>
-        </div>
+        <TemplateCodeStudio
+          v-model:rawHtml="documentSchema.rawHtml"
+          v-model:customCss="documentSchema.customCss"
+          :title="documentSchema.title || templateName"
+          :quickVariables="quickVariables"
+          @save="saveTemplate(false)"
+          @loadCyprusPreset="loadCyprusPreset"
+        />
       </div>
 
       <!-- ═══════════════════════════════════════════════════════════════════ -->
@@ -2414,6 +2327,7 @@ import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import axios from 'axios'
 import { useAuthStore } from '../stores/auth'
+import TemplateCodeStudio from '../components/common/TemplateCodeStudio.vue'
 
 const route = useRoute()
 const auth  = useAuthStore()
@@ -4267,12 +4181,22 @@ async function loadCyprusPreset() {
   try {
     const res = await axios.get(`${apiBase}/templates/4`, { headers: getHeaders() })
       .catch(() => axios.get(`${apiBase}/templates/5`, { headers: getHeaders() }))
+      .catch(() => axios.get(`${apiBase}/templates/1`, { headers: getHeaders() }))
     const schema = typeof res.data.template?.document_schema_json === 'string'
       ? JSON.parse(res.data.template.document_schema_json)
       : res.data.template?.document_schema_json
     if (schema?.rawHtml) {
       importHtmlText.value = schema.rawHtml
       importCssText.value = schema.customCss || ''
+      if (activeTab.value === 'code') {
+        if (confirm('Load Cyprus Business Residence Visa preset? This will overwrite the current template code in the editor.')) {
+          recordHistoryState('Load Cyprus Preset')
+          documentSchema.value.rawHtml = schema.rawHtml
+          documentSchema.value.customCss = schema.customCss || ''
+          refreshCanvasHtml()
+          alert('✓ Cyprus preset loaded successfully!')
+        }
+      }
     }
   } catch (e) {
     console.warn('Could not load preset from server:', e)
@@ -6242,10 +6166,12 @@ watch(activeTab, (newTab, oldTab) => {
    HTML & CSS CODE STUDIO STYLES
    ═══════════════════════════════════════════════════════════════════════════ */
 .html-code-tab {
-  padding: 16px 24px 30px;
-  height: calc(100vh - 124px);
+  padding: 10px 16px 16px;
+  height: calc(100vh - 54px);
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .code-editor-layout {
