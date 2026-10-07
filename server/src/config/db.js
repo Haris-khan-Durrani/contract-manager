@@ -160,6 +160,8 @@ class SQLiteAdapter {
           current_version INTEGER NOT NULL DEFAULT 1,
           is_active INTEGER NOT NULL DEFAULT 1,
           validity_days INTEGER NOT NULL DEFAULT 7,
+          is_deleted INTEGER DEFAULT 0,
+          deleted_at DATETIME NULL,
           document_schema_json TEXT NOT NULL,
           conditional_rules_json TEXT NULL,
           creation_rules_json TEXT NULL,
@@ -252,6 +254,12 @@ class SQLiteAdapter {
       `).catch(() => {});
       await this.run(`
         ALTER TABLE app_user_access ADD COLUMN user_email TEXT NULL;
+      `).catch(() => {});
+      await this.run(`
+        ALTER TABLE contract_templates ADD COLUMN is_deleted INTEGER DEFAULT 0;
+      `).catch(() => {});
+      await this.run(`
+        ALTER TABLE contract_templates ADD COLUMN deleted_at DATETIME NULL;
       `).catch(() => {});
 
       // Client summary table for completed contracts
@@ -726,7 +734,12 @@ async function initMysqlTables(pool) {
       `ALTER TABLE system_settings MODIFY COLUMN setting_value LONGTEXT NULL`,
       `ALTER TABLE system_settings MODIFY COLUMN description TEXT NULL`,
     ];
-    for (const stmt of [...formAlters, ...instanceAlters]) {
+    // Additive column migrations for contract_templates (soft-delete support)
+    const templateAlters = [
+      `ALTER TABLE contract_templates ADD COLUMN is_deleted TINYINT(1) NOT NULL DEFAULT 0`,
+      `ALTER TABLE contract_templates ADD COLUMN deleted_at TIMESTAMP NULL DEFAULT NULL`,
+    ];
+    for (const stmt of [...formAlters, ...instanceAlters, ...templateAlters]) {
       try { await pool.execute(stmt); } catch (e) { /* column already exists — skip */ }
     }
 

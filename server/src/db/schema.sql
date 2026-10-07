@@ -47,6 +47,8 @@ CREATE TABLE IF NOT EXISTS contract_templates (
   current_version        INT          NOT NULL DEFAULT 1,
   is_active              BOOLEAN      NOT NULL DEFAULT TRUE,
   validity_days          INT          NOT NULL DEFAULT 7,
+  is_deleted             BOOLEAN      NOT NULL DEFAULT FALSE,
+  deleted_at             TIMESTAMP    NULL DEFAULT NULL,
   document_schema_json   JSON         NOT NULL COMMENT 'Clause blocks, dynamic tokens, conditional sections',
   conditional_rules_json JSON         NULL     COMMENT 'Clause inclusion/exclusion logic (shared condition engine)',
   creation_rules_json    JSON         NULL     COMMENT 'Webhook opportunity matching criteria',

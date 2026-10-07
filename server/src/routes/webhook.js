@@ -183,6 +183,7 @@ async function findMatchingTemplate(locationId, ghlContact, ghlOpportunity, trig
      FROM contract_templates t
      LEFT JOIN contract_forms f ON f.id = t.form_id
      WHERE t.location_id = ? AND t.is_active = TRUE
+       AND (t.is_deleted = 0 OR t.is_deleted IS NULL) AND t.deleted_at IS NULL
      ORDER BY t.id ASC`,
     [locationId]
   );

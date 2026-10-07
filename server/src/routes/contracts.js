@@ -294,7 +294,9 @@ router.post('/manual', requirePermission('contract:create'), async (req, res) =>
        LEFT JOIN contract_forms cf ON cf.id = ct.form_id
        WHERE ct.id = ? 
          AND (ct.location_id = ? OR ct.location_id = 'loc_default_001' OR ct.location_id = 'GLOBAL' OR LOWER(ct.location_id) = LOWER(?)) 
-         AND ct.is_active = TRUE`,
+         AND ct.is_active = TRUE
+         AND (ct.is_deleted = 0 OR ct.is_deleted IS NULL)
+         AND ct.deleted_at IS NULL`,
       [templateId, locationId, locationId]
     );
     if (!templates.length) return res.status(404).json({ error: 'Template not found.' });

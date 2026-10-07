@@ -11,8 +11,34 @@ const { loadAppUser, requirePermission } = require('../middleware/rbac');
 
 router.use(ghlAuthMiddleware, loadAppUser);
 
+let deletionColumnsChecked = false;
+async function ensureTemplateDeletionColumns() {
+  if (deletionColumnsChecked) return;
+  try {
+    await db.execute('ALTER TABLE contract_templates ADD COLUMN is_deleted TINYINT(1) NOT NULL DEFAULT 0');
+  } catch (e) {
+    try { await db.execute('ALTER TABLE contract_templates ADD COLUMN is_deleted INTEGER DEFAULT 0'); } catch (e2) {}
+  }
+  try {
+    await db.execute('ALTER TABLE contract_templates ADD COLUMN deleted_at TIMESTAMP NULL DEFAULT NULL');
+  } catch (e) {
+    try { await db.execute('ALTER TABLE contract_templates ADD COLUMN deleted_at DATETIME NULL'); } catch (e2) {}
+  }
+  deletionColumnsChecked = true;
+}
+
 async function ensureLocationStarterTemplates(locationId, userId = 'user_admin_001') {
   try {
+    // Check if location EVER had any templates (even if soft-deleted)
+    const [existingEver] = await db.execute(
+      `SELECT id FROM contract_templates 
+       WHERE location_id = ? OR LOWER(location_id) = LOWER(?) LIMIT 1`,
+      [locationId, locationId]
+    );
+    if (existingEver && existingEver.length > 0) {
+      return;
+    }
+
     // 1. Ensure intake form exists for this location
     let [forms] = await db.execute(
       'SELECT id FROM contract_forms WHERE location_id = ? LIMIT 1',
@@ -157,6 +183,7 @@ async function ensureLocationStarterTemplates(locationId, userId = 'user_admin_0
 // ─── GET /api/templates — List templates for location ────────────────────────
 router.get('/', async (req, res) => {
   try {
+    await ensureTemplateDeletionColumns();
     const { locationId, userId } = req.ghlUser;
     let [templates] = await db.execute(
       `SELECT ct.id, ct.name, ct.contract_type, ct.current_version, ct.is_active,
@@ -164,10 +191,12 @@ router.get('/', async (req, res) => {
               cf.name AS form_name
        FROM contract_templates ct
        LEFT JOIN contract_forms cf ON cf.id = ct.form_id
-       WHERE ct.location_id = ? 
+       WHERE (ct.location_id = ? 
           OR ct.location_id = 'loc_default_001' 
           OR ct.location_id = 'GLOBAL'
-          OR LOWER(ct.location_id) = LOWER(?)
+          OR LOWER(ct.location_id) = LOWER(?))
+         AND (ct.is_deleted = 0 OR ct.is_deleted IS NULL)
+         AND ct.deleted_at IS NULL
        ORDER BY ct.id DESC`,
       [locationId, locationId]
     );
@@ -181,10 +210,12 @@ router.get('/', async (req, res) => {
                 cf.name AS form_name
          FROM contract_templates ct
          LEFT JOIN contract_forms cf ON cf.id = ct.form_id
-         WHERE ct.location_id = ? 
+         WHERE (ct.location_id = ? 
             OR ct.location_id = 'loc_default_001' 
             OR ct.location_id = 'GLOBAL'
-            OR LOWER(ct.location_id) = LOWER(?)
+            OR LOWER(ct.location_id) = LOWER(?))
+           AND (ct.is_deleted = 0 OR ct.is_deleted IS NULL)
+           AND ct.deleted_at IS NULL
          ORDER BY ct.id DESC`,
         [locationId, locationId]
       );
@@ -209,6 +240,7 @@ router.get('/', async (req, res) => {
 // ?ids=1,2,3  → only those templates; omitted → every template in the location
 router.get('/export', async (req, res) => {
   try {
+    await ensureTemplateDeletionColumns();
     const { locationId, userId } = req.ghlUser;
     const bundleService = require('../services/templateBundleService');
 
@@ -220,7 +252,9 @@ router.get('/export', async (req, res) => {
     let sql = `SELECT ct.*, cf.name AS form_name, cf.description AS form_description, cf.schema_json AS form_schema
                FROM contract_templates ct
                LEFT JOIN contract_forms cf ON cf.id = ct.form_id
-               WHERE (ct.location_id = ? OR ct.location_id = 'loc_default_001' OR ct.location_id = 'GLOBAL' OR LOWER(ct.location_id) = LOWER(?))`;
+               WHERE (ct.location_id = ? OR ct.location_id = 'loc_default_001' OR ct.location_id = 'GLOBAL' OR LOWER(ct.location_id) = LOWER(?))
+                 AND (ct.is_deleted = 0 OR ct.is_deleted IS NULL)
+                 AND ct.deleted_at IS NULL`;
     const params = [locationId, locationId];
     if (ids.length) {
       sql += ` AND ct.id IN (${ids.map(() => '?').join(',')})`;
@@ -297,7 +331,9 @@ router.post(
     // Existing templates in this location, keyed by lowercase name
     const [existingRows] = await db.execute(
       `SELECT id, name, current_version FROM contract_templates
-       WHERE location_id = ? OR location_id = 'loc_default_001' OR location_id = 'GLOBAL' OR LOWER(location_id) = LOWER(?)
+       WHERE (location_id = ? OR location_id = 'loc_default_001' OR location_id = 'GLOBAL' OR LOWER(location_id) = LOWER(?))
+         AND (is_deleted = 0 OR is_deleted IS NULL)
+         AND deleted_at IS NULL
        ORDER BY id DESC`,
       [locationId, locationId]
     );
@@ -430,12 +466,15 @@ router.post(
 // ─── GET /api/templates/:id — Get full template definition ───────────────────
 router.get('/:id', async (req, res) => {
   try {
+    await ensureTemplateDeletionColumns();
     const { locationId } = req.ghlUser;
     const [rows] = await db.execute(
       `SELECT ct.*, cf.name AS form_name, cf.schema_json AS form_schema
        FROM contract_templates ct
        LEFT JOIN contract_forms cf ON cf.id = ct.form_id
-       WHERE ct.id = ?`,
+       WHERE ct.id = ?
+         AND (ct.is_deleted = 0 OR ct.is_deleted IS NULL)
+         AND ct.deleted_at IS NULL`,
       [req.params.id]
     );
 
@@ -602,7 +641,10 @@ router.put('/:id', requirePermission('template:edit'), async (req, res) => {
 
     const [existing] = await db.execute(
       `SELECT id, current_version, location_id FROM contract_templates 
-       WHERE id = ? AND (location_id = ? OR location_id = 'loc_default_001' OR location_id = 'GLOBAL' OR LOWER(location_id) = LOWER(?))`,
+       WHERE id = ? 
+         AND (location_id = ? OR location_id = 'loc_default_001' OR location_id = 'GLOBAL' OR LOWER(location_id) = LOWER(?))
+         AND (is_deleted = 0 OR is_deleted IS NULL)
+         AND deleted_at IS NULL`,
       [templateId, locationId, locationId]
     );
     if (!existing.length) return res.status(404).json({ error: 'Template not found.' });
@@ -667,6 +709,7 @@ router.put('/:id', requirePermission('template:edit'), async (req, res) => {
 // ─── GET /api/templates/:id/versions — Get version history ────────────────────
 router.get('/:id/versions', async (req, res) => {
   try {
+    await ensureTemplateDeletionColumns();
     const { locationId } = req.ghlUser;
     const [versions] = await db.execute(
       `SELECT ctv.id, ctv.version_number, ctv.change_summary, ctv.created_by, ctv.created_at
@@ -674,6 +717,8 @@ router.get('/:id/versions', async (req, res) => {
        JOIN contract_templates ct ON ct.id = ctv.template_id
        WHERE ctv.template_id = ? 
          AND (ct.location_id = ? OR ct.location_id = 'loc_default_001' OR ct.location_id = 'GLOBAL' OR LOWER(ct.location_id) = LOWER(?))
+         AND (ct.is_deleted = 0 OR ct.is_deleted IS NULL)
+         AND ct.deleted_at IS NULL
        ORDER BY ctv.version_number DESC`,
       [req.params.id, locationId, locationId]
     );
@@ -688,11 +733,14 @@ router.get('/:id/versions', async (req, res) => {
 // ─── POST /api/templates/:id/duplicate — Duplicate template ───────────────────
 router.post('/:id/duplicate', requirePermission('template:create'), async (req, res) => {
   try {
+    await ensureTemplateDeletionColumns();
     const { locationId, userId } = req.ghlUser;
     const [rows] = await db.execute(
       `SELECT * FROM contract_templates 
        WHERE id = ? 
-         AND (location_id = ? OR location_id = 'loc_default_001' OR location_id = 'GLOBAL' OR LOWER(location_id) = LOWER(?))`,
+         AND (location_id = ? OR location_id = 'loc_default_001' OR location_id = 'GLOBAL' OR LOWER(location_id) = LOWER(?))
+         AND (is_deleted = 0 OR is_deleted IS NULL)
+         AND deleted_at IS NULL`,
       [req.params.id, locationId, locationId]
     );
     if (!rows.length) return res.status(404).json({ error: 'Template not found.' });
@@ -729,22 +777,63 @@ router.post('/:id/duplicate', requirePermission('template:create'), async (req, 
 // ─── DELETE /api/templates/:id — Delete template ─────────────────────────────
 router.delete('/:id', requirePermission('template:delete'), async (req, res) => {
   try {
+    await ensureTemplateDeletionColumns();
     const { locationId } = req.ghlUser;
     const [existing] = await db.execute(
       `SELECT id FROM contract_templates 
        WHERE id = ? 
-         AND (location_id = ? OR location_id = 'loc_default_001' OR location_id = 'GLOBAL' OR LOWER(location_id) = LOWER(?))`,
+         AND (location_id = ? OR location_id = 'loc_default_001' OR location_id = 'GLOBAL' OR LOWER(location_id) = LOWER(?))
+         AND (is_deleted = 0 OR is_deleted IS NULL)
+         AND deleted_at IS NULL`,
       [req.params.id, locationId, locationId]
     );
     if (!existing.length) return res.status(404).json({ error: 'Template not found.' });
 
-    await db.execute('DELETE FROM contract_template_versions WHERE template_id = ?', [req.params.id]);
-    await db.execute('DELETE FROM contract_templates WHERE id = ?', [req.params.id]);
+    // Check if any contract instances reference this template
+    let instanceCount = 0;
+    try {
+      const [instances] = await db.execute(
+        'SELECT COUNT(*) AS count FROM contract_instances WHERE template_id = ?',
+        [req.params.id]
+      );
+      instanceCount = Number(instances[0]?.count || 0);
+    } catch (cntErr) {
+      console.warn('[Templates] Could not count contract instances for template:', cntErr.message);
+    }
 
-    res.json({ success: true, message: 'Template deleted successfully.' });
+    if (instanceCount > 0) {
+      // Contract instances exist that reference this template.
+      // Soft-delete to preserve legal contracts and audit history without FK violations.
+      await db.execute(
+        `UPDATE contract_templates 
+         SET is_active = FALSE, is_deleted = 1, deleted_at = NOW() 
+         WHERE id = ?`,
+        [req.params.id]
+      );
+      return res.json({ 
+        success: true, 
+        message: 'Template deleted successfully. Historical contracts remain securely archived.' 
+      });
+    }
+
+    // No contract instances reference this template: attempt hard delete with fallback
+    try {
+      await db.execute('DELETE FROM contract_template_versions WHERE template_id = ?', [req.params.id]);
+      await db.execute('DELETE FROM contract_templates WHERE id = ?', [req.params.id]);
+      return res.json({ success: true, message: 'Template deleted successfully.' });
+    } catch (deleteErr) {
+      console.warn('[Templates] Hard delete failed, falling back to soft delete:', deleteErr.message);
+      await db.execute(
+        `UPDATE contract_templates 
+         SET is_active = FALSE, is_deleted = 1, deleted_at = NOW() 
+         WHERE id = ?`,
+        [req.params.id]
+      );
+      return res.json({ success: true, message: 'Template deleted successfully.' });
+    }
   } catch (err) {
     console.error('[Templates] Delete error:', err.message);
-    res.status(500).json({ error: 'Failed to delete template.' });
+    res.status(500).json({ error: 'Failed to delete template: ' + err.message });
   }
 });
 

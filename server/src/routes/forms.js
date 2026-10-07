@@ -21,7 +21,7 @@ router.get('/', async (req, res) => {
       `SELECT cf.id, cf.name, cf.description, cf.form_mode, cf.settings_json, cf.schema_json, cf.created_by, cf.created_at, cf.updated_at,
               COUNT(DISTINCT ct.id) AS template_usage_count
        FROM contract_forms cf
-       LEFT JOIN contract_templates ct ON ct.form_id = cf.id
+       LEFT JOIN contract_templates ct ON ct.form_id = cf.id AND (ct.is_deleted = 0 OR ct.is_deleted IS NULL) AND ct.deleted_at IS NULL
        WHERE (cf.location_id = ?
           OR cf.location_id = 'loc_default_001'
           OR cf.location_id = 'GLOBAL'
