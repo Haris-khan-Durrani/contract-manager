@@ -254,17 +254,19 @@
           <span class="info-v">{{ ghlOpportunity?.name || contract.ghl_opportunity_id }}</span>
         </div>
 
-        <div class="info-pill">
+        <div class="info-pill" :title="contract.created_at ? 'Local: ' + formatDateTime(contract.created_at) + ' | GMT: ' + formatGmtDateTime(contract.created_at) : ''">
           <span class="info-k">Created:</span>
           <span class="info-v">{{ formatDate(contract.created_at) }}</span>
         </div>
 
-        <div class="info-pill" v-if="contract.token_expires_at && ['SENT', 'VIEWED'].includes(contract.state)">
+        <div class="info-pill" v-if="contract.token_expires_at && ['SENT', 'VIEWED'].includes(contract.state)"
+             :title="contract.token_expires_at ? 'Local: ' + formatDateTime(contract.token_expires_at) + ' | GMT: ' + formatGmtDateTime(contract.token_expires_at) : ''">
           <span class="info-k">Expires:</span>
           <span class="info-v text-warning">{{ formatDate(contract.token_expires_at) }}</span>
         </div>
 
-        <div class="info-pill" v-if="contract.signed_at">
+        <div class="info-pill" v-if="contract.signed_at"
+             :title="contract.signed_at ? 'Local: ' + formatDateTime(contract.signed_at) + ' | GMT: ' + formatGmtDateTime(contract.signed_at) : ''">
           <span class="info-k">Signed:</span>
           <span class="info-v text-success">{{ formatDate(contract.signed_at) }}</span>
         </div>
@@ -521,7 +523,16 @@
               <div class="timeline-content">
                 <div class="timeline-top">
                   <strong>{{ formatAuditAction(log.action) }}</strong>
-                  <span class="timeline-time">{{ formatDateTime(log.created_at) }}</span>
+                  <div class="rt-time-block">
+                    <span class="rt-time" :title="'Local: ' + formatDateTime(log.created_at) + (localTzAbbr ? ' (' + localTzAbbr + ')' : '')">
+                      {{ formatDateTime(log.created_at) }}
+                      <span v-if="isSameAsGmt(log.created_at)" class="rt-gmt-pill">GMT</span>
+                    </span>
+                    <span v-if="!isSameAsGmt(log.created_at)" class="rt-time-gmt" :title="'GMT: ' + formatGmtDateTime(log.created_at)">
+                      <span class="rt-gmt-pill">GMT</span>
+                      {{ formatGmtDateTime(log.created_at) }}
+                    </span>
+                  </div>
                 </div>
                 <div class="timeline-meta text-muted small-text">
                   <span>Actor: <strong>{{ log.actor_name || log.actor_id }}</strong> ({{ log.actor_type }})</span>
@@ -542,7 +553,7 @@
           <div class="submissions-header">
             <div>
               <h3>Activity Timeline</h3>
-              <p class="text-muted">Full event history — client actions and staff operations combined.</p>
+              <p class="text-muted">Full event history — client actions and staff operations combined (Local &amp; GMT).</p>
             </div>
             <button class="btn btn-secondary btn-sm" @click="fetchTimeline">Refresh</button>
           </div>
@@ -571,7 +582,16 @@
                       {{ evt.action }}
                     </span>
                   </div>
-                  <span class="rt-time">{{ formatDateTime(evt.createdAt || evt.created_at) }}</span>
+                  <div class="rt-time-block">
+                    <span class="rt-time" :title="'Local: ' + formatDateTime(evt.createdAt || evt.created_at) + (localTzAbbr ? ' (' + localTzAbbr + ')' : '')">
+                      {{ formatDateTime(evt.createdAt || evt.created_at) }}
+                      <span v-if="isSameAsGmt(evt.createdAt || evt.created_at)" class="rt-gmt-pill">GMT</span>
+                    </span>
+                    <span v-if="!isSameAsGmt(evt.createdAt || evt.created_at)" class="rt-time-gmt" :title="'GMT: ' + formatGmtDateTime(evt.createdAt || evt.created_at)">
+                      <span class="rt-gmt-pill">GMT</span>
+                      {{ formatGmtDateTime(evt.createdAt || evt.created_at) }}
+                    </span>
+                  </div>
                 </div>
                 <div class="rt-meta">
                   <span v-if="evt.actorName" class="rt-actor">
@@ -1280,15 +1300,60 @@ function formatDate(d) {
 
 function formatDateTime(d) {
   if (!d) return ''
-  return new Date(d).toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  })
+  try {
+    const date = new Date(d)
+    if (isNaN(date.getTime())) return String(d)
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    })
+  } catch {
+    return String(d)
+  }
 }
+
+function formatGmtDateTime(d) {
+  if (!d) return ''
+  try {
+    const date = new Date(d)
+    if (isNaN(date.getTime())) return ''
+    return date.toLocaleString('en-US', {
+      timeZone: 'UTC',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    })
+  } catch {
+    return ''
+  }
+}
+
+function isSameAsGmt(d) {
+  if (!d) return true
+  try {
+    const date = new Date(d)
+    return date.getTimezoneOffset() === 0
+  } catch {
+    return true
+  }
+}
+
+const localTzAbbr = computed(() => {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', { timeZoneName: 'short' }).formatToParts(new Date())
+    const tz = parts.find(p => p.type === 'timeZoneName')?.value
+    return tz || ''
+  } catch {
+    return ''
+  }
+})
 
 function printDocument() {
   const content = renderedContractHtml.value || (document.querySelector('.paper-document')?.innerHTML || '')
@@ -1697,6 +1762,7 @@ onMounted(() => {
 .timeline-top {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
   margin-bottom: 2px;
 }
 
@@ -1798,7 +1864,7 @@ onMounted(() => {
 .rt-top {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 6px;
@@ -1825,10 +1891,46 @@ onMounted(() => {
   border-radius: 12px;
 }
 
+.rt-time-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
 .rt-time {
-  font-size: 0.78rem;
+  font-size: 0.8rem;
+  color: var(--color-text-main);
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.rt-time-gmt {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.74rem;
   color: var(--color-text-muted);
   font-weight: 500;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.rt-gmt-pill {
+  display: inline-block;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--color-bg-subtle, #f1f5f9);
+  color: var(--color-text-muted, #475569);
+  border: 1px solid var(--color-border, #e2e8f0);
+  line-height: 1.2;
 }
 
 .rt-meta {

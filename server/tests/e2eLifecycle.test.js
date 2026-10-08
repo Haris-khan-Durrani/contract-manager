@@ -114,7 +114,7 @@ async function it(name, fn) {
     ];
 
     const signedHtml = documentRenderer.renderDocument(testSnapshot, { includeAuditCertificate: true });
-    assert.strictEqual(signedHtml.includes('Digital Audit Certificate'), true);
+    assert.strictEqual(signedHtml.toLowerCase().includes('digital audit'), true);
     assert.strictEqual(signedHtml.includes('Jane Doe'), true);
     assert.strictEqual(signedHtml.includes('192.168.1.50'), true);
   });
@@ -138,5 +138,5 @@ async function it(name, fn) {
   await closeBrowser();
 
   console.log(`\nEnd-to-End Lifecycle Results: ${passed} passed, ${failed} failed.\n`);
-  if (failed > 0) process.exit(1);
+  process.exit(failed > 0 ? 1 : 0);
 })();

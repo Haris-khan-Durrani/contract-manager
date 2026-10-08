@@ -221,4 +221,4 @@ scenario(20, 'Cancellation on already COMPLETED contract is blocked', () => {
 });
 
 console.log(`\nEdge-Case Security Matrix: ${passed}/20 passed, ${failed} failed.\n`);
-if (failed > 0) process.exit(1);
+process.exit(failed > 0 ? 1 : 0);

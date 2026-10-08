@@ -146,7 +146,7 @@
               <div v-for="(log, i) in data.auditTimeline" :key="i" class="audit-mini-item">
                 <span class="audit-dot" :class="log.action.includes('COMPLETE') ? 'dot-green' : log.action.includes('SIGN') ? 'dot-emerald' : 'dot-blue'"></span>
                 <span class="audit-action">{{ formatAction(log.action) }}</span>
-                <span class="audit-ts">{{ formatDate(log.timestamp) }}</span>
+                <span class="audit-ts" :title="'GMT: ' + formatGmt(log.timestamp)">{{ formatDate(log.timestamp) }}</span>
               </div>
             </div>
           </div>
@@ -236,6 +236,15 @@ function formatDate(iso) {
     const d = new Date(iso)
     return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) +
       ' ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+  } catch { return String(iso) }
+}
+
+function formatGmt(iso) {
+  if (!iso) return '—'
+  try {
+    const d = new Date(iso)
+    return d.toLocaleDateString('en-GB', { timeZone: 'UTC', day: 'numeric', month: 'short', year: 'numeric' }) +
+      ' ' + d.toLocaleTimeString('en-GB', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit' }) + ' GMT'
   } catch { return String(iso) }
 }
 
