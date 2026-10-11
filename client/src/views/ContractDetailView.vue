@@ -254,19 +254,19 @@
           <span class="info-v">{{ ghlOpportunity?.name || contract.ghl_opportunity_id }}</span>
         </div>
 
-        <div class="info-pill" :title="contract.created_at ? 'Local: ' + formatDateTime(contract.created_at) + ' | GMT: ' + formatGmtDateTime(contract.created_at) : ''">
+        <div class="info-pill" :title="contract.created_at ? 'UAE: ' + formatUaeDateTime(contract.created_at) + ' | Client: ' + formatClientDateTime(contract.created_at) + ' | GMT: ' + formatGmtDateTime(contract.created_at) : ''">
           <span class="info-k">Created:</span>
           <span class="info-v">{{ formatDate(contract.created_at) }}</span>
         </div>
 
         <div class="info-pill" v-if="contract.token_expires_at && ['SENT', 'VIEWED'].includes(contract.state)"
-             :title="contract.token_expires_at ? 'Local: ' + formatDateTime(contract.token_expires_at) + ' | GMT: ' + formatGmtDateTime(contract.token_expires_at) : ''">
+             :title="contract.token_expires_at ? 'UAE: ' + formatUaeDateTime(contract.token_expires_at) + ' | Client: ' + formatClientDateTime(contract.token_expires_at) + ' | GMT: ' + formatGmtDateTime(contract.token_expires_at) : ''">
           <span class="info-k">Expires:</span>
           <span class="info-v text-warning">{{ formatDate(contract.token_expires_at) }}</span>
         </div>
 
         <div class="info-pill" v-if="contract.signed_at"
-             :title="contract.signed_at ? 'Local: ' + formatDateTime(contract.signed_at) + ' | GMT: ' + formatGmtDateTime(contract.signed_at) : ''">
+             :title="contract.signed_at ? 'UAE: ' + formatUaeDateTime(contract.signed_at) + ' | Client: ' + formatClientDateTime(contract.signed_at) + ' | GMT: ' + formatGmtDateTime(contract.signed_at) : ''">
           <span class="info-k">Signed:</span>
           <span class="info-v text-success">{{ formatDate(contract.signed_at) }}</span>
         </div>
@@ -524,14 +524,23 @@
                 <div class="timeline-top">
                   <strong>{{ formatAuditAction(log.action) }}</strong>
                   <div class="rt-time-block">
-                    <span class="rt-time" :title="'Local: ' + formatDateTime(log.created_at) + (localTzAbbr ? ' (' + localTzAbbr + ')' : '')">
-                      {{ formatDateTime(log.created_at) }}
-                      <span v-if="isSameAsGmt(log.created_at)" class="rt-gmt-pill">GMT</span>
-                    </span>
-                    <span v-if="!isSameAsGmt(log.created_at)" class="rt-time-gmt" :title="'GMT: ' + formatGmtDateTime(log.created_at)">
-                      <span class="rt-gmt-pill">GMT</span>
-                      {{ formatGmtDateTime(log.created_at) }}
-                    </span>
+                    <!-- UAE Time -->
+                    <div class="rt-time-row uae-row" :title="'UAE Time (Gulf Standard Time, UTC+4)'">
+                      <span class="rt-badge-tz uae-tz">{{ isUaeTimeSameAsClient ? 'UAE & Client' : 'UAE' }}</span>
+                      <span class="rt-time-val">{{ formatUaeDateTime(log.created_at) }}</span>
+                    </div>
+
+                    <!-- Client Time (if different from UAE) -->
+                    <div v-if="!isUaeTimeSameAsClient" class="rt-time-row client-row" :title="'Client Local Time: ' + clientTzLabel(log.created_at)">
+                      <span class="rt-badge-tz client-tz">Client ({{ clientTzAbbr(log.created_at) }})</span>
+                      <span class="rt-time-val">{{ formatClientDateTime(log.created_at) }}</span>
+                    </div>
+
+                    <!-- GMT Time -->
+                    <div class="rt-time-row gmt-row" :title="'Greenwich Mean Time (UTC)'">
+                      <span class="rt-badge-tz gmt-tz">GMT</span>
+                      <span class="rt-time-val">{{ formatGmtDateTime(log.created_at) }}</span>
+                    </div>
                   </div>
                 </div>
                 <div class="timeline-meta text-muted small-text">
@@ -553,9 +562,33 @@
           <div class="submissions-header">
             <div>
               <h3>Activity Timeline</h3>
-              <p class="text-muted">Full event history — client actions and staff operations combined (Local &amp; GMT).</p>
+              <p class="text-muted">
+                Full event history — tracked across 
+                <strong style="color: #065f46;">UAE Time</strong>, 
+                <strong style="color: #0369a1;">Client Time</strong> ({{ activeClientTzLabel }}), and 
+                <strong style="color: #64748b;">GMT</strong>.
+              </p>
             </div>
-            <button class="btn btn-secondary btn-sm" @click="fetchTimeline">Refresh</button>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <select v-model="selectedClientTz" class="tz-select" title="Switch Client Timezone">
+                <option value="AUTO">Auto Client ({{ autoClientTzLabel }})</option>
+                <option value="Asia/Dubai">🇦🇪 UAE (GST, +04:00)</option>
+                <option value="Europe/London">🇬🇧 London (GMT/BST)</option>
+                <option value="America/New_York">🇺🇸 New York (EDT/EST, -04:00)</option>
+                <option value="America/Chicago">🇺🇸 Chicago (CDT/CST, -05:00)</option>
+                <option value="America/Los_Angeles">🇺🇸 Los Angeles (PDT/PST, -07:00)</option>
+                <option value="Asia/Riyadh">🇸🇦 Saudi Arabia (AST, +03:00)</option>
+                <option value="Asia/Qatar">🇶🇦 Qatar (+03:00)</option>
+                <option value="Asia/Karachi">🇵🇰 Pakistan (PKT, +05:00)</option>
+                <option value="Asia/Kolkata">🇮🇳 India (IST, +05:30)</option>
+                <option value="Asia/Manila">🇵🇭 Philippines (PHT, +08:00)</option>
+                <option value="Asia/Singapore">🇸🇬 Singapore (SGT, +08:00)</option>
+                <option value="Australia/Sydney">🇦🇺 Sydney (AEST, +10:00)</option>
+                <option value="Europe/Paris">🇫🇷 Paris/CET (+01:00)</option>
+                <option value="UTC">🌐 UTC / GMT</option>
+              </select>
+              <button class="btn btn-secondary btn-sm" @click="fetchTimeline">Refresh</button>
+            </div>
           </div>
 
           <div v-if="loadingTimeline" style="text-align:center; padding:32px;">
@@ -583,14 +616,23 @@
                     </span>
                   </div>
                   <div class="rt-time-block">
-                    <span class="rt-time" :title="'Local: ' + formatDateTime(evt.createdAt || evt.created_at) + (localTzAbbr ? ' (' + localTzAbbr + ')' : '')">
-                      {{ formatDateTime(evt.createdAt || evt.created_at) }}
-                      <span v-if="isSameAsGmt(evt.createdAt || evt.created_at)" class="rt-gmt-pill">GMT</span>
-                    </span>
-                    <span v-if="!isSameAsGmt(evt.createdAt || evt.created_at)" class="rt-time-gmt" :title="'GMT: ' + formatGmtDateTime(evt.createdAt || evt.created_at)">
-                      <span class="rt-gmt-pill">GMT</span>
-                      {{ formatGmtDateTime(evt.createdAt || evt.created_at) }}
-                    </span>
+                    <!-- UAE Time -->
+                    <div class="rt-time-row uae-row" :title="'UAE Time (Gulf Standard Time, UTC+4)'">
+                      <span class="rt-badge-tz uae-tz">{{ isUaeTimeSameAsClient ? 'UAE & Client' : 'UAE' }}</span>
+                      <span class="rt-time-val">{{ formatUaeDateTime(evt.createdAt || evt.created_at) }}</span>
+                    </div>
+
+                    <!-- Client Time (if different from UAE) -->
+                    <div v-if="!isUaeTimeSameAsClient" class="rt-time-row client-row" :title="'Client Local Time: ' + clientTzLabel(evt.createdAt || evt.created_at)">
+                      <span class="rt-badge-tz client-tz">Client ({{ clientTzAbbr(evt.createdAt || evt.created_at) }})</span>
+                      <span class="rt-time-val">{{ formatClientDateTime(evt.createdAt || evt.created_at) }}</span>
+                    </div>
+
+                    <!-- GMT Time -->
+                    <div class="rt-time-row gmt-row" :title="'Greenwich Mean Time (UTC)'">
+                      <span class="rt-badge-tz gmt-tz">GMT</span>
+                      <span class="rt-time-val">{{ formatGmtDateTime(evt.createdAt || evt.created_at) }}</span>
+                    </div>
                   </div>
                 </div>
                 <div class="rt-meta">
@@ -1298,12 +1340,80 @@ function formatDate(d) {
   })
 }
 
-function formatDateTime(d) {
+const UAE_TIMEZONE = 'Asia/Dubai'
+const selectedClientTz = ref('AUTO')
+
+const detectedClientTz = computed(() => {
+  return ghlContact.value?.timezone ||
+         contract.value?.client_timezone ||
+         contract.value?.snapshot?.ghlContact?.timezone ||
+         contract.value?.snapshot?.contact?.timezone ||
+         Intl.DateTimeFormat().resolvedOptions().timeZone ||
+         'Asia/Dubai'
+})
+
+const activeClientTz = computed(() => {
+  return selectedClientTz.value === 'AUTO' ? detectedClientTz.value : selectedClientTz.value
+})
+
+const autoClientTzLabel = computed(() => {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', { timeZone: detectedClientTz.value, timeZoneName: 'short' }).formatToParts(new Date())
+    const abbr = parts.find(p => p.type === 'timeZoneName')?.value || ''
+    const contactName = ghlContact.value?.name ? ` • ${ghlContact.value.name}` : ''
+    return `${abbr || detectedClientTz.value}${contactName}`
+  } catch {
+    return detectedClientTz.value
+  }
+})
+
+const activeClientTzLabel = computed(() => {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', { timeZone: activeClientTz.value, timeZoneName: 'short' }).formatToParts(new Date())
+    const abbr = parts.find(p => p.type === 'timeZoneName')?.value || ''
+    return abbr ? `${abbr} (${activeClientTz.value})` : activeClientTz.value
+  } catch {
+    return activeClientTz.value
+  }
+})
+
+const isUaeTimeSameAsClient = computed(() => {
+  try {
+    const now = new Date()
+    const uaeStr = now.toLocaleString('en-US', { timeZone: UAE_TIMEZONE, hour: '2-digit', minute: '2-digit' })
+    const clientStr = now.toLocaleString('en-US', { timeZone: activeClientTz.value, hour: '2-digit', minute: '2-digit' })
+    return uaeStr === clientStr
+  } catch {
+    return activeClientTz.value === UAE_TIMEZONE
+  }
+})
+
+function formatUaeDateTime(d) {
   if (!d) return ''
   try {
     const date = new Date(d)
     if (isNaN(date.getTime())) return String(d)
     return date.toLocaleString('en-US', {
+      timeZone: UAE_TIMEZONE,
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    })
+  } catch {
+    return String(d)
+  }
+}
+
+function formatClientDateTime(d) {
+  if (!d) return ''
+  try {
+    const date = new Date(d)
+    if (isNaN(date.getTime())) return String(d)
+    return date.toLocaleString('en-US', {
+      timeZone: activeClientTz.value,
       month: 'short',
       day: 'numeric',
       year: 'numeric',
@@ -1335,25 +1445,24 @@ function formatGmtDateTime(d) {
   }
 }
 
-function isSameAsGmt(d) {
-  if (!d) return true
+function clientTzAbbr(d) {
   try {
-    const date = new Date(d)
-    return date.getTimezoneOffset() === 0
-  } catch {
-    return true
-  }
-}
-
-const localTzAbbr = computed(() => {
-  try {
-    const parts = new Intl.DateTimeFormat('en-US', { timeZoneName: 'short' }).formatToParts(new Date())
-    const tz = parts.find(p => p.type === 'timeZoneName')?.value
-    return tz || ''
+    const date = d ? new Date(d) : new Date()
+    const parts = new Intl.DateTimeFormat('en-US', { timeZone: activeClientTz.value, timeZoneName: 'short' }).formatToParts(date)
+    return parts.find(p => p.type === 'timeZoneName')?.value || activeClientTz.value
   } catch {
     return ''
   }
-})
+}
+
+function clientTzLabel(d) {
+  const abbr = clientTzAbbr(d)
+  return `${activeClientTz.value}${abbr ? ' • ' + abbr : ''}`
+}
+
+function formatDateTime(d) {
+  return formatUaeDateTime(d)
+}
 
 function printDocument() {
   const content = renderedContractHtml.value || (document.querySelector('.paper-document')?.innerHTML || '')
@@ -1900,37 +2009,70 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
-.rt-time {
-  font-size: 0.8rem;
-  color: var(--color-text-main);
-  font-weight: 600;
-  line-height: 1.25;
-  white-space: nowrap;
-}
-
-.rt-time-gmt {
+.rt-time-row {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-size: 0.74rem;
-  color: var(--color-text-muted);
-  font-weight: 500;
+  gap: 6px;
   line-height: 1.25;
   white-space: nowrap;
 }
 
-.rt-gmt-pill {
+.rt-time-row.uae-row {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-main);
+}
+
+.rt-time-row.client-row {
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: #0369a1;
+}
+
+.rt-time-row.gmt-row {
+  font-size: 0.72rem;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.rt-badge-tz {
   display: inline-block;
-  font-size: 0.62rem;
+  font-size: 0.6rem;
   font-weight: 700;
   letter-spacing: 0.4px;
   text-transform: uppercase;
   padding: 1px 5px;
   border-radius: 4px;
+  line-height: 1.2;
+}
+
+.rt-badge-tz.uae-tz {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.rt-badge-tz.client-tz {
+  background: #f0f9ff;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+
+.rt-badge-tz.gmt-tz {
   background: var(--color-bg-subtle, #f1f5f9);
   color: var(--color-text-muted, #475569);
   border: 1px solid var(--color-border, #e2e8f0);
-  line-height: 1.2;
+}
+
+.tz-select {
+  font-size: 0.74rem;
+  padding: 4px 8px;
+  border-radius: var(--radius-md, 6px);
+  border: 1px solid var(--color-border, #cbd5e1);
+  background: var(--color-bg-card, #ffffff);
+  color: var(--color-text-main, #334155);
+  font-weight: 500;
+  cursor: pointer;
 }
 
 .rt-meta {

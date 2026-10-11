@@ -35,6 +35,7 @@ function buildContext(ghlContact, ghlOpportunity, formResponse, systemValues) {
     address:    ghlContact?.address1,
     city:       ghlContact?.city,
     country:    ghlContact?.country,
+    timezone:   ghlContact?.timezone || '',
     // Flatten custom fields into the contact namespace
     ...(ghlContact?.customFields || []).reduce((acc, cf) => {
       acc[cf.id] = cf.value;
