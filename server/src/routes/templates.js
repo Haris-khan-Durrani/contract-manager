@@ -620,6 +620,79 @@ router.post('/import-html', requirePermission('template:create'), async (req, re
   }
 });
 
+// ─── POST /api/templates/bulk-apply-form — Bulk assign intake form to templates ─
+router.post('/bulk-apply-form', requirePermission('template:edit'), async (req, res) => {
+  try {
+    await ensureTemplateDeletionColumns();
+    const { locationId } = req.ghlUser;
+    const { templateIds, formId } = req.body;
+
+    if (!Array.isArray(templateIds) || templateIds.length === 0) {
+      return res.status(400).json({ error: 'templateIds must be a non-empty array of template IDs.' });
+    }
+
+    const cleanTemplateIds = templateIds
+      .map(id => parseInt(id, 10))
+      .filter(id => Number.isInteger(id) && id > 0);
+
+    if (cleanTemplateIds.length === 0) {
+      return res.status(400).json({ error: 'No valid template IDs provided.' });
+    }
+
+    let targetFormId = null;
+    let targetFormName = null;
+
+    if (formId !== null && formId !== undefined && formId !== '' && formId !== 'none') {
+      const parsedFormId = parseInt(formId, 10);
+      if (!Number.isInteger(parsedFormId) || parsedFormId <= 0) {
+        return res.status(400).json({ error: 'Invalid form ID provided.' });
+      }
+
+      // Verify form exists in this location or global/default
+      const [forms] = await db.execute(
+        `SELECT id, name FROM contract_forms 
+         WHERE id = ? 
+           AND (location_id = ? OR location_id = 'loc_default_001' OR location_id = 'GLOBAL' OR LOWER(location_id) = LOWER(?))
+         LIMIT 1`,
+        [parsedFormId, locationId, locationId]
+      );
+
+      if (!forms || forms.length === 0) {
+        return res.status(404).json({ error: 'Selected intake form not found or inaccessible.' });
+      }
+
+      targetFormId = forms[0].id;
+      targetFormName = forms[0].name;
+    }
+
+    // Update matching templates for the user's location
+    const placeholders = cleanTemplateIds.map(() => '?').join(',');
+    const [result] = await db.execute(
+      `UPDATE contract_templates
+       SET form_id = ?,
+           updated_at = NOW()
+       WHERE id IN (${placeholders})
+         AND (location_id = ? OR location_id = 'loc_default_001' OR location_id = 'GLOBAL' OR LOWER(location_id) = LOWER(?))
+         AND (is_deleted = 0 OR is_deleted IS NULL)
+         AND deleted_at IS NULL`,
+      [targetFormId, ...cleanTemplateIds, locationId, locationId]
+    );
+
+    res.json({
+      success: true,
+      updatedCount: result.affectedRows,
+      formId: targetFormId,
+      formName: targetFormName,
+      message: targetFormId
+        ? `Successfully applied "${targetFormName}" to ${result.affectedRows} template(s).`
+        : `Successfully detached intake form from ${result.affectedRows} template(s).`,
+    });
+  } catch (err) {
+    console.error('[Templates] Bulk apply form error:', err.message);
+    res.status(500).json({ error: 'Failed to bulk apply intake form: ' + err.message });
+  }
+});
+
 // ─── PUT /api/templates/:id — Update template ────────────────────────────────
 router.put('/:id', requirePermission('template:edit'), async (req, res) => {
   try {

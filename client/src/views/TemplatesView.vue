@@ -29,6 +29,20 @@
 
         <button
           class="btn btn-secondary"
+          @click="openBulkApplyFormModal()"
+          :disabled="!templates.length"
+          title="Bulk assign or change intake form across templates"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+            <path d="M9 14l2 2 4-4"/>
+          </svg>
+          Bulk Apply Form
+        </button>
+
+        <button
+          class="btn btn-secondary"
           @click="exportTemplates()"
           :disabled="exporting || !templates.length"
           title="Download every template as a single .zip bundle"
@@ -156,19 +170,33 @@
             </button>
             <button type="button" class="bulk-link" @click="clearSelection">Clear</button>
           </div>
-          <button
-            type="button"
-            class="btn btn-primary btn-sm"
-            :disabled="!!exporting"
-            @click="exportTemplates(selectedIds)"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <polyline points="7 10 12 15 17 10"/>
-              <line x1="12" y1="15" x2="12" y2="3"/>
-            </svg>
-            {{ exporting === 'selected' ? 'Exporting…' : `Export Selected (${selectedIds.length})` }}
-          </button>
+          <div class="bulk-actions-group">
+            <button
+              type="button"
+              class="btn btn-secondary btn-sm btn-bulk-apply"
+              @click="openBulkApplyFormModal(selectedIds)"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+                <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+                <path d="M9 14l2 2 4-4"/>
+              </svg>
+              Apply Intake Form ({{ selectedIds.length }})
+            </button>
+            <button
+              type="button"
+              class="btn btn-primary btn-sm"
+              :disabled="!!exporting"
+              @click="exportTemplates(selectedIds)"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              {{ exporting === 'selected' ? 'Exporting…' : `Export Selected (${selectedIds.length})` }}
+            </button>
+          </div>
         </div>
       </transition>
 
@@ -250,7 +278,7 @@
             </div>
 
             <div class="card-actions-row">
-              <label class="card-select-box" :title="isSelected(t.id) ? 'Deselect' : 'Select for bulk export'" @click.stop>
+              <label class="card-select-box" :title="isSelected(t.id) ? 'Deselect' : 'Select for bulk actions (Export / Apply Form)'" @click.stop>
                 <input type="checkbox" :checked="isSelected(t.id)" @change="toggleSelected(t.id)" />
                 <span class="card-select-mark"></span>
               </label>
@@ -311,16 +339,21 @@
 
           <!-- Structured 2x2 Metadata Grid -->
           <div class="template-meta-grid">
-            <div class="meta-cell" :title="t.form_name || 'Standard Service Intake Form'">
+            <div
+              class="meta-cell meta-cell-clickable"
+              :title="'Intake Form: ' + (t.form_name || 'Standard Intake') + ' — Click to change intake form'"
+              @click.stop="openSingleApplyFormModal(t)"
+            >
               <span class="meta-cell-label">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
                   <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
                 </svg>
                 Intake Form
+                <span class="meta-quick-edit" title="Click to assign form">✎</span>
               </span>
-              <span class="meta-cell-value">
-                {{ t.form_name ? truncateText(t.form_name, 22) : 'Standard Intake' }}
+              <span class="meta-cell-value meta-form-value">
+                {{ t.form_name ? truncateText(t.form_name, 20) : 'Standard Intake' }}
               </span>
             </div>
 
@@ -699,6 +732,209 @@
           <button type="button" class="btn btn-secondary" @click="showDeleteModal = false">Cancel</button>
           <button type="button" class="btn btn-danger" :disabled="deleting" @click="deleteTemplate">
             {{ deleting ? 'Deleting…' : '🗑️ Delete Template' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── BULK APPLY INTAKE FORM MODAL ─────────────────────────────────── -->
+    <div v-if="showBulkFormModal" class="modal-overlay" @click.self="closeBulkFormModal">
+      <div class="modal-card bulk-form-modal animate-fade-in">
+        <div class="modal-header">
+          <div class="modal-header-info">
+            <div class="badge-bulk-tag">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+                <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+                <path d="M9 14l2 2 4-4"/>
+              </svg>
+              Bulk Intake Configuration
+            </div>
+            <h3 class="modal-title" style="margin: 6px 0 2px;">Apply Intake Form</h3>
+            <p class="bulk-modal-sub">
+              Assign or replace the required client questionnaire across multiple templates at once.
+            </p>
+          </div>
+          <button type="button" class="btn-close" @click="closeBulkFormModal">✕</button>
+        </div>
+
+        <!-- Success Alert -->
+        <div v-if="bulkFormSuccessMsg" class="bulk-form-success-alert animate-fade-in">
+          <div class="success-icon">✓</div>
+          <div>
+            <strong>Configuration Saved!</strong>
+            <p style="margin: 2px 0 0;">{{ bulkFormSuccessMsg }}</p>
+          </div>
+        </div>
+
+        <!-- Error Alert -->
+        <div v-if="bulkFormError" class="bulk-form-error-alert animate-fade-in">
+          <div class="error-icon">⚠️</div>
+          <div>
+            <strong>Action Failed</strong>
+            <p style="margin: 2px 0 0;">{{ bulkFormError }}</p>
+          </div>
+        </div>
+
+        <form v-if="!bulkFormSuccessMsg" @submit.prevent="applyBulkForm" class="modal-form bulk-form-body">
+          <!-- Scope Selection Box -->
+          <div class="scope-box">
+            <div class="scope-header">
+              <div class="scope-title">
+                <span class="scope-count-badge">{{ bulkFormTargetIds.length }}</span>
+                <strong>Target Template{{ bulkFormTargetIds.length === 1 ? '' : 's' }}</strong>
+              </div>
+              <div class="scope-actions">
+                <button
+                  type="button"
+                  class="scope-action-btn"
+                  @click="setBulkTargetMode('selected')"
+                  v-if="selectedIds.length && bulkFormTargetIds.length !== selectedIds.length"
+                >
+                  Selected Only ({{ selectedIds.length }})
+                </button>
+                <button
+                  type="button"
+                  class="scope-action-btn"
+                  @click="setBulkTargetMode('visible')"
+                  v-if="bulkFormTargetIds.length !== filteredTemplates.length"
+                >
+                  All Visible ({{ filteredTemplates.length }})
+                </button>
+                <button
+                  type="button"
+                  class="scope-action-btn"
+                  @click="setBulkTargetMode('all')"
+                  v-if="bulkFormTargetIds.length !== templates.length"
+                >
+                  All ({{ templates.length }})
+                </button>
+              </div>
+            </div>
+
+            <!-- Templates preview pills -->
+            <div class="target-templates-scroll">
+              <span
+                v-for="t in targetTemplatesList"
+                :key="t.id"
+                class="target-template-chip"
+                :title="'Click × to remove ' + t.name"
+              >
+                <span class="chip-dot" :class="{ 'chip-dot-active': t.is_active }"></span>
+                <span class="chip-name">{{ t.name }}</span>
+                <button
+                  type="button"
+                  class="chip-remove"
+                  @click.prevent="removeTargetTemplate(t.id)"
+                  title="Remove from target list"
+                >
+                  ×
+                </button>
+              </span>
+              <span v-if="targetTemplatesRemainingCount > 0" class="target-template-chip chip-more">
+                +{{ targetTemplatesRemainingCount }} more
+              </span>
+            </div>
+          </div>
+
+          <!-- Intake Form Selection Section -->
+          <div class="form-select-section">
+            <label class="form-label" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span>Select Intake Form to Apply <span class="req">*</span></span>
+              <span class="text-muted" style="font-size: 0.78rem;">
+                {{ availableForms.length }} form{{ availableForms.length === 1 ? '' : 's' }} in system
+              </span>
+            </label>
+
+            <div class="forms-picker-grid">
+              <!-- Available forms cards -->
+              <div
+                v-for="form in availableForms"
+                :key="form.id"
+                class="form-picker-card"
+                :class="{ 'is-selected': String(selectedFormToApply) === String(form.id) }"
+                @click="selectedFormToApply = form.id"
+              >
+                <div class="card-radio-circle">
+                  <span v-if="String(selectedFormToApply) === String(form.id)" class="radio-inner-dot"></span>
+                </div>
+                <div class="card-form-info">
+                  <div class="card-form-top">
+                    <span class="card-form-name">{{ form.name }}</span>
+                    <span v-if="form.form_mode" class="card-form-mode-pill">
+                      {{ form.form_mode }}
+                    </span>
+                  </div>
+                  <p class="card-form-desc">
+                    {{ form.description || 'Gathers client details, custom variables, and deal information.' }}
+                  </p>
+                  <div class="card-form-meta">
+                    <span v-if="getFormFieldCount(form) > 0">
+                      📋 {{ getFormFieldCount(form) }} fields
+                    </span>
+                    <span v-if="form.template_usage_count">
+                      🔗 Used by {{ form.template_usage_count }} template{{ form.template_usage_count === 1 ? '' : 's' }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Option to Detach / Remove Form -->
+              <div
+                class="form-picker-card detach-card"
+                :class="{ 'is-selected': selectedFormToApply === 'detach' || selectedFormToApply === null }"
+                @click="selectedFormToApply = 'detach'"
+              >
+                <div class="card-radio-circle">
+                  <span v-if="selectedFormToApply === 'detach' || selectedFormToApply === null" class="radio-inner-dot"></span>
+                </div>
+                <div class="card-form-info">
+                  <div class="card-form-top">
+                    <span class="card-form-name">No Intake Form (Document Only)</span>
+                    <span class="card-form-mode-pill detach-pill">Detached</span>
+                  </div>
+                  <p class="card-form-desc">
+                    Contracts will be generated directly without requiring a client intake questionnaire.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Helpful note -->
+          <div class="bulk-form-callout">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <div style="font-size: 0.82rem; color: #475569; line-height: 1.45;">
+              Applying this form will link it to all <strong>{{ bulkFormTargetIds.length }}</strong> selected template{{ bulkFormTargetIds.length === 1 ? '' : 's' }}. When contracts are initiated, sales reps fill this questionnaire to populate the agreement variables.
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="modal-actions" style="margin-top: 18px;">
+            <button type="button" class="btn btn-secondary" @click="closeBulkFormModal">
+              Cancel
+            </button>
+            <button
+              type="submit"
+              class="btn btn-primary"
+              :disabled="applyingBulkForm || bulkFormTargetIds.length === 0"
+            >
+              <span v-if="applyingBulkForm" class="btn-spinner"></span>
+              <span v-else>
+                {{ selectedFormToApply === 'detach' ? 'Detach Intake Form from ' : 'Apply Form to ' }}
+                {{ bulkFormTargetIds.length }} Template{{ bulkFormTargetIds.length === 1 ? '' : 's' }}
+              </span>
+            </button>
+          </div>
+        </form>
+
+        <div v-else class="modal-actions" style="margin-top: 14px;">
+          <button type="button" class="btn btn-primary" @click="closeBulkFormModal">
+            Done
           </button>
         </div>
       </div>
@@ -1241,6 +1477,144 @@ async function submitZipImport() {
     zipError.value = msg
   } finally {
     zipImporting.value = false
+  }
+}
+
+// ─── Bulk Apply Intake Form ──────────────────────────────────────────────────
+const showBulkFormModal = ref(false)
+const bulkFormTargetIds = ref([])
+const selectedFormToApply = ref('')
+const applyingBulkForm = ref(false)
+const bulkFormSuccessMsg = ref('')
+const bulkFormError = ref('')
+
+const targetTemplates = computed(() => {
+  return templates.value.filter(t => bulkFormTargetIds.value.includes(t.id))
+})
+
+const targetTemplatesList = computed(() => {
+  return targetTemplates.value.slice(0, 14)
+})
+
+const targetTemplatesRemainingCount = computed(() => {
+  return Math.max(0, targetTemplates.value.length - 14)
+})
+
+function removeTargetTemplate(id) {
+  bulkFormTargetIds.value = bulkFormTargetIds.value.filter(tid => tid !== id)
+}
+
+function setBulkTargetMode(mode) {
+  if (mode === 'selected') {
+    bulkFormTargetIds.value = [...selectedIds.value]
+  } else if (mode === 'visible') {
+    bulkFormTargetIds.value = filteredTemplates.value.map(t => t.id)
+  } else if (mode === 'all') {
+    bulkFormTargetIds.value = templates.value.map(t => t.id)
+  }
+}
+
+function getFormFieldCount(form) {
+  if (!form || !form.schema_json) return 0
+  try {
+    const schema = typeof form.schema_json === 'string' ? JSON.parse(form.schema_json) : form.schema_json
+    return Array.isArray(schema?.fields) ? schema.fields.length : 0
+  } catch (e) {
+    return 0
+  }
+}
+
+function openBulkApplyFormModal(ids = null) {
+  bulkFormSuccessMsg.value = ''
+  bulkFormError.value = ''
+
+  if (Array.isArray(ids) && ids.length) {
+    bulkFormTargetIds.value = [...ids]
+  } else if (selectedIds.value.length > 0) {
+    bulkFormTargetIds.value = [...selectedIds.value]
+  } else if (filteredTemplates.value.length > 0) {
+    bulkFormTargetIds.value = filteredTemplates.value.map(t => t.id)
+  } else {
+    bulkFormTargetIds.value = templates.value.map(t => t.id)
+  }
+
+  // Pre-select form: look at first target template or default to first available form
+  const firstTarget = templates.value.find(t => bulkFormTargetIds.value.includes(t.id))
+  if (firstTarget && firstTarget.form_id) {
+    selectedFormToApply.value = firstTarget.form_id
+  } else if (availableForms.value.length > 0) {
+    selectedFormToApply.value = availableForms.value[0].id
+  } else {
+    selectedFormToApply.value = 'detach'
+  }
+
+  showBulkFormModal.value = true
+}
+
+function openSingleApplyFormModal(template) {
+  if (!template) return
+  bulkFormSuccessMsg.value = ''
+  bulkFormError.value = ''
+  bulkFormTargetIds.value = [template.id]
+  selectedFormToApply.value = template.form_id !== null && template.form_id !== undefined
+    ? template.form_id
+    : (availableForms.value[0]?.id || 'detach')
+  showBulkFormModal.value = true
+}
+
+function closeBulkFormModal() {
+  showBulkFormModal.value = false
+  bulkFormSuccessMsg.value = ''
+  bulkFormError.value = ''
+}
+
+async function applyBulkForm() {
+  if (!bulkFormTargetIds.value.length) {
+    bulkFormError.value = 'Please select at least one template to update.'
+    return
+  }
+
+  applyingBulkForm.value = true
+  bulkFormError.value = ''
+  bulkFormSuccessMsg.value = ''
+
+  try {
+    const formIdVal = (selectedFormToApply.value === 'detach' || selectedFormToApply.value === '' || selectedFormToApply.value === null)
+      ? null
+      : Number(selectedFormToApply.value)
+
+    const res = await axios.post(
+      `${apiBase}/templates/bulk-apply-form`,
+      {
+        templateIds: bulkFormTargetIds.value,
+        formId: formIdVal,
+      },
+      { headers: getHeaders() }
+    )
+
+    // Instantly update templates in local reactive memory
+    const chosenForm = availableForms.value.find(f => String(f.id) === String(formIdVal))
+    const newFormName = chosenForm ? chosenForm.name : null
+    templates.value.forEach(t => {
+      if (bulkFormTargetIds.value.includes(t.id)) {
+        t.form_id = formIdVal
+        t.form_name = newFormName
+      }
+    })
+
+    bulkFormSuccessMsg.value = res.data?.message || (
+      formIdVal
+        ? `Successfully assigned intake form to ${bulkFormTargetIds.value.length} template(s)!`
+        : `Successfully detached intake form from ${bulkFormTargetIds.value.length} template(s)!`
+    )
+
+    // Re-sync with backend in background
+    fetchTemplates()
+  } catch (err) {
+    console.error('Failed to bulk apply intake form:', err)
+    bulkFormError.value = err.response?.data?.error || 'Failed to apply intake form. Please check permissions.'
+  } finally {
+    applyingBulkForm.value = false
   }
 }
 
@@ -2319,5 +2693,369 @@ onMounted(() => {
 .zip-warnings ul {
   margin: 6px 0 0;
   padding-left: 18px;
+}
+
+/* ─── Bulk Apply Intake Form Styling ────────────────────────── */
+.bulk-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn-bulk-apply {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.18s ease;
+}
+
+.btn-bulk-apply:hover {
+  background: rgba(255, 255, 255, 0.22);
+  border-color: #ffffff;
+  color: #ffffff;
+}
+
+.meta-cell-clickable {
+  cursor: pointer;
+  transition: all 0.18s ease;
+  border-radius: 6px;
+  padding: 3px 5px;
+  margin: -3px -5px;
+}
+
+.meta-cell-clickable:hover {
+  background: #eff6ff;
+}
+
+.meta-cell-clickable:hover .meta-quick-edit {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.meta-quick-edit {
+  font-size: 0.72rem;
+  color: #2563eb;
+  opacity: 0;
+  transition: all 0.15s ease;
+  margin-left: 2px;
+}
+
+.meta-form-value {
+  color: #4338ca;
+  font-weight: 600;
+}
+
+.bulk-form-modal {
+  max-width: 680px !important;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.badge-bulk-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.bulk-modal-sub {
+  color: #64748b;
+  font-size: 0.85rem;
+  margin: 3px 0 0;
+}
+
+.scope-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+
+.scope-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.scope-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+  color: #0f172a;
+}
+
+.scope-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.scope-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.scope-action-btn {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.scope-action-btn:hover {
+  border-color: #2563eb;
+  color: #2563eb;
+  background: #eff6ff;
+}
+
+.target-templates-scroll {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 105px;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.target-template-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 3px 8px 3px 10px;
+  font-size: 0.76rem;
+  color: #1e293b;
+  font-weight: 500;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.chip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #cbd5e1;
+}
+
+.chip-dot-active {
+  background: #10b981;
+}
+
+.chip-name {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chip-remove {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chip-remove:hover {
+  color: #ef4444;
+}
+
+.chip-more {
+  background: #f1f5f9;
+  color: #64748b;
+  font-weight: 600;
+  padding: 3px 9px;
+}
+
+.forms-picker-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.form-picker-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.form-picker-card:hover {
+  border-color: #93c5fd;
+  background: #f8fafc;
+}
+
+.form-picker-card.is-selected {
+  border-color: #2563eb;
+  background: #eff6ff;
+  box-shadow: 0 0 0 1px #2563eb;
+}
+
+.card-radio-circle {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+  transition: border-color 0.2s;
+}
+
+.form-picker-card.is-selected .card-radio-circle {
+  border-color: #2563eb;
+}
+
+.radio-inner-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2563eb;
+}
+
+.card-form-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.card-form-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.card-form-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #0f172a;
+}
+
+.card-form-mode-pill {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: #f1f5f9;
+  color: #475569;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.detach-pill {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.card-form-desc {
+  font-size: 0.78rem;
+  color: #64748b;
+  line-height: 1.35;
+  margin: 2px 0 6px;
+}
+
+.card-form-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.74rem;
+  color: #64748b;
+}
+
+.bulk-form-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-top: 14px;
+}
+
+.bulk-form-success-alert {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin: 12px 0;
+  color: #166534;
+}
+
+.bulk-form-error-alert {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin: 12px 0;
+  color: #991b1b;
+}
+
+.btn-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
+  vertical-align: middle;
 }
 </style>
