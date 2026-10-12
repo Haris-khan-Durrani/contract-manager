@@ -1579,7 +1579,7 @@
 
         <!-- ═══════════════ DYNAMIC CUSTOM SECTIONS (FROM SETTINGS) ═══════════════ -->
         <section
-          v-for="sec in (customSchema.sections || [])"
+          v-for="sec in sortedCustomSections"
           :key="sec.id"
           v-show="currentTab === sec.id || isPrinting"
           class="form-page custom-section-page"
@@ -1913,6 +1913,12 @@ const uploadingAttachment = ref(false)
 const downloadingZip = ref(false)
 const downloadingPdf = ref(false)
 
+const sortedCustomSections = computed(() => {
+  return (customSchema.value?.sections || [])
+    .slice()
+    .sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0))
+})
+
 const formTabs = computed(() => {
   const baseTabs = [
     { id: 'page1', page: 'Page 1', title: 'General Info' },
@@ -1925,7 +1931,7 @@ const formTabs = computed(() => {
     { id: 'page8', page: 'Page 9', title: 'Action Plan & Signatures' },
   ]
 
-  const customSections = (customSchema.value?.sections || []).map((sec, idx) => ({
+  const customSections = sortedCustomSections.value.map((sec, idx) => ({
     id: sec.id,
     page: `Custom ${idx + 1}`,
     title: sec.title,

@@ -44,7 +44,9 @@ async function generateSummaryPdf(contract, summaryData = {}) {
   try {
     customSchema = typeof rawSchema === 'string' ? JSON.parse(rawSchema) : (rawSchema || {});
   } catch (_) {}
-  const customSections = Array.isArray(customSchema.sections) ? customSchema.sections : [];
+  const customSections = (Array.isArray(customSchema.sections) ? customSchema.sections : [])
+    .slice()
+    .sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0));
   const customFields = Array.isArray(customSchema.fields) ? customSchema.fields : [];
   const customValues = data.custom_fields || {};
 

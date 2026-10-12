@@ -480,7 +480,25 @@
                     <span v-else class="badge-opt">Optional</span>
                   </td>
                   <td style="text-align: right;">
-                    <div style="display: inline-flex; gap: 4px;">
+                    <div style="display: inline-flex; gap: 4px; align-items: center;">
+                      <button
+                        type="button"
+                        class="btn-icon-action"
+                        :disabled="idx === 0"
+                        title="Move Field Up"
+                        @click="moveField(idx, -1)"
+                      >
+                        ▲
+                      </button>
+                      <button
+                        type="button"
+                        class="btn-icon-action"
+                        :disabled="idx === customSchema.fields.length - 1"
+                        title="Move Field Down"
+                        @click="moveField(idx, 1)"
+                      >
+                        ▼
+                      </button>
                       <button type="button" class="btn-icon-action" title="Edit Field" @click="openEditFieldModal(fld, idx)">
                         ✎
                       </button>
@@ -514,20 +532,60 @@
           </div>
 
           <div v-else class="schema-table-wrapper">
+            <!-- Section Sorting & Ordering Toolbar -->
+            <div class="schema-table-toolbar">
+              <div class="toolbar-hint">
+                <span class="hint-icon">⇅</span>
+                <span>Use <strong>▲</strong> and <strong>▼</strong> to arrange section order in dossier tabs and PDF.</span>
+              </div>
+              <div class="toolbar-sort-actions">
+                <span class="sort-label">Quick Sort:</span>
+                <button type="button" class="btn-sort-pill" @click="sortSectionsBy('title-asc')" title="Sort Alphabetically A to Z">
+                  A → Z
+                </button>
+                <button type="button" class="btn-sort-pill" @click="sortSectionsBy('fields-count')" title="Sort by Sections with Most Fields">
+                  Most Fields
+                </button>
+                <button type="button" class="btn-sort-pill" @click="sortSectionsBy('order')" title="Re-index strictly 1, 2, 3...">
+                  Re-index
+                </button>
+              </div>
+            </div>
+
             <table class="schema-table">
               <thead>
                 <tr>
-                  <th style="width: 8%; text-align: center;">Order</th>
-                  <th style="width: 32%;">Section Title</th>
-                  <th style="width: 42%;">Description</th>
+                  <th style="width: 14%; text-align: center;">Sort / Order</th>
+                  <th style="width: 30%;">Section Title</th>
+                  <th style="width: 38%;">Description</th>
                   <th style="width: 8%; text-align: center;">Fields</th>
                   <th style="width: 10%; text-align: right;">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="(sec, idx) in customSchema.sections" :key="sec.id || idx">
-                  <td style="text-align: center; font-weight: 700; color: #64748b;">
-                    #{{ idx + 1 }}
+                  <td style="text-align: center;">
+                    <div class="order-control-cell">
+                      <button
+                        type="button"
+                        class="btn-order-arrow"
+                        :disabled="idx === 0"
+                        @click="moveSection(idx, -1)"
+                        title="Move Section Up"
+                      >
+                        ▲
+                      </button>
+                      <span class="order-badge">#{{ sec.order || idx + 1 }}</span>
+                      <button
+                        type="button"
+                        class="btn-order-arrow"
+                        :disabled="idx === customSchema.sections.length - 1"
+                        @click="moveSection(idx, 1)"
+                        title="Move Section Down"
+                      >
+                        ▼
+                      </button>
+                    </div>
                   </td>
                   <td>
                     <strong>{{ sec.title }}</strong>
@@ -694,15 +752,28 @@
         </div>
 
         <form @submit.prevent="submitSectionModal" style="display: flex; flex-direction: column; gap: 14px; margin-top: 14px;">
-          <div>
-            <label class="form-label">Section Title <span class="req">*</span></label>
-            <input
-              type="text"
-              v-model="sectionForm.title"
-              class="form-control"
-              placeholder="e.g. Medical & Health Clearance"
-              required
-            />
+          <div class="modal-grid-2">
+            <div>
+              <label class="form-label">Section Title <span class="req">*</span></label>
+              <input
+                type="text"
+                v-model="sectionForm.title"
+                class="form-control"
+                placeholder="e.g. Medical & Health Clearance"
+                required
+              />
+            </div>
+            <div>
+              <label class="form-label">Sort / Order Position</label>
+              <input
+                type="number"
+                v-model.number="sectionForm.order"
+                min="1"
+                class="form-control"
+                placeholder="e.g. 1"
+              />
+              <span style="font-size: 10px; color: #94a3b8;">Display position in form tabs & PDF</span>
+            </div>
           </div>
 
           <div>
@@ -1123,7 +1194,7 @@ async function submitSectionModal() {
     id: sectionForm.value.id || `sec_${Date.now()}`,
     title: sectionForm.value.title.trim(),
     description: sectionForm.value.description.trim(),
-    order: Number(sectionForm.value.order || 1),
+    order: Number(sectionForm.value.order || (customSchema.value.sections?.length || 0) + 1),
   }
 
   if (editingSectionIndex.value >= 0) {
@@ -1132,8 +1203,57 @@ async function submitSectionModal() {
     customSchema.value.sections.push(sectionData)
   }
 
+  // Sort and re-normalize sequential order
+  customSchema.value.sections.sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0))
+  customSchema.value.sections.forEach((s, i) => {
+    s.order = i + 1
+  })
+
   showSectionModal.value = false
   schemaActiveTab.value = 'sections'
+  await saveCustomSchema(true)
+}
+
+async function moveSection(idx, delta) {
+  const targetIdx = idx + delta
+  if (targetIdx < 0 || targetIdx >= customSchema.value.sections.length) return
+
+  const temp = customSchema.value.sections[idx]
+  customSchema.value.sections[idx] = customSchema.value.sections[targetIdx]
+  customSchema.value.sections[targetIdx] = temp
+
+  customSchema.value.sections.forEach((s, i) => {
+    s.order = i + 1
+  })
+
+  await saveCustomSchema(true)
+}
+
+async function sortSectionsBy(criteria) {
+  if (!customSchema.value.sections?.length) return
+  if (criteria === 'title-asc') {
+    customSchema.value.sections.sort((a, b) => a.title.localeCompare(b.title))
+  } else if (criteria === 'title-desc') {
+    customSchema.value.sections.sort((a, b) => b.title.localeCompare(a.title))
+  } else if (criteria === 'fields-count') {
+    customSchema.value.sections.sort((a, b) => getFieldsCountForSection(b.id) - getFieldsCountForSection(a.id))
+  } else if (criteria === 'order') {
+    customSchema.value.sections.sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0))
+  }
+  customSchema.value.sections.forEach((s, i) => {
+    s.order = i + 1
+  })
+  await saveCustomSchema(true)
+}
+
+async function moveField(idx, delta) {
+  const targetIdx = idx + delta
+  if (targetIdx < 0 || targetIdx >= customSchema.value.fields.length) return
+
+  const temp = customSchema.value.fields[idx]
+  customSchema.value.fields[idx] = customSchema.value.fields[targetIdx]
+  customSchema.value.fields[targetIdx] = temp
+
   await saveCustomSchema(true)
 }
 
@@ -1467,5 +1587,115 @@ onMounted(() => {
 
 .req {
   color: #ef4444;
+}
+
+/* Section Sorting & Ordering Controls */
+.schema-table-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-bottom: none;
+  padding: 8px 14px;
+  border-radius: 8px 8px 0 0;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.toolbar-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #475569;
+}
+
+.hint-icon {
+  font-size: 13px;
+  font-weight: 700;
+  color: #2563eb;
+}
+
+.toolbar-sort-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sort-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  margin-right: 2px;
+}
+
+.btn-sort-pill {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-sort-pill:hover {
+  background: #eff6ff;
+  border-color: #2563eb;
+  color: #1e3a8a;
+  transform: translateY(-1px);
+}
+
+.order-control-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.order-badge {
+  display: inline-block;
+  min-width: 28px;
+  font-weight: 800;
+  font-size: 11.5px;
+  color: #1e3a8a;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.btn-order-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #475569;
+  font-size: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1;
+  padding: 0;
+}
+
+.btn-order-arrow:hover:not(:disabled) {
+  background: #1e3a8a;
+  border-color: #1e3a8a;
+  color: #ffffff;
+  transform: scale(1.08);
+}
+
+.btn-order-arrow:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  border-color: #e2e8f0;
 }
 </style>

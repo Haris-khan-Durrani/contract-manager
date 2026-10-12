@@ -130,6 +130,8 @@ router.put('/schema', async (req, res) => {
       options: Array.isArray(f.options) ? f.options.map(o => String(o).trim()).filter(Boolean) : [],
     })).filter(f => f.key && f.label) : [];
 
+    cleanSections.sort((a, b) => a.order - b.order);
+
     const finalSchema = {
       sections: cleanSections,
       fields: cleanFields,
