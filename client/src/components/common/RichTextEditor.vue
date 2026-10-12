@@ -1,34 +1,83 @@
 <template>
-  <div class="rich-text-editor-container" :class="{ 'is-focused': isFocused, 'source-mode': showSource }">
+  <div
+    class="rich-text-editor-container"
+    :class="{
+      'is-focused': isFocused,
+      'source-mode': showSource,
+      'compact-mode': compact
+    }"
+  >
     <!-- Quick Preset Templates Bar -->
-    <div class="rte-presets-bar">
+    <div v-if="effectiveShowPresets" class="rte-presets-bar">
       <span class="presets-label">⚡ Quick Presets:</span>
-      <button type="button" class="preset-chip" @click="applyPreset('milestone_50_50')" title="Insert standard 50/50 payment milestone">
+      <button
+        type="button"
+        class="preset-chip"
+        @mousedown.prevent
+        @click="applyPreset('milestone_50_50')"
+        title="Insert standard 50/50 payment milestone"
+      >
         📋 50/50 Milestone
       </button>
-      <button type="button" class="preset-chip" @click="applyPreset('milestone_3_stage')" title="Insert 3-stage milestone (40/30/30)">
+      <button
+        type="button"
+        class="preset-chip"
+        @mousedown.prevent
+        @click="applyPreset('milestone_3_stage')"
+        title="Insert 3-stage milestone (40/30/30)"
+      >
         💳 3-Stage Schedule
       </button>
-      <button type="button" class="preset-chip" @click="applyPreset('fee_table')" title="Insert structured commercial fee table">
+      <button
+        type="button"
+        class="preset-chip"
+        @mousedown.prevent
+        @click="applyPreset('fee_table')"
+        title="Insert structured commercial fee table"
+      >
         📊 Fee Breakdown Table
       </button>
-      <button type="button" class="preset-chip" @click="applyPreset('lump_sum')" title="Insert 100% upfront with exclusive discount">
+      <button
+        type="button"
+        class="preset-chip"
+        @mousedown.prevent
+        @click="applyPreset('lump_sum')"
+        title="Insert 100% upfront with exclusive discount"
+      >
         💰 Lump Sum & Discount
       </button>
-      <button type="button" class="preset-chip preset-chip-danger" @click="confirmClear" title="Clear all editor content">
+      <button
+        type="button"
+        class="preset-chip preset-chip-danger"
+        @mousedown.prevent
+        @click="confirmClear"
+        title="Clear all editor content"
+      >
         🧹 Reset
       </button>
     </div>
 
     <!-- Main Toolbar -->
-    <div class="rte-toolbar" role="toolbar" aria-label="Formatting options">
+    <div v-if="showToolbar" class="rte-toolbar" role="toolbar" aria-label="Formatting options">
       <!-- History Group -->
       <div class="toolbar-group">
-        <button type="button" class="tb-btn" @click="exec('undo')" title="Undo (Ctrl+Z)">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
+        <button
+          type="button"
+          class="tb-btn"
+          @mousedown.prevent
+          @click="exec('undo')"
+          title="Undo (Ctrl+Z)"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
         </button>
-        <button type="button" class="tb-btn" @click="exec('redo')" title="Redo (Ctrl+Y)">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg>
+        <button
+          type="button"
+          class="tb-btn"
+          @mousedown.prevent
+          @click="exec('redo')"
+          title="Redo (Ctrl+Y)"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg>
         </button>
       </div>
 
@@ -36,12 +85,17 @@
 
       <!-- Block Format Dropdown -->
       <div class="toolbar-group">
-        <select class="tb-select" :value="currentBlockFormat" @change="setBlockFormat($event.target.value)" title="Text Paragraph / Heading style">
+        <select
+          class="tb-select"
+          :value="currentBlockFormat"
+          @change="setBlockFormat($event.target.value)"
+          title="Text Paragraph / Heading style"
+        >
           <option value="p">Normal Text</option>
-          <option value="h2">Heading 2 (Section)</option>
-          <option value="h3">Heading 3 (Sub-clause)</option>
-          <option value="h4">Heading 4 (Minor title)</option>
-          <option value="blockquote">Callout / Quote</option>
+          <option value="h2">H2 (Section)</option>
+          <option value="h3">H3 (Sub-clause)</option>
+          <option value="h4">H4 (Minor title)</option>
+          <option value="blockquote">Quote / Callout</option>
           <option value="pre">Code / Monospace</option>
         </select>
       </div>
@@ -50,16 +104,44 @@
 
       <!-- Inline Text Styles -->
       <div class="toolbar-group">
-        <button type="button" class="tb-btn" :class="{ active: isFormatActive('bold') }" @click="exec('bold')" title="Bold (Ctrl+B)">
+        <button
+          type="button"
+          class="tb-btn"
+          :class="{ active: isFormatActive('bold') }"
+          @mousedown.prevent
+          @click="exec('bold')"
+          title="Bold (Ctrl+B)"
+        >
           <strong>B</strong>
         </button>
-        <button type="button" class="tb-btn" :class="{ active: isFormatActive('italic') }" @click="exec('italic')" title="Italic (Ctrl+I)">
+        <button
+          type="button"
+          class="tb-btn"
+          :class="{ active: isFormatActive('italic') }"
+          @mousedown.prevent
+          @click="exec('italic')"
+          title="Italic (Ctrl+I)"
+        >
           <em>I</em>
         </button>
-        <button type="button" class="tb-btn" :class="{ active: isFormatActive('underline') }" @click="exec('underline')" title="Underline (Ctrl+U)">
+        <button
+          type="button"
+          class="tb-btn"
+          :class="{ active: isFormatActive('underline') }"
+          @mousedown.prevent
+          @click="exec('underline')"
+          title="Underline (Ctrl+U)"
+        >
           <u>U</u>
         </button>
-        <button type="button" class="tb-btn" :class="{ active: isFormatActive('strikeThrough') }" @click="exec('strikeThrough')" title="Strikethrough">
+        <button
+          type="button"
+          class="tb-btn"
+          :class="{ active: isFormatActive('strikeThrough') }"
+          @mousedown.prevent
+          @click="exec('strikeThrough')"
+          title="Strikethrough"
+        >
           <s>S</s>
         </button>
       </div>
@@ -70,12 +152,12 @@
       <div class="toolbar-group color-group">
         <!-- Text Color -->
         <div class="color-picker-wrap" title="Text Color">
-          <span class="color-indicator-letter">A</span>
+          <span class="color-indicator-letter" :style="{ borderBottomColor: textColor }">A</span>
           <input
             type="color"
             class="tb-color-input"
             v-model="textColor"
-            @change="exec('foreColor', textColor)"
+            @change="applyTextColor(textColor)"
             title="Choose text color"
           />
         </div>
@@ -87,7 +169,7 @@
             type="color"
             class="tb-color-input"
             v-model="highlightColor"
-            @change="exec('hiliteColor', highlightColor)"
+            @change="applyHighlight(highlightColor)"
             title="Choose background highlight"
           />
         </div>
@@ -97,17 +179,17 @@
 
       <!-- Alignment Controls -->
       <div class="toolbar-group">
-        <button type="button" class="tb-btn" @click="exec('justifyLeft')" title="Align Left">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="17" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="3" y2="18"/></svg>
+        <button type="button" class="tb-btn" @mousedown.prevent @click="exec('justifyLeft')" title="Align Left">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="17" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="3" y2="18"/></svg>
         </button>
-        <button type="button" class="tb-btn" @click="exec('justifyCenter')" title="Align Center">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="10" x2="6" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="18" y1="18" x2="6" y2="18"/></svg>
+        <button type="button" class="tb-btn" @mousedown.prevent @click="exec('justifyCenter')" title="Align Center">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="10" x2="6" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="18" y1="18" x2="6" y2="18"/></svg>
         </button>
-        <button type="button" class="tb-btn" @click="exec('justifyRight')" title="Align Right">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="21" y1="10" x2="7" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="21" y1="18" x2="7" y2="18"/></svg>
+        <button type="button" class="tb-btn" @mousedown.prevent @click="exec('justifyRight')" title="Align Right">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="21" y1="10" x2="7" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="21" y1="18" x2="7" y2="18"/></svg>
         </button>
-        <button type="button" class="tb-btn" @click="exec('justifyFull')" title="Justify">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="21" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="21" y1="18" x2="3" y2="18"/></svg>
+        <button type="button" class="tb-btn" @mousedown.prevent @click="exec('justifyFull')" title="Justify">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="21" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="21" y1="18" x2="3" y2="18"/></svg>
         </button>
       </div>
 
@@ -115,36 +197,44 @@
 
       <!-- Lists & Indent -->
       <div class="toolbar-group">
-        <button type="button" class="tb-btn" @click="exec('insertUnorderedList')" title="Bullet List">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        <button type="button" class="tb-btn" @mousedown.prevent @click="exec('insertUnorderedList')" title="Bullet List">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
         </button>
-        <button type="button" class="tb-btn" @click="exec('insertOrderedList')" title="Numbered List">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg>
+        <button type="button" class="tb-btn" @mousedown.prevent @click="exec('insertOrderedList')" title="Numbered List">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg>
         </button>
-        <button type="button" class="tb-btn" @click="exec('outdent')" title="Outdent">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="7 8 3 12 7 16"/><line x1="21" y1="12" x2="11" y2="12"/><line x1="21" y1="6" x2="11" y2="6"/><line x1="21" y1="18" x2="11" y2="18"/></svg>
+        <button type="button" class="tb-btn" @mousedown.prevent @click="exec('outdent')" title="Outdent">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="7 8 3 12 7 16"/><line x1="21" y1="12" x2="11" y2="12"/><line x1="21" y1="6" x2="11" y2="6"/><line x1="21" y1="18" x2="11" y2="18"/></svg>
         </button>
-        <button type="button" class="tb-btn" @click="exec('indent')" title="Indent">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="13 8 17 12 13 16"/><line x1="3" y1="12" x2="13" y2="12"/><line x1="3" y1="6" x2="13" y2="6"/><line x1="3" y1="18" x2="13" y2="18"/></svg>
+        <button type="button" class="tb-btn" @mousedown.prevent @click="exec('indent')" title="Indent">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="13 8 17 12 13 16"/><line x1="3" y1="12" x2="13" y2="12"/><line x1="3" y1="6" x2="13" y2="6"/><line x1="3" y1="18" x2="13" y2="18"/></svg>
         </button>
       </div>
 
       <div class="toolbar-divider"></div>
 
-      <!-- Structural Elements: Table & Horizontal Line -->
+      <!-- Structural Elements: Table, HR Line, Clear -->
       <div class="toolbar-group">
-        <button type="button" class="tb-btn tb-btn-badge" @click="insertTable" title="Insert 3-column Fee Table">
-          <span>📊</span> Table
+        <button type="button" class="tb-btn tb-btn-badge" @mousedown.prevent @click="insertTable" title="Insert Fee Table">
+          <span>📊</span><span v-if="!compact"> Table</span>
         </button>
-        <button type="button" class="tb-btn" @click="addTableRow" title="Add Row to Current Table">
+        <button v-if="!compact" type="button" class="tb-btn" @mousedown.prevent @click="addTableRow" title="Add Row to Current Table">
           <span>➕Row</span>
         </button>
-        <button type="button" class="tb-btn" @click="exec('insertHorizontalRule')" title="Insert Horizontal Rule Line">
+        <button type="button" class="tb-btn" @mousedown.prevent @click="exec('insertHorizontalRule')" title="Insert Horizontal Rule Line">
           <span>―</span>
         </button>
-        <button type="button" class="tb-btn" @click="exec('removeFormat')" title="Clear Formatting">
+        <button type="button" class="tb-btn" @mousedown.prevent @click="exec('removeFormat')" title="Clear Formatting">
           <span>🧹</span>
         </button>
+      </div>
+
+      <!-- Dynamic Tokens Dropdown (if tokens passed) -->
+      <div v-if="tokens && tokens.length" class="toolbar-group">
+        <select class="tb-select tb-token-select" @change="onSelectToken($event)" title="Insert Dynamic Variable Token">
+          <option value="" disabled selected>{{ compact ? '+ Token' : '+ Insert Variable Token' }}</option>
+          <option v-for="t in tokens" :key="t" :value="t">{{ formatTokenLabel(t) }}</option>
+        </select>
       </div>
 
       <div class="toolbar-divider"></div>
@@ -155,6 +245,7 @@
           type="button"
           class="tb-btn tb-btn-toggle"
           :class="{ active: showSource }"
+          @mousedown.prevent
           @click="toggleSource"
           title="Toggle Raw HTML Source Code"
         >
@@ -164,18 +255,22 @@
     </div>
 
     <!-- Editable Canvas Area -->
-    <div class="rte-canvas-wrap">
+    <div class="rte-canvas-wrap" :style="{ minHeight: effectiveMinHeight }">
       <!-- WYSIWYG Contenteditable -->
       <div
         v-show="!showSource"
         ref="editorRef"
         class="rte-editor-area"
         contenteditable="true"
+        :dir="dir"
         :data-placeholder="placeholder"
+        :style="{ minHeight: effectiveMinHeight, maxHeight: effectiveMaxHeight }"
         @input="onEditorInput"
         @focus="isFocused = true"
         @blur="isFocused = false"
         @keydown="onKeydown"
+        @keyup="onEditorKeyup"
+        @mouseup="onEditorMouseup"
       ></div>
 
       <!-- Raw HTML Source Editor -->
@@ -184,6 +279,8 @@
         ref="sourceRef"
         class="rte-source-area"
         :value="modelValue"
+        :dir="dir"
+        :style="{ minHeight: effectiveMinHeight, maxHeight: effectiveMaxHeight }"
         @input="onSourceInput"
         placeholder="Enter raw HTML code here…"
       ></textarea>
@@ -193,14 +290,14 @@
     <div class="rte-statusbar">
       <div class="statusbar-left">
         <span class="statusbar-item">
-          <strong>Mode:</strong> {{ showSource ? 'Raw HTML Source' : 'Visual WYSIWYG' }}
+          <strong>Mode:</strong> {{ showSource ? 'Raw HTML' : 'Visual WYSIWYG' }}
         </span>
         <span class="statusbar-sep">•</span>
         <span class="statusbar-item">
           {{ wordCount }} words | {{ charCount }} characters
         </span>
       </div>
-      <div class="statusbar-right">
+      <div class="statusbar-right" v-if="!compact">
         <span class="badge-hint">✨ Changes automatically sync to contract terms &amp; PDF</span>
       </div>
     </div>
@@ -208,7 +305,7 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, computed } from 'vue'
+import { ref, watch, onMounted, computed, nextTick } from 'vue'
 
 const props = defineProps({
   modelValue: {
@@ -218,6 +315,34 @@ const props = defineProps({
   placeholder: {
     type: String,
     default: 'Write your comprehensive commercial terms, fee schedule, and milestone breakup here…',
+  },
+  compact: {
+    type: Boolean,
+    default: false,
+  },
+  showPresets: {
+    type: Boolean,
+    default: null, // Computed below
+  },
+  showToolbar: {
+    type: Boolean,
+    default: true,
+  },
+  minHeight: {
+    type: String,
+    default: '',
+  },
+  maxHeight: {
+    type: String,
+    default: '',
+  },
+  dir: {
+    type: String,
+    default: 'ltr',
+  },
+  tokens: {
+    type: Array,
+    default: () => [],
   },
 })
 
@@ -230,6 +355,23 @@ const showSource = ref(false)
 const textColor = ref('#0f172a')
 const highlightColor = ref('#fef08a')
 const currentBlockFormat = ref('p')
+
+const effectiveShowPresets = computed(() => {
+  if (props.showPresets !== null && props.showPresets !== undefined) {
+    return props.showPresets
+  }
+  return !props.compact
+})
+
+const effectiveMinHeight = computed(() => {
+  if (props.minHeight) return props.minHeight
+  return props.compact ? '120px' : '240px'
+})
+
+const effectiveMaxHeight = computed(() => {
+  if (props.maxHeight) return props.maxHeight
+  return props.compact ? '280px' : '480px'
+})
 
 // Word and character counting
 const charCount = computed(() => {
@@ -293,9 +435,35 @@ function exec(cmd, arg = null) {
   onEditorInput()
 }
 
+function applyTextColor(color) {
+  textColor.value = color
+  exec('foreColor', color)
+}
+
+function applyHighlight(color) {
+  highlightColor.value = color
+  if (showSource.value) return
+  if (!document.execCommand('hiliteColor', false, color)) {
+    document.execCommand('backColor', false, color)
+  }
+  if (editorRef.value) {
+    editorRef.value.focus()
+  }
+  onEditorInput()
+}
+
 function setBlockFormat(tag) {
   currentBlockFormat.value = tag
-  exec('formatBlock', `<${tag}>`)
+  if (showSource.value) return
+  try {
+    document.execCommand('formatBlock', false, `<${tag}>`)
+  } catch (e) {
+    document.execCommand('formatBlock', false, tag)
+  }
+  if (editorRef.value) {
+    editorRef.value.focus()
+  }
+  onEditorInput()
 }
 
 function isFormatActive(cmd) {
@@ -306,6 +474,27 @@ function isFormatActive(cmd) {
   }
 }
 
+function updateActiveFormats() {
+  if (showSource.value) return
+  try {
+    const block = document.queryCommandValue('formatBlock')
+    if (block) {
+      const cleanBlock = String(block).toLowerCase().replace(/<|>/g, '')
+      if (['p', 'h2', 'h3', 'h4', 'blockquote', 'pre'].includes(cleanBlock)) {
+        currentBlockFormat.value = cleanBlock
+      }
+    }
+  } catch (e) {}
+}
+
+function onEditorKeyup() {
+  updateActiveFormats()
+}
+
+function onEditorMouseup() {
+  updateActiveFormats()
+}
+
 function onKeydown(e) {
   // Allow Tab indentation inside lists/tables
   if (e.key === 'Tab') {
@@ -314,6 +503,56 @@ function onKeydown(e) {
       exec('outdent')
     } else {
       exec('indent')
+    }
+  }
+}
+
+// ─── Token & HTML Insertion ──────────────────────────────────────────────────
+function formatTokenLabel(t) {
+  return `{{${t}}}`
+}
+
+function onSelectToken(e) {
+  const token = e.target.value
+  if (!token) return
+  insertToken(token)
+  e.target.value = ''
+}
+
+function insertToken(token) {
+  const tokenStr = `{{${token}}}`
+  const tokenHtml = `<span class="dynamic" data-field="${token}">${tokenStr}</span>`
+  insertHtml(tokenHtml)
+}
+
+function insertHtml(html) {
+  if (showSource.value) {
+    if (!sourceRef.value) return
+    const el = sourceRef.value
+    const start = el.selectionStart || 0
+    const end = el.selectionEnd || 0
+    const text = el.value || ''
+    const nextVal = text.substring(0, start) + html + text.substring(end)
+    el.value = nextVal
+    emit('update:modelValue', nextVal)
+    emit('change', nextVal)
+    if (editorRef.value) {
+      editorRef.value.innerHTML = nextVal
+    }
+    nextTick(() => {
+      el.selectionStart = el.selectionEnd = start + html.length
+      el.focus()
+    })
+  } else {
+    if (editorRef.value) {
+      editorRef.value.focus()
+      const sel = window.getSelection()
+      if (sel && sel.rangeCount > 0 && editorRef.value.contains(sel.anchorNode)) {
+        document.execCommand('insertHTML', false, html)
+      } else {
+        editorRef.value.innerHTML += html
+      }
+      onEditorInput()
     }
   }
 }
@@ -350,7 +589,7 @@ function insertTable() {
     </table>
     <p><br></p>
   `
-  exec('insertHTML', tableHtml)
+  insertHtml(tableHtml)
 }
 
 function addTableRow() {
@@ -457,12 +696,22 @@ function applyPreset(type) {
 }
 
 function confirmClear() {
-  if (confirm('Clear all commercial terms and fee content in the editor?')) {
+  if (confirm('Clear all content in the editor?')) {
     if (editorRef.value) editorRef.value.innerHTML = ''
     emit('update:modelValue', '')
     emit('change', '')
   }
 }
+
+defineExpose({
+  insertToken,
+  insertHtml,
+  toggleSource,
+  focus: () => {
+    if (showSource.value && sourceRef.value) sourceRef.value.focus()
+    else if (editorRef.value) editorRef.value.focus()
+  },
+})
 </script>
 
 <style scoped>
@@ -627,6 +876,14 @@ function confirmClear() {
   border-color: #4f46e5;
 }
 
+.tb-token-select {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1e40af;
+  font-weight: 600;
+  font-size: 0.76rem;
+}
+
 /* Color Pickers */
 .color-picker-wrap {
   position: relative;
@@ -724,6 +981,13 @@ function confirmClear() {
   margin: 10px 0 4px 0;
 }
 
+.rte-editor-area :deep(h4) {
+  font-size: 1.0rem;
+  font-weight: 700;
+  color: #334155;
+  margin: 8px 0 4px 0;
+}
+
 .rte-editor-area :deep(p) {
   margin: 0 0 8px 0;
 }
@@ -746,6 +1010,15 @@ function confirmClear() {
   color: #475569;
   font-style: italic;
   border-radius: 0 6px 6px 0;
+}
+
+.rte-editor-area :deep(pre) {
+  background: #f1f5f9;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 0.86rem;
+  color: #0f172a;
 }
 
 .rte-editor-area :deep(hr) {
@@ -773,6 +1046,21 @@ function confirmClear() {
   color: #0f172a;
 }
 
+/* Dynamic variable token styling */
+.rte-editor-area :deep(.dynamic) {
+  display: inline-block;
+  padding: 1px 6px;
+  margin: 0 1px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 4px;
+  color: #1d4ed8;
+  font-family: monospace;
+  font-size: 0.88em;
+  font-weight: 600;
+  user-select: all;
+}
+
 /* ── Status Bar ── */
 .rte-statusbar {
   display: flex;
@@ -798,5 +1086,92 @@ function confirmClear() {
 .badge-hint {
   color: #4f46e5;
   font-weight: 600;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   COMPACT / SIDEBAR MODE STYLING (For Studio Inspector ~300-360px)
+   ══════════════════════════════════════════════════════════════════════════════ */
+.rich-text-editor-container.compact-mode {
+  border-radius: 8px;
+  border-color: #cbd5e1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.rich-text-editor-container.compact-mode .rte-toolbar {
+  padding: 4px 6px;
+  gap: 3px;
+  background: #f8fafc;
+}
+
+.rich-text-editor-container.compact-mode .tb-btn {
+  min-width: 24px;
+  min-height: 24px;
+  padding: 2px 4px;
+  font-size: 0.78rem;
+  border-radius: 4px;
+}
+
+.rich-text-editor-container.compact-mode .tb-btn svg {
+  width: 12px;
+  height: 12px;
+}
+
+.rich-text-editor-container.compact-mode .tb-select {
+  padding: 2px 4px;
+  font-size: 0.74rem;
+  height: 24px;
+  border-radius: 4px;
+  max-width: 95px;
+}
+
+.rich-text-editor-container.compact-mode .tb-token-select {
+  max-width: 82px;
+}
+
+.rich-text-editor-container.compact-mode .toolbar-divider {
+  height: 16px;
+  margin: 0 2px;
+}
+
+.rich-text-editor-container.compact-mode .color-picker-wrap {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+}
+
+.rich-text-editor-container.compact-mode .color-indicator-letter {
+  font-size: 0.76rem;
+}
+
+.rich-text-editor-container.compact-mode .color-indicator-hl {
+  font-size: 0.72rem;
+}
+
+.rich-text-editor-container.compact-mode .tb-btn-badge {
+  padding: 2px 5px;
+  font-size: 0.72rem;
+}
+
+.rich-text-editor-container.compact-mode .tb-btn-toggle {
+  font-size: 0.72rem;
+  padding: 2px 5px;
+}
+
+.rich-text-editor-container.compact-mode .rte-editor-area {
+  padding: 8px 10px;
+  font-size: 0.84rem;
+  line-height: 1.48;
+}
+
+.rich-text-editor-container.compact-mode .rte-source-area {
+  padding: 8px 10px;
+  font-size: 0.78rem;
+  line-height: 1.42;
+}
+
+.rich-text-editor-container.compact-mode .rte-statusbar {
+  padding: 4px 8px;
+  font-size: 0.69rem;
+  background: #f8fafc;
 }
 </style>

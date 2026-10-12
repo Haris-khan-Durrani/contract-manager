@@ -1370,18 +1370,26 @@
             <!-- Content Editor & Typography (for text elements) -->
             <template v-else>
               <!-- Content Editor -->
-              <div class="inspector-section">
-                <h4 class="section-subtitle">Text &amp; Clause Content</h4>
-                <textarea
+              <div class="inspector-section studio-clause-editor-section">
+                <div class="section-header-row" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                  <h4 class="section-subtitle" style="margin: 0;">Text &amp; Clause Content</h4>
+                  <span class="badge badge-sm badge-neutral" style="font-size: 0.68rem; text-transform: uppercase;">Rich Editor</span>
+                </div>
+                <RichTextEditor
+                  ref="studioRteRef"
                   v-model="selectedHtmlText"
-                  @input="updateSelectedHtmlText(selectedHtmlText)"
-                  class="form-control"
-                  rows="4"
+                  :compact="true"
+                  :show-presets="false"
                   :dir="selectedHtmlDir"
-                  style="font-size: 0.82rem; line-height: 1.45;"
-                ></textarea>
-                <small class="text-muted" style="display: block; margin-top: 4px; font-size: 0.72rem;">
-                  ✏️ Direct inline typing in document canvas is also supported.
+                  :tokens="quickVariables"
+                  min-height="130px"
+                  max-height="280px"
+                  placeholder="Enter clause text, HTML, or {{tokens}}..."
+                  @change="updateSelectedHtmlText"
+                />
+                <small class="text-muted" style="display: flex; align-items: center; justify-content: space-between; margin-top: 6px; font-size: 0.72rem;">
+                  <span>✏️ Direct inline typing in document canvas is also supported.</span>
+                  <span v-if="selectedHtmlTag" style="font-family: monospace; color: #6366f1;">&lt;{{ selectedHtmlTag }}&gt;</span>
                 </small>
               </div>
 
@@ -2328,10 +2336,13 @@ import { useRoute } from 'vue-router'
 import axios from 'axios'
 import { useAuthStore } from '../stores/auth'
 import TemplateCodeStudio from '../components/common/TemplateCodeStudio.vue'
+import RichTextEditor from '../components/common/RichTextEditor.vue'
 
 const route = useRoute()
 const auth  = useAuthStore()
 const templateId = route.params.id
+
+const studioRteRef = ref(null)
 
 // Canvas content (independent of documentSchema.rawHtml to prevent destructive re-renders during editing)
 const canvasContent = ref('')
@@ -2641,7 +2652,7 @@ function selectHtmlElement(target) {
   const compStyle = window.getComputedStyle(target)
   selectedHtmlNode.value = target
   selectedHtmlTag.value = target.tagName.toLowerCase()
-  selectedHtmlText.value = target.innerText || ''
+  selectedHtmlText.value = target.innerHTML || ''
   selectedHtmlClass.value = target.className.replace('studio-selected-node', '').trim()
   selectedHtmlFontSize.value = target.style.fontSize || compStyle.fontSize || '8.45pt'
   selectedHtmlFontFamily.value = target.style.fontFamily || compStyle.fontFamily || 'Inter, sans-serif'
@@ -2875,7 +2886,7 @@ function onHtmlCanvasClick(event) {
 let textInputDebounce = null
 function onHtmlCanvasInput(event) {
   if (!activeSelectedDomEl) return
-  selectedHtmlText.value = activeSelectedDomEl.innerText
+  selectedHtmlText.value = activeSelectedDomEl.innerHTML
 
   clearTimeout(textInputDebounce)
   textInputDebounce = setTimeout(() => {
@@ -2972,10 +2983,15 @@ function updateSelectedHtmlDir(dir) {
   syncDomToRawHtml()
 }
 
+let studioRteDebounce = null
 function updateSelectedHtmlText(val) {
   if (!activeSelectedDomEl) return
-  activeSelectedDomEl.innerText = val
-  syncDomToRawHtml()
+  activeSelectedDomEl.innerHTML = val || ''
+  clearTimeout(studioRteDebounce)
+  studioRteDebounce = setTimeout(() => {
+    recordHistoryState('Clause Edit')
+    syncDomToRawHtml()
+  }, 300)
 }
 
 function insertDynamicTokenToElement(token) {
@@ -2995,9 +3011,13 @@ function insertDynamicTokenToElement(token) {
     span.textContent = tokenStr
     range.insertNode(span)
     range.collapse(false)
+  } else if (studioRteRef.value) {
+    studioRteRef.value.insertToken(token)
+    return
   } else {
     activeSelectedDomEl.innerHTML += ` <span class="dynamic" data-field="${token}">${tokenStr}</span>`
   }
+  selectedHtmlText.value = activeSelectedDomEl.innerHTML
   syncDomToRawHtml()
 }
 
