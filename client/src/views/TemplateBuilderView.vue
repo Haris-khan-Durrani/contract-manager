@@ -184,7 +184,12 @@
       <!-- ═══════════════════════════════════════════════════════════════════ -->
       <!-- TAB 1: A4 DOCUMENT DESIGNER (WYSIWYG PAPER CANVAS & THUMBNAILS)     -->
       <!-- ═══════════════════════════════════════════════════════════════════ -->
-      <div v-show="activeTab === 'builder'" class="builder-three-pane" :class="{ 'left-collapsed': isLeftCollapsed, 'right-collapsed': isRightCollapsed, 'in-iframe': isInIframe }">
+      <div
+        v-show="activeTab === 'builder'"
+        class="builder-three-pane"
+        :class="{ 'left-collapsed': isLeftCollapsed, 'right-collapsed': isRightCollapsed, 'in-iframe': isInIframe, 'is-resizing': isDraggingRightResizer }"
+        :style="builderGridStyle"
+      >
         <!-- LEFT: BLOCK PALETTE, PREBUILT LEGAL BLOCKS & VARIABLE PICKER -->
         <aside class="palette-sidebar" :class="{ 'is-collapsed': isLeftCollapsed }">
           <!-- COLLAPSED RAIL -->
@@ -1197,7 +1202,31 @@
         </main>
 
         <!-- RIGHT: COMPONENT & TYPOGRAPHY INSPECTOR -->
-        <aside class="inspector-sidebar" :class="{ 'is-collapsed': isRightCollapsed }">
+        <aside
+          class="inspector-sidebar"
+          :class="{ 'is-collapsed': isRightCollapsed, 'is-resizing': isDraggingRightResizer }"
+          :style="{ width: isRightCollapsed ? '46px' : `${rightSidebarWidth}px` }"
+        >
+          <!-- Draggable Resize Handle on Left Border of Inspector -->
+          <div
+            v-if="!isRightCollapsed"
+            class="sidebar-resizer-handle"
+            :class="{ 'is-dragging': isDraggingRightResizer }"
+            @mousedown.prevent="startRightResize"
+            @touchstart.prevent="startRightResizeTouch"
+            @dblclick="resetRightSidebarWidth"
+            title="Drag left/right to resize sidebar (Double-click to reset to 340px)"
+          >
+            <div class="resizer-visual-bar"></div>
+            <div class="resizer-knob">
+              <svg width="6" height="14" viewBox="0 0 6 14" fill="none">
+                <circle cx="3" cy="2" r="1.5" fill="currentColor"/>
+                <circle cx="3" cy="7" r="1.5" fill="currentColor"/>
+                <circle cx="3" cy="12" r="1.5" fill="currentColor"/>
+              </svg>
+            </div>
+          </div>
+
           <!-- COLLAPSED RAIL -->
           <div v-if="isRightCollapsed" class="inspector-collapsed-rail" @click="toggleRightPane" title="Click to Expand Inspector &amp; Properties">
             <button type="button" class="btn-rail-toggle" @click.stop="toggleRightPane">
@@ -1207,17 +1236,29 @@
           </div>
 
           <!-- EXPANDED INSPECTOR CONTENT -->
-          <template v-else>
+          <div v-else class="inspector-scroll-container">
             <div class="inspector-top-collapse-bar">
               <span class="inspector-panel-title">INSPECTOR &amp; STYLES</span>
-              <button
-                type="button"
-                class="btn-panel-collapse"
-                @click="toggleRightPane"
-                title="Collapse Inspector (Maximize Document Canvas)"
-              >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-              </button>
+              <div style="display: flex; align-items: center; gap: 4px;">
+                <button
+                  type="button"
+                  class="btn-icon-xs text-muted"
+                  v-if="rightSidebarWidth !== defaultRightSidebarWidth"
+                  @click="resetRightSidebarWidth"
+                  title="Reset sidebar width to 340px"
+                  style="font-size: 0.68rem; padding: 2px 4px;"
+                >
+                  ↺ Reset
+                </button>
+                <button
+                  type="button"
+                  class="btn-panel-collapse"
+                  @click="toggleRightPane"
+                  title="Collapse Inspector (Maximize Document Canvas)"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+              </div>
             </div>
           <!-- ── 1. HTML TEMPLATE MODE: ELEMENT SELECTED ── -->
           <div v-if="isHtmlTemplate && selectedHtmlNode" class="inspector-content">
@@ -1733,7 +1774,7 @@
             <h4>No Block Selected</h4>
             <p>Click any clause, table, heading, or signature block on the A4 page to configure its properties.</p>
           </div>
-          </template>
+          </div>
         </aside>
       </div>
 
@@ -2366,6 +2407,113 @@ const isInIframe = ref(typeof window !== 'undefined' && window.self !== window.t
 const isLeftCollapsed = ref(false)
 const isRightCollapsed = ref(isInIframe.value) // In iframe, default right inspector collapsed to give maximum room to A4 document
 const isBottomStripCollapsed = ref(isInIframe.value) // In iframe, default compact bottom strip so full page height is visible
+
+// Sidebar Drag Resizing State & Methods
+const defaultRightSidebarWidth = 340
+const minRightSidebarWidth = 280
+const maxRightSidebarWidth = computed(() => {
+  if (typeof window === 'undefined') return 800
+  return Math.min(Math.round(window.innerWidth * 0.65), 850)
+})
+
+const rightSidebarWidth = ref(
+  (() => {
+    try {
+      const saved = localStorage.getItem('studio_right_sidebar_width')
+      if (saved) {
+        const parsed = parseInt(saved, 10)
+        if (parsed >= 280 && parsed <= 900) return parsed
+      }
+    } catch (e) {}
+    return defaultRightSidebarWidth
+  })()
+)
+
+const isDraggingRightResizer = ref(false)
+let resizeStartX = 0
+let resizeStartWidth = 0
+
+const builderGridStyle = computed(() => {
+  const left = isLeftCollapsed.value ? '46px' : '290px'
+  const right = isRightCollapsed.value ? '46px' : `${rightSidebarWidth.value}px`
+  return {
+    gridTemplateColumns: `${left} 1fr ${right}`
+  }
+})
+
+function startRightResize(e) {
+  if (isRightCollapsed.value) return
+  isDraggingRightResizer.value = true
+  resizeStartX = e.clientX
+  resizeStartWidth = rightSidebarWidth.value
+
+  document.body.style.cursor = 'col-resize'
+  document.body.style.userSelect = 'none'
+
+  window.addEventListener('mousemove', onRightResizeMove)
+  window.addEventListener('mouseup', endRightResize)
+}
+
+function startRightResizeTouch(e) {
+  if (isRightCollapsed.value) return
+  if (!e.touches || !e.touches[0]) return
+  isDraggingRightResizer.value = true
+  resizeStartX = e.touches[0].clientX
+  resizeStartWidth = rightSidebarWidth.value
+
+  window.addEventListener('touchmove', onRightResizeMoveTouch, { passive: false })
+  window.addEventListener('touchend', endRightResize)
+}
+
+function onRightResizeMove(e) {
+  if (!isDraggingRightResizer.value) return
+  handleRightResizeDelta(e.clientX - resizeStartX)
+}
+
+function onRightResizeMoveTouch(e) {
+  if (!isDraggingRightResizer.value) return
+  if (!e.touches || !e.touches[0]) return
+  e.preventDefault()
+  handleRightResizeDelta(e.touches[0].clientX - resizeStartX)
+}
+
+function handleRightResizeDelta(deltaX) {
+  // Moving mouse to the left (negative deltaX) should INCREASE right sidebar width
+  const nextWidth = resizeStartWidth - deltaX
+  const clamped = Math.max(minRightSidebarWidth, Math.min(nextWidth, maxRightSidebarWidth.value))
+  rightSidebarWidth.value = Math.round(clamped)
+  updateFloatingToolbarPos()
+}
+
+function endRightResize() {
+  if (!isDraggingRightResizer.value) return
+  isDraggingRightResizer.value = false
+  document.body.style.cursor = ''
+  document.body.style.userSelect = ''
+
+  window.removeEventListener('mousemove', onRightResizeMove)
+  window.removeEventListener('mouseup', endRightResize)
+  window.removeEventListener('touchmove', onRightResizeMoveTouch)
+  window.removeEventListener('touchend', endRightResize)
+
+  try {
+    localStorage.setItem('studio_right_sidebar_width', String(rightSidebarWidth.value))
+  } catch (e) {}
+
+  nextTick(() => {
+    updateFloatingToolbarPos()
+  })
+}
+
+function resetRightSidebarWidth() {
+  rightSidebarWidth.value = defaultRightSidebarWidth
+  try {
+    localStorage.setItem('studio_right_sidebar_width', String(defaultRightSidebarWidth))
+  } catch (e) {}
+  nextTick(() => {
+    updateFloatingToolbarPos()
+  })
+}
 
 function toggleLeftPane() {
   isLeftCollapsed.value = !isLeftCollapsed.value
@@ -4550,6 +4698,10 @@ onUnmounted(() => {
   window.removeEventListener('keydown', onGlobalKeydown)
   window.removeEventListener('resize', updateFloatingToolbarPos)
   window.removeEventListener('resize', fitZoom)
+  window.removeEventListener('mousemove', onRightResizeMove)
+  window.removeEventListener('mouseup', endRightResize)
+  window.removeEventListener('touchmove', onRightResizeMoveTouch)
+  window.removeEventListener('touchend', endRightResize)
 })
 
 watch(activePageIndex, (newIdx) => {
@@ -4951,6 +5103,19 @@ watch(activeTab, (newTab, oldTab) => {
   height: 100%;
   overflow: hidden;
   transition: grid-template-columns 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.builder-three-pane.is-resizing {
+  transition: none !important;
+  user-select: none !important;
+}
+
+.builder-three-pane.is-resizing * {
+  user-select: none !important;
+}
+
+.builder-three-pane.is-resizing .canvas-area-wrapper {
+  pointer-events: none !important;
 }
 
 .builder-three-pane.left-collapsed {
@@ -5891,17 +6056,98 @@ watch(activeTab, (newTab, oldTab) => {
 
 /* ── Right Inspector ── */
 .inspector-sidebar {
+  position: relative;
   background: var(--color-bg-card);
   border-left: 1px solid var(--color-border);
-  overflow-y: auto;
-  padding: var(--space-4);
-  transition: all 0.2s ease;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+  padding: 0;
+  transition: width 0.2s ease;
+}
+
+.inspector-sidebar.is-resizing {
+  transition: none !important;
 }
 
 .inspector-sidebar.is-collapsed {
   padding: 0;
   overflow: hidden;
   background: #f8fafc;
+}
+
+.inspector-scroll-container {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--space-4);
+  height: 100%;
+  box-sizing: border-box;
+}
+
+/* ── Sidebar Drag Resizer Handle ── */
+.sidebar-resizer-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -5px;
+  width: 10px;
+  cursor: col-resize;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  background: transparent;
+  transition: background-color 0.15s ease;
+}
+
+.sidebar-resizer-handle:hover,
+.sidebar-resizer-handle.is-dragging {
+  background: rgba(99, 102, 241, 0.12);
+}
+
+.sidebar-resizer-handle .resizer-visual-bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 4px;
+  width: 2px;
+  background: transparent;
+  transition: background-color 0.15s ease;
+  pointer-events: none;
+}
+
+.sidebar-resizer-handle:hover .resizer-visual-bar,
+.sidebar-resizer-handle.is-dragging .resizer-visual-bar {
+  background: #6366f1;
+}
+
+.sidebar-resizer-handle .resizer-knob {
+  width: 14px;
+  height: 36px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  color: #94a3b8;
+  opacity: 0;
+  transform: scale(0.85);
+  transition: opacity 0.15s ease, transform 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.sidebar-resizer-handle:hover .resizer-knob,
+.sidebar-resizer-handle.is-dragging .resizer-knob {
+  opacity: 1;
+  transform: scale(1);
+  border-color: #6366f1;
+  color: #6366f1;
 }
 
 .inspector-collapsed-rail {
