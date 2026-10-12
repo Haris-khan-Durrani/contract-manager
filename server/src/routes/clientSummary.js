@@ -75,6 +75,80 @@ router.get('/contracts', async (req, res) => {
   }
 });
 
+// ─── GET /api/client-summary/schema ──────────────────────────────────────────
+// Get the active custom schema (custom sections and fields) for Client Summary
+router.get('/schema', async (req, res) => {
+  try {
+    const raw = settingsService.get('CLIENT_SUMMARY_CUSTOM_SCHEMA', '{"sections":[],"fields":[]}');
+    let schema = { sections: [], fields: [] };
+    try {
+      schema = typeof raw === 'string' ? JSON.parse(raw) : (raw || { sections: [], fields: [] });
+    } catch (_) {
+      schema = { sections: [], fields: [] };
+    }
+    if (!Array.isArray(schema.sections)) schema.sections = [];
+    if (!Array.isArray(schema.fields)) schema.fields = [];
+
+    res.json({ success: true, schema });
+  } catch (err) {
+    console.error('[Client Summary] Get schema error:', err.message);
+    res.status(500).json({ error: 'Failed to retrieve Client Summary schema.' });
+  }
+});
+
+// ─── PUT /api/client-summary/schema ──────────────────────────────────────────
+// Update custom schema (sections & fields) for Client Summary (Admins only)
+router.put('/schema', async (req, res) => {
+  try {
+    const { role } = req.appUser;
+    const canManage = ['SUPER_ADMIN', 'ADMIN'].includes(role) || hasPermission(role, 'settings:manage');
+    if (!canManage) {
+      return res.status(403).json({ error: 'Only administrators can update the Client Summary schema.' });
+    }
+
+    const { schema } = req.body;
+    if (!schema || typeof schema !== 'object') {
+      return res.status(400).json({ error: 'Invalid schema payload.' });
+    }
+
+    const cleanSections = Array.isArray(schema.sections) ? schema.sections.map((s, idx) => ({
+      id: s.id || `sec_custom_${Date.now()}_${idx}`,
+      title: String(s.title || '').trim(),
+      description: String(s.description || '').trim(),
+      order: Number(s.order || idx + 1),
+    })).filter(s => s.title) : [];
+
+    const cleanFields = Array.isArray(schema.fields) ? schema.fields.map((f, idx) => ({
+      id: f.id || `fld_custom_${Date.now()}_${idx}`,
+      key: String(f.key || '').trim().toLowerCase().replace(/[^a-z0-9_]/g, '_'),
+      label: String(f.label || '').trim(),
+      type: ['text', 'textarea', 'number', 'date', 'dropdown', 'yes_no', 'checkbox'].includes(f.type) ? f.type : 'text',
+      section: String(f.section || 'page1').trim(),
+      required: Boolean(f.required),
+      fullWidth: Boolean(f.fullWidth),
+      placeholder: String(f.placeholder || '').trim(),
+      options: Array.isArray(f.options) ? f.options.map(o => String(o).trim()).filter(Boolean) : [],
+    })).filter(f => f.key && f.label) : [];
+
+    const finalSchema = {
+      sections: cleanSections,
+      fields: cleanFields,
+      updatedAt: new Date().toISOString(),
+    };
+
+    await settingsService.set('CLIENT_SUMMARY_CUSTOM_SCHEMA', JSON.stringify(finalSchema));
+
+    res.json({
+      success: true,
+      message: 'Client Summary custom schema saved successfully.',
+      schema: finalSchema,
+    });
+  } catch (err) {
+    console.error('[Client Summary] Update schema error:', err.message);
+    res.status(500).json({ error: 'Failed to update Client Summary schema: ' + err.message });
+  }
+});
+
 // ─── GET /api/client-summary/:contractId ────────────────────────────────────
 // Fetch existing client summary or generate prefilled template
 router.get('/:contractId', async (req, res) => {

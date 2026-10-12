@@ -2,6 +2,7 @@
  * clientSummaryPdfService.js — Renders official Client Summary Form to A4 PDF Buffer
  */
 const pdfService = require('./pdfService');
+const settingsService = require('./settingsService');
 
 function escapeHtml(str) {
   if (str === null || str === undefined) return '';
@@ -37,6 +38,44 @@ async function generateSummaryPdf(contract, summaryData = {}) {
   const data = summaryData || {};
   const attachments = Array.isArray(data.attachments) ? data.attachments : [];
   const actionPlan = Array.isArray(data.action_plan) ? data.action_plan : [];
+
+  const rawSchema = settingsService.get('CLIENT_SUMMARY_CUSTOM_SCHEMA', '{"sections":[],"fields":[]}');
+  let customSchema = { sections: [], fields: [] };
+  try {
+    customSchema = typeof rawSchema === 'string' ? JSON.parse(rawSchema) : (rawSchema || {});
+  } catch (_) {}
+  const customSections = Array.isArray(customSchema.sections) ? customSchema.sections : [];
+  const customFields = Array.isArray(customSchema.fields) ? customSchema.fields : [];
+  const customValues = data.custom_fields || {};
+
+  function getCustomVal(key) {
+    if (customValues && customValues[key] !== undefined && customValues[key] !== '') {
+      return customValues[key];
+    }
+    return data[key];
+  }
+
+  function renderCustomFieldsForSection(secId) {
+    const fields = customFields.filter(f => f.section === secId);
+    if (!fields.length) return '';
+    return `
+      <div style="margin-top: 14px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 12px; margin-bottom: 12px;">
+        <div style="font-size: 10.5px; font-weight: 800; color: #1e3a8a; text-transform: uppercase; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">
+          Additional Customized Information
+        </div>
+        <div class="grid-2" style="flex-wrap: wrap;">
+          ${fields.map(f => `
+            <div style="${f.fullWidth ? 'flex: 1 1 100%;' : 'flex: 1 1 48%;'} margin-bottom: 6px;">
+              <span class="field-label" style="font-size: 10px; color: #475569;">${escapeHtml(f.label)}:</span>
+              <span class="field-value" style="font-weight: 600; font-size: 11px;">
+                ${f.type === 'yes_no' ? renderYesNo(getCustomVal(f.key)) : renderValue(getCustomVal(f.key))}
+              </span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -297,6 +336,8 @@ async function generateSummaryPdf(contract, summaryData = {}) {
       <span class="field-value"><strong>${data.expected_submission === '12_weeks' ? '12 Weeks' : '8 Weeks'}</strong></span>
     </div>
 
+    ${renderCustomFieldsForSection('page1')}
+
     <div class="page-footer">
       <span>Contract Ref #${escapeHtml(contract.id)} • ${escapeHtml(contract.recipient_name)}</span>
       <span>CLIENT SUMMARY FORM | Page 1</span>
@@ -405,6 +446,8 @@ async function generateSummaryPdf(contract, summaryData = {}) {
       </tr>
     </table>
 
+    ${renderCustomFieldsForSection('page2')}
+
     <div class="page-footer">
       <span>Contract Ref #${escapeHtml(contract.id)} • ${escapeHtml(contract.recipient_name)}</span>
       <span>CLIENT SUMMARY FORM | Page 2</span>
@@ -466,6 +509,9 @@ async function generateSummaryPdf(contract, summaryData = {}) {
         </td>
       </tr>
     </table>
+
+    ${renderCustomFieldsForSection('page3')}
+    ${renderCustomFieldsForSection('page4')}
 
     <div class="page-footer">
       <span>Contract Ref #${escapeHtml(contract.id)} • ${escapeHtml(contract.recipient_name)}</span>
@@ -534,6 +580,9 @@ async function generateSummaryPdf(contract, summaryData = {}) {
       </tr>
     </table>
 
+    ${renderCustomFieldsForSection('page5')}
+    ${renderCustomFieldsForSection('page6')}
+
     <div class="page-footer">
       <span>Contract Ref #${escapeHtml(contract.id)} • ${escapeHtml(contract.recipient_name)}</span>
       <span>CLIENT SUMMARY FORM | Pages 5–7</span>
@@ -595,6 +644,8 @@ async function generateSummaryPdf(contract, summaryData = {}) {
       </table>
     ` : '<p style="color: #64748b; font-style: italic; font-size: 10px;">Standard visa application onboarding workflow initiated.</p>'}
 
+    ${renderCustomFieldsForSection('page7')}
+
     <div class="section-banner">Counsellor Assessment & Declaration</div>
     <p style="font-size: 10px; color: #334155; margin: 4px 0 10px;">
       I hereby certify that I have conducted the comprehensive case evaluation and intake assessment with the applicant named herein. The information recorded represents a true and complete summary of the applicant's current background, immigration history, and objectives.
@@ -618,11 +669,56 @@ async function generateSummaryPdf(contract, summaryData = {}) {
       </div>
     </div>
 
+    ${renderCustomFieldsForSection('page8')}
+
     <div class="page-footer">
       <span>Contract Ref #${escapeHtml(contract.id)} • ${escapeHtml(contract.recipient_name)}</span>
       <span>CLIENT SUMMARY FORM | Pages 8–9</span>
     </div>
   </div>
+
+  <!-- ═════════ DYNAMIC CUSTOM SECTIONS (FROM SETTINGS) ═════════ -->
+  ${customSections.map(sec => {
+    const secFields = customFields.filter(f => f.section === sec.id);
+    return `
+    <div class="page" id="custom-${escapeHtml(sec.id)}">
+      <div class="doc-header">
+        <h1 class="doc-title">CLIENT SUMMARY FORM</h1>
+        <div class="doc-sub">360 Global Immigration • ${escapeHtml(sec.title)}</div>
+      </div>
+
+      <div class="section-banner">
+        ${escapeHtml(sec.title)}
+      </div>
+      ${sec.description ? `<p style="font-size: 10.5px; color: #475569; margin: 4px 0 12px;">${escapeHtml(sec.description)}</p>` : ''}
+
+      <table class="qa-table" style="margin-top: 10px;">
+        <tbody>
+          ${secFields.length > 0 ? secFields.map((f, i) => `
+            <tr>
+              <td class="col-num">${i + 1}</td>
+              <td style="width: 38%; font-weight: 700; color: #334155;">
+                ${escapeHtml(f.label)}
+              </td>
+              <td>
+                ${f.type === 'yes_no' ? renderYesNo(getCustomVal(f.key)) : renderValue(getCustomVal(f.key))}
+              </td>
+            </tr>
+          `).join('') : `
+            <tr>
+              <td colspan="3" style="text-align: center; color: #94a3b8; padding: 20px;">No fields configured for this section.</td>
+            </tr>
+          `}
+        </tbody>
+      </table>
+
+      <div class="page-footer">
+        <span>Contract Ref #${escapeHtml(contract.id)} • ${escapeHtml(contract.recipient_name)}</span>
+        <span>CLIENT SUMMARY FORM | ${escapeHtml(sec.title)}</span>
+      </div>
+    </div>
+    `;
+  }).join('')}
 
   <!-- ═════════ PAGE 6: ATTACHED DOCUMENTS DOSSIER ═════════ -->
   <div class="page">

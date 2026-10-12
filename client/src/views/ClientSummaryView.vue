@@ -407,6 +407,13 @@
             </div>
           </div>
 
+          <!-- Dynamic Custom Fields for Page 1 -->
+          <ClientSummaryCustomFields
+            :fields="getCustomFieldsForSection('page1')"
+            :form-data="form.custom_fields"
+            section-label="Page 1 Custom Specifications"
+          />
+
           <div class="page-footer-mark">CLIENT SUMMARY FORM | Page 1</div>
         </section>
 
@@ -616,6 +623,13 @@
             </tbody>
           </table>
 
+          <!-- Dynamic Custom Fields for Page 2 -->
+          <ClientSummaryCustomFields
+            :fields="getCustomFieldsForSection('page2')"
+            :form-data="form.custom_fields"
+            section-label="Immigration Background Custom Specifications"
+          />
+
           <div class="page-footer-mark">CLIENT SUMMARY FORM | Page 2</div>
         </section>
 
@@ -766,6 +780,13 @@
               </tr>
             </tbody>
           </table>
+
+          <!-- Dynamic Custom Fields for Page 3 -->
+          <ClientSummaryCustomFields
+            :fields="getCustomFieldsForSection('page3')"
+            :form-data="form.custom_fields"
+            section-label="Business Background Custom Specifications"
+          />
 
           <div class="page-footer-mark">CLIENT SUMMARY FORM | Page 3 & 4</div>
         </section>
@@ -926,6 +947,13 @@
               </tr>
             </tbody>
           </table>
+
+          <!-- Dynamic Custom Fields for Page 4 -->
+          <ClientSummaryCustomFields
+            :fields="getCustomFieldsForSection('page4')"
+            :form-data="form.custom_fields"
+            section-label="Employment Background Custom Specifications"
+          />
 
           <div class="page-footer-mark">CLIENT SUMMARY FORM | Page 4 & 5</div>
         </section>
@@ -1165,6 +1193,13 @@
             </tbody>
           </table>
 
+          <!-- Dynamic Custom Fields for Page 5 -->
+          <ClientSummaryCustomFields
+            :fields="getCustomFieldsForSection('page5')"
+            :form-data="form.custom_fields"
+            section-label="Personal & Family Custom Specifications"
+          />
+
           <div class="page-footer-mark">CLIENT SUMMARY FORM | Page 5 & 6</div>
         </section>
 
@@ -1329,6 +1364,13 @@
             </tbody>
           </table>
 
+          <!-- Dynamic Custom Fields for Page 6 -->
+          <ClientSummaryCustomFields
+            :fields="getCustomFieldsForSection('page6')"
+            :form-data="form.custom_fields"
+            section-label="Academic Background Custom Specifications"
+          />
+
           <div class="page-footer-mark">CLIENT SUMMARY FORM | Page 6 & 7</div>
         </section>
 
@@ -1452,6 +1494,13 @@
             </tbody>
           </table>
 
+          <!-- Dynamic Custom Fields for Page 7 -->
+          <ClientSummaryCustomFields
+            :fields="getCustomFieldsForSection('page7')"
+            :form-data="form.custom_fields"
+            section-label="Financial Background Custom Specifications"
+          />
+
           <div class="page-footer-mark">CLIENT SUMMARY FORM | Page 8</div>
         </section>
 
@@ -1518,7 +1567,45 @@
             </div>
           </div>
 
+          <!-- Dynamic Custom Fields for Page 8 -->
+          <ClientSummaryCustomFields
+            :fields="getCustomFieldsForSection('page8')"
+            :form-data="form.custom_fields"
+            section-label="Action Plan & Declaration Custom Specifications"
+          />
+
           <div class="page-footer-mark">CLIENT SUMMARY FORM | Page 9</div>
+        </section>
+
+        <!-- ═══════════════ DYNAMIC CUSTOM SECTIONS (FROM SETTINGS) ═══════════════ -->
+        <section
+          v-for="sec in (customSchema.sections || [])"
+          :key="sec.id"
+          v-show="currentTab === sec.id || isPrinting"
+          class="form-page custom-section-page"
+          :id="`sec-${sec.id}`"
+        >
+          <div class="section-banner custom-sec-banner">
+            <div class="custom-sec-badge">CUSTOM DOSSIER SECTION</div>
+            <h3>{{ sec.title }}</h3>
+            <span v-if="sec.description" class="banner-sub">{{ sec.description }}</span>
+          </div>
+
+          <div v-if="!getCustomFieldsForSection(sec.id).length" class="custom-sec-empty">
+            <div class="empty-icon-sm">⚙️</div>
+            <p>No custom fields assigned to this section yet.</p>
+            <span class="hint-small">Configure fields for this section in <strong>Settings → Client Summary Dossier Customization</strong>.</span>
+          </div>
+
+          <div v-else class="custom-section-body">
+            <ClientSummaryCustomFields
+              :fields="getCustomFieldsForSection(sec.id)"
+              :form-data="form.custom_fields"
+              :is-standalone="true"
+            />
+          </div>
+
+          <div class="page-footer-mark">CLIENT SUMMARY FORM | {{ sec.title.toUpperCase() }}</div>
         </section>
 
         <!-- ═══════════════ PAGE 9: SUPPORTING ATTACHMENTS & COMPILED PACKAGE ═══════════════ -->
@@ -1758,6 +1845,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import { useAuthStore } from '../stores/auth'
+import ClientSummaryCustomFields from '../components/ClientSummaryCustomFields.vue'
 
 const route  = useRoute()
 const router = useRouter()
@@ -1770,6 +1858,33 @@ function getHeaders() {
     Authorization: `Bearer ${auth.sessionToken}`,
     'X-GHL-Context': auth.userContextToken || '',
   }
+}
+
+// Custom Schema state
+const customSchema = ref({ sections: [], fields: [] })
+const loadingSchema = ref(false)
+
+async function loadCustomSchema() {
+  loadingSchema.value = true
+  try {
+    const res = await axios.get(`${apiBase}/client-summary/schema`, {
+      headers: getHeaders(),
+    })
+    if (res.data?.schema) {
+      customSchema.value = {
+        sections: Array.isArray(res.data.schema.sections) ? res.data.schema.sections : [],
+        fields: Array.isArray(res.data.schema.fields) ? res.data.schema.fields : [],
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to load client summary custom schema:', err)
+  } finally {
+    loadingSchema.value = false
+  }
+}
+
+function getCustomFieldsForSection(secId) {
+  return (customSchema.value?.fields || []).filter(f => f.section === secId)
 }
 
 // Contracts list state
@@ -1798,29 +1913,49 @@ const uploadingAttachment = ref(false)
 const downloadingZip = ref(false)
 const downloadingPdf = ref(false)
 
-const formTabs = [
-  { id: 'page1', step: 1, page: 'Page 1', title: 'General Info' },
-  { id: 'page2', step: 2, page: 'Page 2', title: 'Immigration History' },
-  { id: 'page3', step: 3, page: 'Pages 3-4', title: 'Business Background' },
-  { id: 'page4', step: 4, page: 'Pages 4-5', title: 'Employment Background' },
-  { id: 'page5', step: 5, page: 'Pages 5-6', title: 'Personal & Family' },
-  { id: 'page6', step: 6, page: 'Pages 6-7', title: 'Academic Background' },
-  { id: 'page7', step: 7, page: 'Page 8', title: 'Financials' },
-  { id: 'page8', step: 8, page: 'Page 9', title: 'Action Plan & Signatures' },
-  { id: 'page9', step: 9, page: 'Dossier', title: 'Attached Files & ZIP Package' },
-]
+const formTabs = computed(() => {
+  const baseTabs = [
+    { id: 'page1', page: 'Page 1', title: 'General Info' },
+    { id: 'page2', page: 'Page 2', title: 'Immigration History' },
+    { id: 'page3', page: 'Pages 3-4', title: 'Business Background' },
+    { id: 'page4', page: 'Pages 4-5', title: 'Employment Background' },
+    { id: 'page5', page: 'Pages 5-6', title: 'Personal & Family' },
+    { id: 'page6', page: 'Pages 6-7', title: 'Academic Background' },
+    { id: 'page7', page: 'Page 8', title: 'Financials' },
+    { id: 'page8', page: 'Page 9', title: 'Action Plan & Signatures' },
+  ]
+
+  const customSections = (customSchema.value?.sections || []).map((sec, idx) => ({
+    id: sec.id,
+    page: `Custom ${idx + 1}`,
+    title: sec.title,
+    isCustom: true,
+  }))
+
+  const all = [
+    ...baseTabs,
+    ...customSections,
+    { id: 'page9', page: 'Dossier', title: 'Attached Files & ZIP Package' },
+  ]
+
+  return all.map((t, index) => ({
+    ...t,
+    step: index + 1,
+  }))
+})
 
 const currentTabIndex = computed(() => {
-  const idx = formTabs.findIndex(t => t.id === currentTab.value)
+  const idx = formTabs.value.findIndex(t => t.id === currentTab.value)
   return idx >= 0 ? idx : 0
 })
 
 const currentTabObj = computed(() => {
-  return formTabs[currentTabIndex.value] || formTabs[0]
+  return formTabs.value[currentTabIndex.value] || formTabs.value[0]
 })
 
 const progressPercent = computed(() => {
-  return Math.round(((currentTabIndex.value + 1) / formTabs.length) * 100)
+  const len = formTabs.value.length || 1
+  return Math.round(((currentTabIndex.value + 1) / len) * 100)
 })
 
 function scrollTabs(direction) {
@@ -1841,8 +1976,8 @@ function selectTab(tabId) {
 
 function goToNextTab() {
   const nextIdx = currentTabIndex.value + 1
-  if (nextIdx < formTabs.length) {
-    selectTab(formTabs[nextIdx].id)
+  if (nextIdx < formTabs.value.length) {
+    selectTab(formTabs.value[nextIdx].id)
     scrollDocumentToTop()
   }
 }
@@ -1850,7 +1985,7 @@ function goToNextTab() {
 function goToPrevTab() {
   const prevIdx = currentTabIndex.value - 1
   if (prevIdx >= 0) {
-    selectTab(formTabs[prevIdx].id)
+    selectTab(formTabs.value[prevIdx].id)
     scrollDocumentToTop()
   }
 }
@@ -1891,6 +2026,16 @@ function isTabCompleted(tabId) {
   if (tabId === 'page9') {
     return Boolean(form.value.attachments && form.value.attachments.length > 0)
   }
+
+  // Custom section completion
+  const secFields = getCustomFieldsForSection(tabId)
+  if (secFields.length > 0) {
+    return secFields.some(f => {
+      const v = form.value?.custom_fields?.[f.key]
+      return v !== undefined && v !== null && v !== '' && v !== false
+    })
+  }
+
   return false
 }
 
@@ -1899,6 +2044,7 @@ const form = ref(getDefaultForm())
 
 function getDefaultForm() {
   return {
+    custom_fields: {},
     reg_number: '',
     reg_date: new Date().toISOString().slice(0, 10),
     registered_at: 'Dubai',
@@ -2096,6 +2242,7 @@ async function loadSelectedContract() {
       form.value = {
         ...getDefaultForm(),
         ...data.summary,
+        custom_fields: data.summary.custom_fields || {},
         attachments: Array.isArray(data.summary.attachments) ? data.summary.attachments : [],
       }
     } else {
@@ -2297,7 +2444,10 @@ function formatTime(d) {
 }
 
 onMounted(async () => {
-  await fetchCompletedContracts()
+  await Promise.all([
+    fetchCompletedContracts(),
+    loadCustomSchema()
+  ])
 
   // If contractId provided in URL query, automatically select and load it
   const urlContractId = route.query.contractId
@@ -3602,6 +3752,60 @@ onMounted(async () => {
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+/* Custom Section Pages */
+.custom-sec-banner {
+  background: #1e3a8a;
+  color: #ffffff;
+  padding: 12px 16px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.custom-sec-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  background: rgba(255, 255, 255, 0.2);
+  color: #93c5fd;
+  padding: 2px 6px;
+  border-radius: 3px;
+  margin-bottom: 4px;
+}
+
+.custom-sec-banner h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.custom-sec-empty {
+  text-align: center;
+  padding: 48px 24px;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+  margin: 16px 0;
+}
+
+.custom-sec-empty p {
+  font-size: 14px;
+  font-weight: 600;
+  color: #475569;
+  margin: 8px 0 4px;
+}
+
+.custom-sec-empty .hint-small {
+  font-size: 11.5px;
+  color: #64748b;
+}
+
+.custom-section-body {
+  margin-top: 10px;
 }
 
 /* Print Styles */

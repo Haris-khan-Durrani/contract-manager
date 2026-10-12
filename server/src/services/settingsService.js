@@ -24,6 +24,7 @@ const DEFAULT_SETTINGS = {
   RESTRICT_CONTACTS_TO_ASSIGNED: 'true',
   COMPANY_STAMP_URL:             DEFAULT_COMPANY_STAMP,
   COMPANY_SIGNATURE_URL:         DEFAULT_COMPANY_SIGNATURE,
+  CLIENT_SUMMARY_CUSTOM_SCHEMA:  JSON.stringify({ sections: [], fields: [] }),
 };
 
 class SettingsService {
@@ -196,8 +197,8 @@ class SettingsService {
     await db.execute(
       `INSERT INTO system_settings (setting_key, setting_value)
        VALUES (?, ?)
-       ON DUPLICATE KEY UPDATE setting_value = ?`,
-      [key, val, val]
+       ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
+      [key, val]
     );
     const existing = this._cache.get(key) || {};
     this._cache.set(key, { ...existing, value: val });
