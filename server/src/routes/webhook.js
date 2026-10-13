@@ -27,6 +27,7 @@ const db            = require('../config/db');
 const ghlService    = require('../services/ghlService');
 const conditionEngine = require('../services/conditionEngine');
 const settingsService = require('../services/settingsService');
+const { logContractAuditAndSync } = require('../services/auditSyncService');
 
 // ─── Webhook Secret Validator ─────────────────────────────────────────────────
 function validateWebhookSecret(req, res, next) {
@@ -144,19 +145,6 @@ router.post('/contract-trigger', validateWebhookSecret, async (req, res) => {
       [idempKey, contractInstanceId, expiresAt]
     );
 
-    await connection.execute(
-      `INSERT INTO contract_audit_logs
-         (contract_instance_id, actor_type, actor_id, action, from_state, to_state, metadata_json)
-       VALUES (?, 'SYSTEM', 'GHL_WEBHOOK', 'CONTRACT_CREATED', NULL, ?, ?)`,
-      [contractInstanceId, initialState, JSON.stringify({ trigger, matchedTemplate: matchedTemplate.id, missingFields: missingFields.map(f => f.key) })]
-    );
-
-    await connection.execute(
-      `INSERT INTO contract_events (contract_instance_id, event_type, event_data_json, actor_type, actor_label)
-       VALUES (?, 'CONTRACT_CREATED', ?, 'SYSTEM', 'GHL_WEBHOOK')`,
-      [contractInstanceId, JSON.stringify({ trigger, matchedTemplate: matchedTemplate.id, state: initialState })]
-    ).catch(() => {});
-
     await connection.commit();
   } catch (err) {
     await connection.rollback();
@@ -172,12 +160,20 @@ router.post('/contract-trigger', validateWebhookSecret, async (req, res) => {
   }).catch(err => console.warn('[Webhook] GHL status sync failed:', err.message));
 
   // 7. Auto-sync creation event to GHL Conversation InternalComment & Contact Notes
-  ghlService.syncAuditLogToGHL(locationId, {
-    contactId,
-    userId: assignedUserId,
-    title: `Contract #${contractInstanceId} Created via Webhook (${matchedTemplate.name})`,
-    details: `Trigger: ${trigger} | State: ${initialState} | Template: ${matchedTemplate.name}`,
+  logContractAuditAndSync(contractInstanceId, {
+    action: 'CONTRACT_CREATED',
+    actorType: 'SYSTEM',
+    actorId: 'GHL_WEBHOOK',
     actorName: 'HighLevel Workflow Webhook',
+    fromState: null,
+    toState: initialState,
+    metadata: {
+      trigger,
+      matchedTemplate: matchedTemplate.id,
+      templateName: matchedTemplate.name,
+      missingFields: missingFields.map(f => f.key),
+      state: initialState,
+    },
   }).catch(err => console.warn('[Webhook] GHL audit sync failed:', err.message));
 
   console.log(`[Webhook] Contract ${contractInstanceId} created → ${initialState} (template: ${matchedTemplate.name})`);

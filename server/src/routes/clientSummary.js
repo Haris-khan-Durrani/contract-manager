@@ -15,6 +15,7 @@ const { ghlAuthMiddleware } = require('../middleware/ghlAuth');
 const { loadAppUser, requireClientSummaryAccess, hasPermission } = require('../middleware/rbac');
 const settingsService = require('../services/settingsService');
 const ghlService = require('../services/ghlService');
+const { logContractAuditAndSync } = require('../services/auditSyncService');
 
 // Apply authentication, user context, and Client Summary permission guard
 router.use(ghlAuthMiddleware, loadAppUser, requireClientSummaryAccess);
@@ -510,31 +511,20 @@ router.post('/:contractId', async (req, res) => {
       ]
     );
 
-    // Audit log & event log for client summary
+    // Audit log & auto-sync client summary event to GHL Conversation InternalComment
     const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || '';
     const actionName = validStatus === 'COMPLETED' ? 'CLIENT_SUMMARY_COMPLETED' : 'CLIENT_SUMMARY_SAVED';
-    await db.execute(
-      `INSERT INTO contract_audit_logs
-         (contract_instance_id, actor_type, actor_id, actor_name, action, from_state, to_state, ip_address, metadata_json)
-       VALUES (?, 'USER', ?, ?, ?, ?, ?, ?, ?)`,
-      [contract.id, userId, completedByName || name || userId, actionName, contract.state, contract.state, clientIp, JSON.stringify({ status: validStatus })]
-    ).catch(() => {});
-
-    await db.execute(
-      `INSERT INTO contract_events (contract_instance_id, event_type, event_data_json, actor_type, actor_label, ip_address)
-       VALUES (?, ?, ?, 'USER', ?, ?)`,
-      [contract.id, actionName, JSON.stringify({ status: validStatus }), completedByName || name || userId, clientIp]
-    ).catch(() => {});
-
-    // Auto-sync client summary event to GHL Conversation InternalComment & Contact Notes
-    ghlService.syncAuditLogToGHL(locationId, {
-      contactId: contract.ghl_contact_id,
-      userId,
-      title: `Contract #${contract.id} Client Summary ${validStatus === 'COMPLETED' ? 'Completed' : 'Saved'}`,
-      details: `Client Summary was ${validStatus === 'COMPLETED' ? 'finalized and completed' : 'saved as draft'} by ${completedByName || name || 'Staff User'}.`,
-      actorName: completedByName || name || 'Staff User',
+    logContractAuditAndSync(contract.id, {
+      action: actionName,
+      actorType: 'USER',
+      actorId: userId,
+      actorName: completedByName || name || userId,
+      fromState: contract.state,
+      toState: contract.state,
+      ipAddress: clientIp,
+      metadata: { status: validStatus, completedByName: completedByName || name || userId },
       privateToken: req.ghlUser?.privateToken,
-    }).catch(err => console.warn('[ClientSummary] GHL sync failed:', err.message));
+    }).catch(err => console.warn('[ClientSummary] Audit sync failed:', err.message));
 
     res.json({
       success: true,

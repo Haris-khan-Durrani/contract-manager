@@ -27,6 +27,7 @@ const snapshotService  = require('../services/snapshotService');
 const settingsService  = require('../services/settingsService');
 const pdfService       = require('../services/pdfService');
 const { getClientIp }  = require('../utils/ipHelper');
+const { logContractAuditAndSync } = require('../services/auditSyncService');
 
 // Apply auth to all routes in this router
 router.use(ghlAuthMiddleware, loadAppUser);
@@ -435,30 +436,16 @@ router.post('/manual', requirePermission('contract:create'), async (req, res) =>
 
     if (isDraft) {
       const clientIp = getClientIp(req);
-      // Audit log — creation as Draft
-      await db.execute(
-        `INSERT INTO contract_audit_logs
-           (contract_instance_id, actor_type, actor_id, actor_name, action, to_state, ip_address, metadata_json)
-         VALUES (?, 'USER', ?, ?, 'CONTRACT_CREATED', 'DRAFT', ?, ?)`,
-        [contractInstanceId, userId, req.ghlUser.name, clientIp, JSON.stringify({ templateId, mode: 'MANUAL', formMode, isDraft: true })]
-      );
-
-      // Event log
-      await db.execute(
-        `INSERT INTO contract_events (contract_instance_id, event_type, event_data_json, actor_type, actor_label, ip_address)
-         VALUES (?, 'CONTRACT_CREATED', ?, 'USER', ?, ?)`,
-        [contractInstanceId, JSON.stringify({ templateId, formMode, validityDays: numDays, state: 'DRAFT' }), req.ghlUser.name || userId, clientIp]
-      );
-
-      // Sync draft event to GHL Conversation stream & Contact Notes
-      ghlService.syncAuditLogToGHL(locationId, {
-        contactId: ghlContactId,
-        userId,
-        title: `Contract #${contractInstanceId} Saved as Draft (${template.name})`,
-        details: `Form Mode: ${formMode} | Validity: ${numDays} days | Awaiting manual dispatch via GHL`,
+      await logContractAuditAndSync(contractInstanceId, {
+        action: 'CONTRACT_CREATED',
+        actorType: 'USER',
+        actorId: userId,
         actorName: req.ghlUser?.name || 'Staff User',
+        toState: 'DRAFT',
+        ipAddress: clientIp,
+        metadata: { templateId, mode: 'MANUAL', formMode, isDraft: true },
         privateToken: req.ghlUser?.privateToken,
-      }).catch(err => console.warn('[Contracts] GHL draft note failed:', err.message));
+      });
 
       res.status(201).json({
         contractInstanceId,
@@ -502,31 +489,19 @@ router.post('/manual', requirePermission('contract:create'), async (req, res) =>
         ],
       }, req.ghlUser?.privateToken).catch(err => console.warn('[Contracts] GHL status sync failed:', err.message));
 
-      // Audit log — created and sent
+      // Audit log & event log — created and sent
       const clientIp = getClientIp(req);
-      await db.execute(
-        `INSERT INTO contract_audit_logs
-           (contract_instance_id, actor_type, actor_id, actor_name, action, to_state, ip_address, metadata_json)
-         VALUES (?, 'USER', ?, ?, 'CONTRACT_SENT', 'SENT', ?, ?)`,
-        [contractInstanceId, userId, req.ghlUser.name, clientIp, JSON.stringify({ templateId, mode: 'MANUAL', formMode, autoSend: true, delivery: deliveryResults })]
-      );
-
-      // Event log
-      await db.execute(
-        `INSERT INTO contract_events (contract_instance_id, event_type, event_data_json, actor_type, actor_label, ip_address)
-         VALUES (?, 'CONTRACT_SENT', ?, 'USER', ?, ?)`,
-        [contractInstanceId, JSON.stringify({ templateId, formMode, validityDays: numDays, autoSend: true }), req.ghlUser.name || userId, clientIp]
-      );
-
-      // Sync sent event to GHL Conversation stream (InternalComment) & Contact Notes
-      ghlService.syncAuditLogToGHL(locationId, {
-        contactId: ghlContactId,
-        userId,
-        title: `Contract #${contractInstanceId} Created & Dispatched (${template.name})`,
-        details: `Auto-Sent via GoHighLevel | Link Validity: ${numDays} days | Channels: ${Object.keys(deliveryResults || {}).filter(k => deliveryResults[k]).join(', ') || 'SMS/Email'}`,
+      await logContractAuditAndSync(contractInstanceId, {
+        action: 'CONTRACT_SENT',
+        actorType: 'USER',
+        actorId: userId,
         actorName: req.ghlUser?.name || 'Staff User',
+        fromState: 'DRAFT',
+        toState: 'SENT',
+        ipAddress: clientIp,
+        metadata: { templateId, mode: 'MANUAL', formMode, autoSend: true, delivery: deliveryResults },
         privateToken: req.ghlUser?.privateToken,
-      }).catch(err => console.warn('[Contracts] GHL auto-send note failed:', err.message));
+      });
 
       res.status(201).json({
         contractInstanceId,
@@ -592,27 +567,17 @@ router.post('/:id/extend', requirePermission('contract:send'), async (req, res) 
     }
 
     const clientIp = getClientIp(req);
-    await db.execute(
-      `INSERT INTO contract_audit_logs (contract_instance_id, actor_type, actor_id, actor_name, action, from_state, to_state, ip_address, metadata_json)
-       VALUES (?, 'USER', ?, ?, 'EXPIRY_EXTENDED', ?, ?, ?, ?)`,
-      [contract.id, userId, req.ghlUser.name || 'User', previousState, newState, clientIp, JSON.stringify({ extraDays, newExpiry, newToken: isExpired })]
-    );
-
-    await db.execute(
-      `INSERT INTO contract_events (contract_instance_id, event_type, event_data_json, actor_type, actor_label, ip_address)
-       VALUES (?, 'EXPIRY_EXTENDED', ?, 'USER', ?, ?)`,
-      [contract.id, JSON.stringify({ extraDays, newExpiry: newExpiry.toISOString() }), req.ghlUser.name || userId, clientIp]
-    );
-
-    // Sync extend event to GHL Conversation stream (InternalComment) & Contact Notes
-    ghlService.syncAuditLogToGHL(locationId, {
-      contactId: contract.ghl_contact_id,
-      userId,
-      title: `Contract #${contract.id} Expiry Extended`,
-      details: `Validity extended by +${extraDays} days. New Expiry: ${newExpiry.toLocaleDateString('en-GB')}`,
+    await logContractAuditAndSync(contract.id, {
+      action: 'EXPIRY_EXTENDED',
+      actorType: 'USER',
+      actorId: userId,
       actorName: req.ghlUser?.name || 'Staff User',
+      fromState: previousState,
+      toState: newState,
+      ipAddress: clientIp,
+      metadata: { extraDays, newExpiry: newExpiry.toISOString(), newToken: isExpired },
       privateToken: req.ghlUser?.privateToken,
-    }).catch(err => console.warn('[Contracts] GHL extend note failed:', err.message));
+    });
 
     const baseUrl    = settingsService.getSigningBaseUrl(req);
     const signingUrl = `${baseUrl}/sign/${newToken}`;
@@ -650,27 +615,17 @@ router.post('/:id/revoke', requirePermission('contract:cancel'), async (req, res
     );
 
     const clientIp = getClientIp(req);
-    await db.execute(
-      `INSERT INTO contract_audit_logs (contract_instance_id, actor_type, actor_id, actor_name, action, from_state, to_state, ip_address)
-       VALUES (?, 'USER', ?, ?, 'CONTRACT_REVOKED', ?, 'REVOKED', ?)`,
-      [contract.id, userId, req.ghlUser.name, previousState, clientIp]
-    );
-
-    await db.execute(
-      `INSERT INTO contract_events (contract_instance_id, event_type, actor_type, actor_label, ip_address)
-       VALUES (?, 'CONTRACT_REVOKED', 'USER', ?, ?)`,
-      [contract.id, req.ghlUser.name || userId, clientIp]
-    );
-
-    // Sync revoke event to GHL Conversation stream (InternalComment) & Contact Notes
-    ghlService.syncAuditLogToGHL(locationId, {
-      contactId: contract.ghl_contact_id,
-      userId,
-      title: `Contract #${contract.id} Revoked / Cancelled`,
-      details: `Previous State: ${previousState}. Signing link has been deactivated.`,
+    await logContractAuditAndSync(contract.id, {
+      action: 'CONTRACT_REVOKED',
+      actorType: 'USER',
+      actorId: userId,
       actorName: req.ghlUser?.name || 'Staff User',
+      fromState: previousState,
+      toState: 'REVOKED',
+      ipAddress: clientIp,
+      metadata: { previousState, reason: 'Signing link deactivated by user' },
       privateToken: req.ghlUser?.privateToken,
-    }).catch(err => console.warn('[Contracts] GHL revoke note failed:', err.message));
+    });
 
     res.json({ success: true, state: 'REVOKED' });
   } catch (err) {
@@ -822,30 +777,19 @@ router.patch('/:id/form', requirePermission('contract:form:submit'), async (req,
         .catch(err => console.warn('[Contracts] GHL opportunity update failed:', err.message));
     }
 
-    // Log audit & event for form edit
+    // Log audit & event for form edit and auto-sync to GHL
     const clientIp = getClientIp(req);
-    await db.execute(
-      `INSERT INTO contract_audit_logs
-         (contract_instance_id, actor_type, actor_id, actor_name, action, from_state, to_state, ip_address, metadata_json)
-       VALUES (?, 'USER', ?, ?, 'FORM_UPDATED', ?, ?, ?, ?)`,
-      [contract.id, userId, req.ghlUser?.name || 'Staff User', contract.state, contract.state, clientIp, JSON.stringify({ fieldCount: Object.keys(formResponse || {}).length })]
-    ).catch(() => {});
-
-    await db.execute(
-      `INSERT INTO contract_events (contract_instance_id, event_type, event_data_json, actor_type, actor_label, ip_address)
-       VALUES (?, 'FORM_UPDATED', ?, 'USER', ?, ?)`,
-      [contract.id, JSON.stringify({ fieldCount: Object.keys(formResponse || {}).length }), req.ghlUser?.name || userId, clientIp]
-    ).catch(() => {});
-
-    // Auto-sync form update to GHL Conversation stream (InternalComment) & Contact Notes
-    ghlService.syncAuditLogToGHL(locationId, {
-      contactId: contract.ghl_contact_id,
-      userId,
-      title: `Contract #${contract.id} Form Responses Updated`,
-      details: `Form data updated by ${req.ghlUser?.name || 'Staff User'}. ${Object.keys(formResponse || {}).length} field(s) saved.`,
+    await logContractAuditAndSync(contract.id, {
+      action: 'FORM_UPDATED',
+      actorType: 'USER',
+      actorId: userId,
       actorName: req.ghlUser?.name || 'Staff User',
+      fromState: contract.state,
+      toState: contract.state,
+      ipAddress: clientIp,
+      metadata: { fieldCount: Object.keys(formResponse || {}).length },
       privateToken: req.ghlUser?.privateToken,
-    }).catch(err => console.warn('[Contracts] GHL form edit note failed:', err.message));
+    });
 
     res.json({ success: true });
   } catch (err) {
@@ -936,30 +880,19 @@ router.post('/:id/send', requirePermission('contract:send'), async (req, res) =>
       [JSON.stringify(snapshot), signingToken, tokenExpiresAt, expiryDays, contract.id]
     );
 
-    // Audit log & event log
+    // Audit log & event log — dispatched
     const clientIp = getClientIp(req);
-    await db.execute(
-      `INSERT INTO contract_audit_logs
-         (contract_instance_id, actor_type, actor_id, actor_name, action, from_state, to_state, ip_address, metadata_json)
-       VALUES (?, 'USER', ?, ?, 'CONTRACT_SENT', ?, 'SENT', ?, ?)`,
-      [contract.id, userId, req.ghlUser.name, contract.state, clientIp, JSON.stringify({ expiryDays, deliveryMethod })]
-    );
-
-    await db.execute(
-      `INSERT INTO contract_events (contract_instance_id, event_type, event_data_json, actor_type, actor_label, ip_address)
-       VALUES (?, 'CONTRACT_SENT', ?, 'USER', ?, ?)`,
-      [contract.id, JSON.stringify({ expiryDays, deliveryMethod }), req.ghlUser.name || userId, clientIp]
-    );
-
-    // Sync manual send event to GHL Conversation stream (InternalComment) & Contact Notes
-    ghlService.syncAuditLogToGHL(locationId, {
-      contactId: contract.ghl_contact_id,
-      userId: contract.assigned_user_id || userId,
-      title: `Contract #${contract.id} Dispatched via GHL`,
-      details: `Delivery: ${deliveryMethod || 'SMS/Email'} | Link Validity: ${expiryDays} days`,
+    await logContractAuditAndSync(contract.id, {
+      action: 'CONTRACT_SENT',
+      actorType: 'USER',
+      actorId: userId,
       actorName: req.ghlUser?.name || 'Staff User',
+      fromState: contract.state,
+      toState: 'SENT',
+      ipAddress: clientIp,
+      metadata: { expiryDays, deliveryMethod },
       privateToken: req.ghlUser?.privateToken,
-    }).catch(err => console.warn('[Contracts] GHL manual send note failed:', err.message));
+    });
 
     // Build signing URL
     const baseUrl = settingsService.getSigningBaseUrl(req);
@@ -1064,33 +997,22 @@ router.patch('/:id/cancel', requirePermission('contract:cancel'), async (req, re
       [contract.id]
     );
 
-    await db.execute(
-      `INSERT INTO contract_audit_logs
-         (contract_instance_id, actor_type, actor_id, actor_name, action, from_state, to_state)
-       VALUES (?, 'USER', ?, ?, 'CONTRACT_CANCELLED', ?, 'CANCELLED')`,
-      [contract.id, userId, req.ghlUser.name, contract.state]
-    );
-
     const clientIp = getClientIp(req);
-    await db.execute(
-      `INSERT INTO contract_events (contract_instance_id, event_type, event_data_json, actor_type, actor_label, ip_address)
-       VALUES (?, 'CONTRACT_CANCELLED', ?, 'USER', ?, ?)`,
-      [contract.id, JSON.stringify({ fromState: contract.state, toState: 'CANCELLED' }), req.ghlUser?.name || userId, clientIp]
-    ).catch(() => {});
+    await logContractAuditAndSync(contract.id, {
+      action: 'CONTRACT_CANCELLED',
+      actorType: 'USER',
+      actorId: userId,
+      actorName: req.ghlUser?.name || 'Staff User',
+      fromState: contract.state,
+      toState: 'CANCELLED',
+      ipAddress: clientIp,
+      metadata: { fromState: contract.state, toState: 'CANCELLED' },
+      privateToken: req.ghlUser?.privateToken,
+    });
 
     ghlService.updateContact(locationId, contract.ghl_contact_id, {
       customFields: [{ id: 'contract_status', value: 'Cancelled' }],
     }).catch(() => {});
-
-    // Auto-sync cancellation to GHL Conversation stream (InternalComment) & Contact Notes
-    ghlService.syncAuditLogToGHL(locationId, {
-      contactId: contract.ghl_contact_id,
-      userId,
-      title: `Contract #${contract.id} Cancelled`,
-      details: `Contract was cancelled by ${req.ghlUser?.name || 'Staff User'}. Previous state: ${contract.state}`,
-      actorName: req.ghlUser?.name || 'Staff User',
-      privateToken: req.ghlUser?.privateToken,
-    }).catch(err => console.warn('[Contracts] GHL cancel note failed:', err.message));
 
     res.json({ success: true, state: 'CANCELLED' });
   } catch (err) {
@@ -1341,6 +1263,7 @@ router.post('/:id/sync-ghl-notes', async (req, res) => {
         actorName: log.actor_name || log.actor_id || 'System',
         pdfUrl: contract.ghl_file_url || '',
         privateToken: req.ghlUser?.privateToken,
+        utcTime: log.created_at ? new Date(log.created_at).toISOString() : new Date().toISOString(),
       });
       syncedCount++;
     }

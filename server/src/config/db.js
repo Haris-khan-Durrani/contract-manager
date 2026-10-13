@@ -280,6 +280,14 @@ class SQLiteAdapter {
       `);
 
       await this.run(`
+        CREATE TABLE IF NOT EXISTS location_integrations (
+          location_id TEXT PRIMARY KEY,
+          private_token TEXT NOT NULL,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      await this.run(`
         CREATE TABLE IF NOT EXISTS webhook_idempotency_keys (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           idempotency_key TEXT NOT NULL UNIQUE,
@@ -701,6 +709,14 @@ async function initMysqlTables(pool) {
         INDEX idx_location (location_id),
         INDEX idx_contract (contract_id)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+
+    await pool.execute(`
+      CREATE TABLE IF NOT EXISTS location_integrations (
+        location_id VARCHAR(191) PRIMARY KEY,
+        private_token TEXT NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
     // Additive column migrations for contract_forms

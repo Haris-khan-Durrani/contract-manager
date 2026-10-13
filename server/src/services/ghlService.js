@@ -15,6 +15,7 @@
 const axios  = require('axios');
 const pLimit = require('p-limit');
 const settingsService = require('./settingsService');
+const db = require('../config/db');
 
 // Dynamic limiter factory or default limiter
 let limiter = pLimit(settingsService.getInt('GHL_CONCURRENCY_LIMIT', 4));
@@ -41,28 +42,41 @@ function isDevToken(token) {
 }
 
 /**
+ * Persist a validated location token to the location_integrations table in MySQL.
+ */
+function persistLocationToken(locationId, token) {
+  if (!locationId || !token || isDevToken(token)) return;
+  db.execute(
+    `INSERT INTO location_integrations (location_id, private_token, updated_at)
+     VALUES (?, ?, NOW())
+     ON DUPLICATE KEY UPDATE private_token = VALUES(private_token), updated_at = NOW()`,
+    [locationId.toString().trim(), token.toString().trim()]
+  ).catch(() => {});
+}
+
+/**
  * Register a valid Private Integration Token for a location.
  */
 function registerLocationToken(locationId, token) {
   if (locationId && token && typeof token === 'string' && !isDevToken(token)) {
-    locationTokens.set(locationId.toString().trim(), token.toString().trim());
+    const cleanToken = token.toString().trim();
+    const cleanLoc = locationId.toString().trim();
+    locationTokens.set(cleanLoc, cleanToken);
+    persistLocationToken(cleanLoc, cleanToken);
   }
 }
 
 /**
- * Resolve the best available Private Integration Token:
- * 1. Explicit privateToken passed in call
- * 2. Cached token for this locationId
- * 3. GHL_PRIVATE_INTEGRATION_TOKEN from system_settings MySQL
- * 4. GHL_PRIVATE_INTEGRATION_TOKEN from process.env
+ * Synchronous token resolution (uses memory cache / system_settings / process.env).
  */
 function resolveToken(locationId, privateToken = null) {
   if (privateToken && typeof privateToken === 'string' && !isDevToken(privateToken)) {
     if (locationId) registerLocationToken(locationId, privateToken);
     return privateToken.trim();
   }
-  if (locationId && locationTokens.has(locationId.toString().trim())) {
-    const locToken = locationTokens.get(locationId.toString().trim());
+  const cleanLoc = (locationId || '').toString().trim();
+  if (cleanLoc && locationTokens.has(cleanLoc)) {
+    const locToken = locationTokens.get(cleanLoc);
     if (locToken && !isDevToken(locToken)) return locToken;
   }
   const sysToken = settingsService.get('GHL_PRIVATE_INTEGRATION_TOKEN') || process.env.GHL_PRIVATE_INTEGRATION_TOKEN;
@@ -70,6 +84,33 @@ function resolveToken(locationId, privateToken = null) {
     return sysToken.trim();
   }
   return sysToken || privateToken || null;
+}
+
+/**
+ * Asynchronous token resolution with database fallback for location_integrations.
+ */
+async function resolveTokenAsync(locationId, privateToken = null) {
+  const syncResolved = resolveToken(locationId, privateToken);
+  if (syncResolved && !isDevToken(syncResolved)) {
+    return syncResolved;
+  }
+
+  const cleanLoc = (locationId || '').toString().trim();
+  if (cleanLoc) {
+    try {
+      const [rows] = await db.execute(
+        'SELECT private_token FROM location_integrations WHERE location_id = ? LIMIT 1',
+        [cleanLoc]
+      );
+      if (rows.length && rows[0].private_token && !isDevToken(rows[0].private_token)) {
+        const dbToken = rows[0].private_token.trim();
+        locationTokens.set(cleanLoc, dbToken);
+        return dbToken;
+      }
+    } catch (_) {}
+  }
+
+  return syncResolved;
 }
 
 /**
@@ -100,7 +141,7 @@ function buildClient(locationId, privateToken = null) {
  * @param {number}   maxRetries
  */
 async function withRetry(fn, locationId, privateToken = null, maxRetries = 3) {
-  const token = resolveToken(locationId, privateToken);
+  const token = await resolveTokenAsync(locationId, privateToken);
   
   if (isDevToken(token)) {
     // In dev mode with placeholder token, do not spam GHL cloud API with invalid tokens
@@ -109,7 +150,7 @@ async function withRetry(fn, locationId, privateToken = null, maxRetries = 3) {
   }
 
   return limiter(async () => {
-    const client = buildClient(locationId, privateToken);
+    const client = buildClient(locationId, token);
     let lastError;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -552,11 +593,10 @@ async function createContactNote(locationId, { contactId, body, userId, privateT
  * Universal Audit-to-GHL logger.
  * Dispatches both an InternalComment in Communication mode AND a Contact Note in Activity mode.
  */
-async function syncAuditLogToGHL(locationId, { contactId, userId, title, details = '', actorName = '', pdfUrl = '', privateToken = null }) {
+async function syncAuditLogToGHL(locationId, { contactId, userId, title, details = '', actorName = '', pdfUrl = '', privateToken = null, utcTime = null }) {
   if (!contactId || contactId.startsWith('contact_ghl_demo_')) return;
 
-  const now = new Date();
-  const timeStr = now.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) + ' ' + now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const timeStr = utcTime || new Date().toISOString();
 
   const formattedMsg = [
     `📋 [ContractOS Audit] ${title}`,

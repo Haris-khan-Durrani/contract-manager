@@ -22,6 +22,7 @@ const pdfService = require('../services/pdfService');
 const { ghlAuthMiddleware } = require('../middleware/ghlAuth');
 const ghlService = require('../services/ghlService');
 const { getClientIp } = require('../utils/ipHelper');
+const { logContractAuditAndSync } = require('../services/auditSyncService');
 
 function extractGhlFileUrl(result) {
   if (!result) return '';
@@ -116,26 +117,16 @@ router.get('/:token', async (req, res) => {
       );
 
       const clientIp = getClientIp(req);
-      await db.execute(
-        `INSERT INTO contract_audit_logs (contract_instance_id, actor_type, actor_id, action, from_state, to_state, ip_address, user_agent)
-         VALUES (?, 'CLIENT', ?, 'CONTRACT_OPENED', ?, 'OPENED', ?, ?)`,
-        [contract.id, token.slice(0, 8), contract.state, clientIp, req.headers['user-agent'] || '']
-      );
-
-      await db.execute(
-        `INSERT INTO contract_events (contract_instance_id, event_type, actor_type, actor_label, ip_address)
-         VALUES (?, 'CLIENT_OPENED', 'CLIENT', ?, ?)`,
-        [contract.id, contract.recipient_name || 'Client', clientIp]
-      );
-
-      // Post audit event to GHL Conversation stream & Contact Note
-      ghlService.syncAuditLogToGHL(contract.location_id, {
-        contactId: contract.ghl_contact_id,
-        userId:    contract.assigned_user_id,
-        title:     `Client Opened Contract #${contract.id}`,
-        details:   `Client accessed contract signing link from IP: ${clientIp || '—'}`,
+      await logContractAuditAndSync(contract.id, {
+        action: 'CONTRACT_OPENED',
+        actorType: 'CLIENT',
+        actorId: token.slice(0, 8),
         actorName: contract.recipient_name || 'Client',
-      }).catch(err => console.warn('[Sign] GHL open note failed:', err.message));
+        fromState: contract.state,
+        toState: 'OPENED',
+        ipAddress: clientIp,
+        userAgent: req.headers['user-agent'] || '',
+      });
     }
 
     // Parse JSON blobs safely
@@ -314,20 +305,16 @@ router.patch('/:token/progress', async (req, res) => {
     );
 
     const clientIp = getClientIp(req);
-    await db.execute(
-      `INSERT INTO contract_events (contract_instance_id, event_type, event_data_json, actor_type, actor_label, ip_address)
-       VALUES (?, 'FORM_PROGRESS_SAVED', ?, 'CLIENT', ?, ?)`,
-      [contract.id, JSON.stringify({ currentStep, fieldCount: Object.keys(formData || {}).length }), contract.recipient_name || 'Client', clientIp]
-    );
-
-    // Auto-sync progress to GHL Conversation stream (InternalComment) & Contact Notes
-    ghlService.syncAuditLogToGHL(contract.location_id, {
-      contactId: contract.ghl_contact_id,
-      userId:    contract.assigned_user_id,
-      title:     `Contract #${contract.id} Client Saved Progress`,
-      details:   `Client saved form progress (Step ${currentStep || 1}). IP: ${clientIp || '—'}`,
+    await logContractAuditAndSync(contract.id, {
+      action: 'FORM_PROGRESS_SAVED',
+      actorType: 'CLIENT',
+      actorId: token.slice(0, 8),
       actorName: contract.recipient_name || 'Client',
-    }).catch(err => console.warn('[Sign] GHL progress note failed:', err.message));
+      fromState: contract.state,
+      toState: nextState,
+      ipAddress: clientIp,
+      metadata: { currentStep, fieldCount: Object.keys(formData || {}).length },
+    });
 
     res.json({ success: true, savedAt: new Date().toISOString() });
   } catch (err) {
@@ -362,20 +349,16 @@ router.post('/:token/review', async (req, res) => {
     );
 
     const clientIp = getClientIp(req);
-    await db.execute(
-      `INSERT INTO contract_events (contract_instance_id, event_type, actor_type, actor_label, ip_address)
-       VALUES (?, 'AGREEMENT_REVIEWED', 'CLIENT', ?, ?)`,
-      [contract.id, contract.recipient_name || 'Client', clientIp]
-    );
-
-    // Post audit event to GHL Conversation stream (InternalComment) & Contact Notes
-    ghlService.syncAuditLogToGHL(contract.location_id, {
-      contactId: contract.ghl_contact_id,
-      userId:    contract.assigned_user_id,
-      title:     `Client Reviewed Contract #${contract.id}`,
-      details:   `Client verified clauses and proceeded to execution step. IP: ${clientIp || '—'}`,
+    await logContractAuditAndSync(contract.id, {
+      action: 'AGREEMENT_REVIEWED',
+      actorType: 'CLIENT',
+      actorId: token.slice(0, 8),
       actorName: contract.recipient_name || 'Client',
-    }).catch(err => console.warn('[Sign] GHL review note failed:', err.message));
+      fromState: contract.state,
+      toState: 'READY_TO_SIGN',
+      ipAddress: clientIp,
+      metadata: { reviewedAt: new Date().toISOString() },
+    });
 
     res.json({ success: true, reviewedAt: new Date().toISOString() });
   } catch (err) {
@@ -623,31 +606,21 @@ router.post('/:token/submit', async (req, res) => {
       [JSON.stringify(snapshot), contract.id]
     );
 
-    // Log events & audit
-    await connection.execute(
-      `INSERT INTO contract_events (contract_instance_id, event_type, event_data_json, actor_type, actor_label, ip_address)
-       VALUES (?, 'CONTRACT_SIGNED', ?, 'CLIENT', ?, ?)`,
-      [contract.id, JSON.stringify({ signatureMethod, signerName: signerName.trim() }), signerName.trim(), ipAddress]
-    );
-
-    await connection.execute(
-      `INSERT INTO contract_audit_logs
-         (contract_instance_id, actor_type, actor_id, action, from_state, to_state, ip_address, user_agent, metadata_json)
-       VALUES (?, 'CLIENT', ?, 'CONTRACT_SIGNED', ?, 'COMPLETED', ?, ?, ?)`,
-      [contract.id, token.slice(0, 8), contract.state, ipAddress, userAgent, JSON.stringify({ signerName: signerName.trim(), signatureMethod })]
-    );
-
     await connection.commit();
     connection.release();
 
-    // Immediately post internal note to GHL in Communication & Activity streams
-    ghlService.syncAuditLogToGHL(contract.location_id, {
-      contactId: contract.ghl_contact_id,
-      userId:    contract.assigned_user_id,
-      title:     `Contract #${contract.id} Signed by Client`,
-      details:   `Signer: ${signerName.trim()} | Method: ${signatureMethod} | IP: ${ipAddress}`,
+    // Auto-sync signed event to GHL Conversation InternalComment & Contact Notes
+    await logContractAuditAndSync(contract.id, {
+      action: 'CONTRACT_SIGNED',
+      actorType: 'CLIENT',
+      actorId: token.slice(0, 8),
       actorName: signerName.trim(),
-    }).catch(err => console.warn('[Sign] GHL sign note failed:', err.message));
+      fromState: contract.state,
+      toState: 'COMPLETED',
+      ipAddress,
+      userAgent,
+      metadata: { signerName: signerName.trim(), signatureMethod },
+    });
 
     // Trigger async PDF pipeline
     setImmediate(() => generateAndUploadPdf(contract, snapshot));
@@ -717,22 +690,16 @@ async function generateAndUploadPdf(contract, snapshot) {
       ],
     }).catch(err => console.warn('[Sign] GHL contact field update failed:', err.message));
 
-    // Post to GHL Conversation stream (InternalComment) AND Contact Notes (Activity)
-    await ghlService.syncAuditLogToGHL(contract.location_id, {
-      contactId:   contract.ghl_contact_id,
-      userId:      contract.assigned_user_id,
-      title:       `Contract #${contract.id} Fully Completed & Sealed`,
-      details:     `Cryptographic Seal: SHA256:${sha256.slice(0, 16)}...`,
-      pdfUrl:      ghlFileUrl,
-      actorName:   'PDF_SERVICE',
-    }).catch(err => console.warn('[Sign] GHL conversation note failed:', err.message));
-
-    await db.execute(
-      `INSERT INTO contract_audit_logs
-         (contract_instance_id, actor_type, actor_id, action, from_state, to_state, metadata_json)
-       VALUES (?, 'SYSTEM', 'PDF_SERVICE', 'CONTRACT_COMPLETED', 'SIGNED', 'COMPLETED', ?)`,
-      [contract.id, JSON.stringify({ ghlFileUrl, sha256 })]
-    );
+    // Auto-sync completed and sealed document to GHL Conversation InternalComment & Contact Notes
+    await logContractAuditAndSync(contract.id, {
+      action: 'CONTRACT_COMPLETED',
+      actorType: 'SYSTEM',
+      actorId: 'PDF_SERVICE',
+      actorName: 'PDF_SERVICE',
+      fromState: 'SIGNED',
+      toState: 'COMPLETED',
+      metadata: { ghlFileUrl, sha256 },
+    });
 
     console.log(`[Sign] Contract ${contract.id} → COMPLETED ✅`);
   } catch (err) {
