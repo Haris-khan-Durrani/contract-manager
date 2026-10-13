@@ -652,6 +652,14 @@
                   <span v-if="evt.ipAddress" class="rt-ip">
                     <span class="rt-dot">•</span> IP: <code>{{ formatIp(evt.ipAddress) }}</code>
                   </span>
+                  <router-link
+                    v-if="['CLIENT_SUMMARY_COMPLETED', 'CLIENT_SUMMARY_SAVED', 'CLIENT_SUMMARY_PENDING', 'CLIENT_SUMMARY_READY', 'CLIENT_SUMMARY_INITIALIZED'].includes(evt.action)"
+                    :to="`/client-summary?contractId=${contract.id}`"
+                    class="btn btn-secondary btn-sm"
+                    style="margin-left: auto; padding: 3px 10px; font-size: 0.76rem; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;"
+                  >
+                    📋 Open Client Summary ➔
+                  </router-link>
                 </div>
               </div>
             </div>
@@ -898,6 +906,11 @@ function timelineEmoji(action) {
     CONTRACT_SIGNED:    '✍️',
     PDF_UPLOADED:       '🗂️',
     CONTRACT_COMPLETED: '🏁',
+    CLIENT_SUMMARY_INITIALIZED: '📋',
+    CLIENT_SUMMARY_PENDING:     '⏳',
+    CLIENT_SUMMARY_READY:       '⏳',
+    CLIENT_SUMMARY_SAVED:       '📝',
+    CLIENT_SUMMARY_COMPLETED:   '✅',
     EXPIRY_EXTENDED:    '⏱️',
     CONTRACT_REVOKED:   '🚫',
     CONTRACT_CANCELLED: '❌',
@@ -1372,6 +1385,11 @@ function getTimelineConfig(action) {
     CONTRACT_SIGNED:    { icon: '✍️', label: 'Signed by Client', color: 'emerald' },
     PDF_UPLOADED:       { icon: '🗂️', label: 'PDF Generated & Stored', color: 'purple' },
     CONTRACT_COMPLETED: { icon: '🏁', label: 'Fully Completed & Sealed', color: 'emerald' },
+    CLIENT_SUMMARY_INITIALIZED: { icon: '📋', label: 'Client Summary Initialized', color: 'blue' },
+    CLIENT_SUMMARY_PENDING:     { icon: '⏳', label: 'Client Summary Pending Review', color: 'amber' },
+    CLIENT_SUMMARY_READY:       { icon: '⏳', label: 'Client Summary Ready to Fill', color: 'amber' },
+    CLIENT_SUMMARY_SAVED:       { icon: '📝', label: 'Client Summary Draft Saved', color: 'teal' },
+    CLIENT_SUMMARY_COMPLETED:   { icon: '✅', label: 'Client Summary Completed', color: 'emerald' },
     EXPIRY_EXTENDED:    { icon: '⏱️', label: 'Signing Expiry Extended', color: 'amber' },
     CONTRACT_EXPIRED:   { icon: '⏰', label: 'Signing Link Expired', color: 'rose' },
     CONTRACT_REVOKED:   { icon: '🚫', label: 'Contract Revoked', color: 'rose' },
@@ -1402,6 +1420,11 @@ function formatAuditAction(action) {
     CONTRACT_SIGNED:     'Signed by Client',
     PDF_UPLOADED:        'PDF Sealed & Uploaded',
     CONTRACT_COMPLETED:  'Fully Completed',
+    CLIENT_SUMMARY_INITIALIZED: 'Client Summary Initialized',
+    CLIENT_SUMMARY_PENDING:     'Client Summary Pending',
+    CLIENT_SUMMARY_READY:       'Client Summary Ready to Fill',
+    CLIENT_SUMMARY_SAVED:       'Client Summary Draft Saved',
+    CLIENT_SUMMARY_COMPLETED:   'Client Summary Completed',
     CONTRACT_EXPIRED:    'Link Expired',
     CONTRACT_CANCELLED:  'Cancelled',
     CONTRACT_REVOKED:    'Revoked',

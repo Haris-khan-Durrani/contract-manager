@@ -701,7 +701,34 @@ async function generateAndUploadPdf(contract, snapshot) {
       metadata: { ghlFileUrl, sha256 },
     });
 
-    console.log(`[Sign] Contract ${contract.id} → COMPLETED ✅`);
+    // Initialize Client Summary record as DRAFT if not already present
+    await db.execute(
+      `INSERT INTO contract_client_summaries (location_id, contract_id, status, summary_data_json, created_at, updated_at)
+       VALUES (?, ?, 'DRAFT', ?, NOW(), NOW())
+       ON DUPLICATE KEY UPDATE updated_at = NOW()`,
+      [
+        contract.location_id,
+        contract.id,
+        JSON.stringify({
+          client_name: contract.recipient_name || '',
+          email: contract.recipient_email || '',
+          contact_mobile: contract.recipient_phone || '',
+        }),
+      ]
+    ).catch(() => {});
+
+    // Auto-sync Client Summary ready event to GHL Conversation InternalComment & Activity Timeline
+    await logContractAuditAndSync(contract.id, {
+      action: 'CLIENT_SUMMARY_READY',
+      actorType: 'SYSTEM',
+      actorId: 'PDF_SERVICE',
+      actorName: 'System',
+      fromState: 'COMPLETED',
+      toState: 'COMPLETED',
+      metadata: { message: 'Contract completed. Client Summary Form is now available for staff onboarding.' },
+    }).catch(() => {});
+
+    console.log(`[Sign] Contract ${contract.id} → COMPLETED & Client Summary Initialized ✅`);
   } catch (err) {
     console.error(`[Sign] generateAndUploadPdf failed for contract ${contract.id}:`, err.message);
     await db.execute(

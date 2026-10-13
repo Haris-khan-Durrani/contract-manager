@@ -1161,7 +1161,7 @@ router.get('/:id/events', async (req, res) => {
     const { role } = req.appUser;
 
     const [rows] = await db.execute(
-      'SELECT id, assigned_user_id FROM contract_instances WHERE id = ? AND location_id = ?',
+      'SELECT id, location_id, state, signed_at, completed_at, recipient_name, recipient_email, recipient_phone, assigned_user_id FROM contract_instances WHERE id = ? AND location_id = ?',
       [req.params.id, locationId]
     );
     if (!rows.length) return res.status(404).json({ error: 'Contract not found.' });
@@ -1171,7 +1171,7 @@ router.get('/:id/events', async (req, res) => {
       return res.status(403).json({ error: 'Access denied.' });
     }
 
-    // Merge contract_events + audit_logs into a unified timeline without SQL collation issues
+    // 1. Fetch contract_events
     const [events] = await db.execute(
       `SELECT 'event' AS source,
               event_type AS action,
@@ -1184,6 +1184,7 @@ router.get('/:id/events', async (req, res) => {
       [contract.id]
     );
 
+    // 2. Fetch contract_audit_logs
     const [auditLogs] = await db.execute(
       `SELECT 'audit' AS source,
               action,
@@ -1195,6 +1196,14 @@ router.get('/:id/events', async (req, res) => {
        WHERE contract_instance_id = ?`,
       [contract.id]
     );
+
+    // 3. Fetch client summary records
+    const [summaries] = await db.execute(
+      `SELECT id, status, completed_by_name, completed_by_user_id, completed_at, created_at, updated_at
+       FROM contract_client_summaries
+       WHERE contract_id = ?`,
+      [contract.id]
+    ).catch(() => [[]]);
 
     const combined = [
       ...events.map(e => ({
@@ -1213,19 +1222,72 @@ router.get('/:id/events', async (req, res) => {
         metadata:  a.metadata_json ? (typeof a.metadata_json === 'string' ? JSON.parse(a.metadata_json) : a.metadata_json) : {},
         createdAt: a.created_at,
       })),
-    ].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    ];
+
+    // If client summary exists, inject into timeline
+    if (summaries && summaries.length > 0) {
+      const summary = summaries[0];
+      const isCompleted = summary.status === 'COMPLETED';
+      combined.push({
+        source: 'summary',
+        action: isCompleted ? 'CLIENT_SUMMARY_COMPLETED' : 'CLIENT_SUMMARY_SAVED',
+        actorName: summary.completed_by_name || summary.completed_by_user_id || 'Staff User',
+        ipAddress: null,
+        metadata: { status: summary.status, summaryId: summary.id },
+        createdAt: isCompleted ? (summary.completed_at || summary.updated_at || summary.created_at) : (summary.updated_at || summary.created_at),
+      });
+    } else if (['COMPLETED', 'SIGNED', 'SIGNED_PENDING_STORAGE'].includes(contract.state)) {
+      // Contract completed but client summary not yet filled
+      combined.push({
+        source: 'summary',
+        action: 'CLIENT_SUMMARY_PENDING',
+        actorName: 'Awaiting Staff Review',
+        ipAddress: null,
+        metadata: { status: 'PENDING', contractId: contract.id },
+        createdAt: contract.completed_at || contract.signed_at || new Date().toISOString(),
+      });
+    }
+
+    // Helper to normalize action names to prevent duplicate aliases
+    function normalizeActionName(act) {
+      const a = String(act || '').toUpperCase().trim();
+      if (a === 'CLIENT_OPENED') return 'CONTRACT_OPENED';
+      if (a === 'SIGNED') return 'CONTRACT_SIGNED';
+      if (a === 'SENT') return 'CONTRACT_SENT';
+      if (a === 'COMPLETED') return 'CONTRACT_COMPLETED';
+      if (a === 'CREATED') return 'CONTRACT_CREATED';
+      return a;
+    }
+
+    // Sort chronologically ascending
+    combined.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
     // Deduplicate merged timeline so identical events recorded in both
     // contract_events and contract_audit_logs appear only once
     const deduplicated = [];
     for (const item of combined) {
-      const isDuplicate = deduplicated.some(prev => {
-        if (prev.action !== item.action) return false;
-        const timeDiff = Math.abs(new Date(prev.createdAt).getTime() - new Date(item.createdAt).getTime());
-        return timeDiff < 3000;
+      const normAction = normalizeActionName(item.action);
+      const isDuplicate = deduplicated.find(prev => {
+        if (normalizeActionName(prev.action) !== normAction) return false;
+        const prevTime = new Date(prev.createdAt).getTime();
+        const itemTime = new Date(item.createdAt).getTime();
+        const timeDiff = Math.abs(prevTime - itemTime);
+        return timeDiff < 60000; // 60-second window for the same lifecycle event
       });
-      if (!isDuplicate) {
-        deduplicated.push(item);
+
+      if (isDuplicate) {
+        // Upgrade to the most human-readable actor name (e.g. "Haris Khan" over "f137a894")
+        if (item.actorName && !isDuplicate.actorName?.includes(' ') && item.actorName.includes(' ')) {
+          isDuplicate.actorName = item.actorName;
+        }
+        if (!isDuplicate.ipAddress && item.ipAddress) {
+          isDuplicate.ipAddress = item.ipAddress;
+        }
+      } else {
+        deduplicated.push({
+          ...item,
+          action: normAction,
+        });
       }
     }
 
