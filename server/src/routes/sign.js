@@ -320,6 +320,15 @@ router.patch('/:token/progress', async (req, res) => {
       [contract.id, JSON.stringify({ currentStep, fieldCount: Object.keys(formData || {}).length }), contract.recipient_name || 'Client', clientIp]
     );
 
+    // Auto-sync progress to GHL Conversation stream (InternalComment) & Contact Notes
+    ghlService.syncAuditLogToGHL(contract.location_id, {
+      contactId: contract.ghl_contact_id,
+      userId:    contract.assigned_user_id,
+      title:     `Contract #${contract.id} Client Saved Progress`,
+      details:   `Client saved form progress (Step ${currentStep || 1}). IP: ${clientIp || '—'}`,
+      actorName: contract.recipient_name || 'Client',
+    }).catch(err => console.warn('[Sign] GHL progress note failed:', err.message));
+
     res.json({ success: true, savedAt: new Date().toISOString() });
   } catch (err) {
     console.error('[Sign] Progress error:', err.message);

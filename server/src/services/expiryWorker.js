@@ -50,10 +50,26 @@ async function runExpiryJob() {
           [contract.id]
         );
 
+        // Event log
+        await db.execute(
+          `INSERT INTO contract_events (contract_instance_id, event_type, event_data_json, actor_type, actor_label)
+           VALUES (?, 'CONTRACT_EXPIRED', '{}', 'SYSTEM', 'EXPIRY_WORKER')`,
+          [contract.id]
+        ).catch(() => {});
+
         // GHL status sync — best effort (don't crash worker on GHL failure)
         await syncGHLStatus(contract, 'EXPIRED').catch(err =>
           console.warn(`[ExpiryWorker] GHL sync failed for contract ${contract.id}:`, err.message)
         );
+
+        // Auto-sync expiration to GHL Conversation stream (InternalComment) & Contact Notes
+        await ghlService.syncAuditLogToGHL(contract.location_id, {
+          contactId: contract.ghl_contact_id,
+          userId: contract.assigned_user_id,
+          title: `Contract #${contract.id} Expired`,
+          details: `Contract expired after validity period without signature.`,
+          actorName: 'SYSTEM_EXPIRY_WORKER',
+        }).catch(err => console.warn(`[ExpiryWorker] GHL note failed:`, err.message));
 
         console.log(`[ExpiryWorker] Contract ${contract.id} → EXPIRED`);
       } catch (err) {

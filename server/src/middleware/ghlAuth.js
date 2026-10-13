@@ -8,6 +8,7 @@
  */
 const jwt = require('jsonwebtoken');
 const settingsService = require('../services/settingsService');
+const ghlService = require('../services/ghlService');
 
 /**
  * Sign a new session JWT token with user credentials and GHL context.
@@ -76,6 +77,10 @@ async function ghlAuthMiddleware(req, res, next) {
       email:        payload.email || '',
       role:         payload.role || 'SALES',
     };
+
+    if (req.ghlUser.locationId && req.ghlUser.privateToken) {
+      ghlService.registerLocationToken(req.ghlUser.locationId, req.ghlUser.privateToken);
+    }
 
     req.appSession = { token };
     next();

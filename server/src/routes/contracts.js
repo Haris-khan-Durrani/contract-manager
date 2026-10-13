@@ -822,6 +822,31 @@ router.patch('/:id/form', requirePermission('contract:form:submit'), async (req,
         .catch(err => console.warn('[Contracts] GHL opportunity update failed:', err.message));
     }
 
+    // Log audit & event for form edit
+    const clientIp = getClientIp(req);
+    await db.execute(
+      `INSERT INTO contract_audit_logs
+         (contract_instance_id, actor_type, actor_id, actor_name, action, from_state, to_state, ip_address, metadata_json)
+       VALUES (?, 'USER', ?, ?, 'FORM_UPDATED', ?, ?, ?, ?)`,
+      [contract.id, userId, req.ghlUser?.name || 'Staff User', contract.state, contract.state, clientIp, JSON.stringify({ fieldCount: Object.keys(formResponse || {}).length })]
+    ).catch(() => {});
+
+    await db.execute(
+      `INSERT INTO contract_events (contract_instance_id, event_type, event_data_json, actor_type, actor_label, ip_address)
+       VALUES (?, 'FORM_UPDATED', ?, 'USER', ?, ?)`,
+      [contract.id, JSON.stringify({ fieldCount: Object.keys(formResponse || {}).length }), req.ghlUser?.name || userId, clientIp]
+    ).catch(() => {});
+
+    // Auto-sync form update to GHL Conversation stream (InternalComment) & Contact Notes
+    ghlService.syncAuditLogToGHL(locationId, {
+      contactId: contract.ghl_contact_id,
+      userId,
+      title: `Contract #${contract.id} Form Responses Updated`,
+      details: `Form data updated by ${req.ghlUser?.name || 'Staff User'}. ${Object.keys(formResponse || {}).length} field(s) saved.`,
+      actorName: req.ghlUser?.name || 'Staff User',
+      privateToken: req.ghlUser?.privateToken,
+    }).catch(err => console.warn('[Contracts] GHL form edit note failed:', err.message));
+
     res.json({ success: true });
   } catch (err) {
     console.error('[Contracts] Form save error:', err.message);
@@ -1046,9 +1071,26 @@ router.patch('/:id/cancel', requirePermission('contract:cancel'), async (req, re
       [contract.id, userId, req.ghlUser.name, contract.state]
     );
 
+    const clientIp = getClientIp(req);
+    await db.execute(
+      `INSERT INTO contract_events (contract_instance_id, event_type, event_data_json, actor_type, actor_label, ip_address)
+       VALUES (?, 'CONTRACT_CANCELLED', ?, 'USER', ?, ?)`,
+      [contract.id, JSON.stringify({ fromState: contract.state, toState: 'CANCELLED' }), req.ghlUser?.name || userId, clientIp]
+    ).catch(() => {});
+
     ghlService.updateContact(locationId, contract.ghl_contact_id, {
       customFields: [{ id: 'contract_status', value: 'Cancelled' }],
     }).catch(() => {});
+
+    // Auto-sync cancellation to GHL Conversation stream (InternalComment) & Contact Notes
+    ghlService.syncAuditLogToGHL(locationId, {
+      contactId: contract.ghl_contact_id,
+      userId,
+      title: `Contract #${contract.id} Cancelled`,
+      details: `Contract was cancelled by ${req.ghlUser?.name || 'Staff User'}. Previous state: ${contract.state}`,
+      actorName: req.ghlUser?.name || 'Staff User',
+      privateToken: req.ghlUser?.privateToken,
+    }).catch(err => console.warn('[Contracts] GHL cancel note failed:', err.message));
 
     res.json({ success: true, state: 'CANCELLED' });
   } catch (err) {
@@ -1251,7 +1293,21 @@ router.get('/:id/events', async (req, res) => {
       })),
     ].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
-    res.json({ timeline: combined });
+    // Deduplicate merged timeline so identical events recorded in both
+    // contract_events and contract_audit_logs appear only once
+    const deduplicated = [];
+    for (const item of combined) {
+      const isDuplicate = deduplicated.some(prev => {
+        if (prev.action !== item.action) return false;
+        const timeDiff = Math.abs(new Date(prev.createdAt).getTime() - new Date(item.createdAt).getTime());
+        return timeDiff < 3000;
+      });
+      if (!isDuplicate) {
+        deduplicated.push(item);
+      }
+    }
+
+    res.json({ timeline: deduplicated });
   } catch (err) {
     console.error('[Contracts] Events error:', err.message);
     res.status(500).json({ error: 'Failed to get activity timeline.' });

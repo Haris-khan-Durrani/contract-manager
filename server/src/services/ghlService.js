@@ -32,18 +32,53 @@ function deadLetterLog(context, error) {
   }
 }
 
+// In-memory cache for validated location Private Integration Tokens
+const locationTokens = new Map();
+
 function isDevToken(token) {
   if (!token) return true;
   return token === 'pit_dev_token_sample' || token.startsWith('pit_dev_') || token === 'development_shared_secret_for_testing';
 }
 
 /**
- * Build the shared Axios instance using dynamic settings from MySQL or session token.
+ * Register a valid Private Integration Token for a location.
+ */
+function registerLocationToken(locationId, token) {
+  if (locationId && token && typeof token === 'string' && !isDevToken(token)) {
+    locationTokens.set(locationId.toString().trim(), token.toString().trim());
+  }
+}
+
+/**
+ * Resolve the best available Private Integration Token:
+ * 1. Explicit privateToken passed in call
+ * 2. Cached token for this locationId
+ * 3. GHL_PRIVATE_INTEGRATION_TOKEN from system_settings MySQL
+ * 4. GHL_PRIVATE_INTEGRATION_TOKEN from process.env
+ */
+function resolveToken(locationId, privateToken = null) {
+  if (privateToken && typeof privateToken === 'string' && !isDevToken(privateToken)) {
+    if (locationId) registerLocationToken(locationId, privateToken);
+    return privateToken.trim();
+  }
+  if (locationId && locationTokens.has(locationId.toString().trim())) {
+    const locToken = locationTokens.get(locationId.toString().trim());
+    if (locToken && !isDevToken(locToken)) return locToken;
+  }
+  const sysToken = settingsService.get('GHL_PRIVATE_INTEGRATION_TOKEN') || process.env.GHL_PRIVATE_INTEGRATION_TOKEN;
+  if (sysToken && typeof sysToken === 'string' && !isDevToken(sysToken)) {
+    return sysToken.trim();
+  }
+  return sysToken || privateToken || null;
+}
+
+/**
+ * Build the shared Axios instance using dynamic settings from MySQL, location cache, or session token.
  */
 function buildClient(locationId, privateToken = null) {
   const baseURL = settingsService.get('GHL_API_BASE_URL', 'https://services.leadconnectorhq.com');
   const apiVersion = settingsService.get('GHL_API_VERSION', '2021-07-28');
-  const token = privateToken || settingsService.get('GHL_PRIVATE_INTEGRATION_TOKEN') || process.env.GHL_PRIVATE_INTEGRATION_TOKEN;
+  const token = resolveToken(locationId, privateToken);
 
   return axios.create({
     baseURL,
@@ -65,7 +100,7 @@ function buildClient(locationId, privateToken = null) {
  * @param {number}   maxRetries
  */
 async function withRetry(fn, locationId, privateToken = null, maxRetries = 3) {
-  const token = privateToken || settingsService.get('GHL_PRIVATE_INTEGRATION_TOKEN') || process.env.GHL_PRIVATE_INTEGRATION_TOKEN;
+  const token = resolveToken(locationId, privateToken);
   
   if (isDevToken(token)) {
     // In dev mode with placeholder token, do not spam GHL cloud API with invalid tokens
@@ -438,17 +473,53 @@ async function postConversationNote(locationId, { contactId, userId, message, at
     return { success: true, mock: true };
   }
 
-  const payload = {
-    type: 'InternalComment',
-    contactId,
-    message,
-    ...(locationId ? { locationId } : {}),
-    ...(isValidGhlUserId(userId) ? { userId } : {}),
-    ...(attachments.length ? { attachments } : {}),
-  };
-
   return withRetry(
-    (client) => client.post('/conversations/messages', payload).then(r => r.data),
+    async (client) => {
+      // 1. Attempt to find or create conversation for this contact in GHL
+      let conversationId = null;
+      try {
+        const searchRes = await client.get('/conversations/search', {
+          params: {
+            ...(locationId ? { locationId } : {}),
+            contactId,
+          },
+        }).catch(() => null);
+
+        if (searchRes?.data?.conversations?.length > 0) {
+          conversationId = searchRes.data.conversations[0].id;
+        } else {
+          // Attempt to start/open conversation for contact
+          const createRes = await client.post('/conversations', {
+            ...(locationId ? { locationId } : {}),
+            contactId,
+          }).catch(() => null);
+          conversationId = createRes?.data?.conversation?.id || createRes?.data?.id || null;
+        }
+      } catch (_) {
+        // Non-blocking; continue to try sending message
+      }
+
+      const payload = {
+        type: 'InternalComment',
+        contactId,
+        ...(conversationId ? { conversationId } : {}),
+        message,
+        ...(locationId ? { locationId } : {}),
+        ...(isValidGhlUserId(userId) ? { userId } : {}),
+        ...(attachments?.length ? { attachments } : {}),
+      };
+
+      try {
+        return await client.post('/conversations/messages', payload).then(r => r.data);
+      } catch (postErr) {
+        // If it failed with conversationId, retry without conversationId
+        if (conversationId) {
+          delete payload.conversationId;
+          return await client.post('/conversations/messages', payload).then(r => r.data);
+        }
+        throw postErr;
+      }
+    },
     locationId,
     privateToken
   );
@@ -821,5 +892,6 @@ module.exports = {
   uploadMediaFile,
   sendConversationMessage,
   sendContractViaGHLConversation,
+  registerLocationToken,
 };
 

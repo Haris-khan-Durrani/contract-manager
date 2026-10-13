@@ -151,6 +151,12 @@ router.post('/contract-trigger', validateWebhookSecret, async (req, res) => {
       [contractInstanceId, initialState, JSON.stringify({ trigger, matchedTemplate: matchedTemplate.id, missingFields: missingFields.map(f => f.key) })]
     );
 
+    await connection.execute(
+      `INSERT INTO contract_events (contract_instance_id, event_type, event_data_json, actor_type, actor_label)
+       VALUES (?, 'CONTRACT_CREATED', ?, 'SYSTEM', 'GHL_WEBHOOK')`,
+      [contractInstanceId, JSON.stringify({ trigger, matchedTemplate: matchedTemplate.id, state: initialState })]
+    ).catch(() => {});
+
     await connection.commit();
   } catch (err) {
     await connection.rollback();
@@ -164,6 +170,15 @@ router.post('/contract-trigger', validateWebhookSecret, async (req, res) => {
   ghlService.updateContact(locationId, contactId, {
     customFields: [{ id: 'contract_status', value: initialState === 'AWAITING_FORM' ? 'Awaiting Form' : 'Ready' }],
   }).catch(err => console.warn('[Webhook] GHL status sync failed:', err.message));
+
+  // 7. Auto-sync creation event to GHL Conversation InternalComment & Contact Notes
+  ghlService.syncAuditLogToGHL(locationId, {
+    contactId,
+    userId: assignedUserId,
+    title: `Contract #${contractInstanceId} Created via Webhook (${matchedTemplate.name})`,
+    details: `Trigger: ${trigger} | State: ${initialState} | Template: ${matchedTemplate.name}`,
+    actorName: 'HighLevel Workflow Webhook',
+  }).catch(err => console.warn('[Webhook] GHL audit sync failed:', err.message));
 
   console.log(`[Webhook] Contract ${contractInstanceId} created → ${initialState} (template: ${matchedTemplate.name})`);
 

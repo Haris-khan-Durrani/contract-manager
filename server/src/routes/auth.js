@@ -55,6 +55,13 @@ router.post('/login', async (req, res) => {
       });
     }
 
+    // Register active token for location & update system settings if placeholder
+    ghlService.registerLocationToken(trimmedLocationId, trimmedPrivateToken);
+    const curToken = settingsService.get('GHL_PRIVATE_INTEGRATION_TOKEN');
+    if (!curToken || curToken === 'pit_dev_token_sample' || curToken.startsWith('pit_dev_')) {
+      settingsService.set('GHL_PRIVATE_INTEGRATION_TOKEN', trimmedPrivateToken).catch(() => {});
+    }
+
     // Extract user profile information
     const name = ghlUser.name
       || `${ghlUser.firstName || ''} ${ghlUser.lastName || ''}`.trim()

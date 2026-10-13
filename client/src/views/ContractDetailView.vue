@@ -498,7 +498,7 @@
             <div>
               <h3>Contract Audit Trail</h3>
               <p class="text-muted">
-                Immutable chronological record of every view, form edit, signature, and HighLevel sync event.
+                Immutable chronological record of every view, form edit, signature, and HighLevel sync event. (All events auto-sync to GoHighLevel internal comments in real time).
               </p>
             </div>
             <button
