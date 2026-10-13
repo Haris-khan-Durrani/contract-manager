@@ -382,6 +382,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
+import Swal from 'sweetalert2'
 import { useAuthStore } from '../stores/auth'
 
 const router = useRouter()
@@ -691,24 +692,60 @@ function formatStatusLabel(state) {
 }
 
 async function sendViaGhl(contract) {
-  if (!confirm(`Dispatch contract #${contract.id} (${contract.template_name}) to ${contract.recipient_name || 'client'} via GoHighLevel?`)) return
+  const result = await Swal.fire({
+    title: 'Dispatch Contract?',
+    text: `Dispatch contract #${contract.id} (${contract.template_name || 'Contract'}) to ${contract.recipient_name || 'client'} via GoHighLevel?`,
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonColor: '#2563eb',
+    cancelButtonColor: '#64748b',
+    confirmButtonText: 'Yes, Send Now',
+    cancelButtonText: 'Cancel',
+    reverseButtons: true,
+  })
+
+  if (!result.isConfirmed) return
+
   sendingContractId.value = contract.id
   try {
     const res = await axios.post(`${apiBase}/contracts/${contract.id}/send`, {
       channels: ['sms', 'email'],
     }, { headers: getHeaders() })
-    alert(res.data?.message || 'Contract dispatched via GoHighLevel successfully! Status updated to Sent.')
     contract.state = 'SENT'
+    Swal.fire({
+      title: 'Sent!',
+      text: res.data?.message || 'Contract dispatched via GoHighLevel successfully!',
+      icon: 'success',
+      timer: 2500,
+      showConfirmButton: false,
+    })
   } catch (err) {
-    alert(err.response?.data?.error || 'Failed to dispatch contract via GoHighLevel.')
+    Swal.fire({
+      title: 'Send Failed',
+      text: err.response?.data?.error || 'Failed to dispatch contract via GoHighLevel.',
+      icon: 'error',
+      confirmButtonColor: '#2563eb',
+    })
   } finally {
     sendingContractId.value = null
   }
 }
 
 async function deleteContract(contract) {
-  const confirmMsg = `Are you sure you want to delete contract #${contract.id} (${contract.template_name || 'Contract'} - ${contract.recipient_name || 'Client'})?\n\nThis action cannot be undone and will permanently remove this contract.`
-  if (!confirm(confirmMsg)) return
+  const result = await Swal.fire({
+    title: 'Delete Contract?',
+    html: `Are you sure you want to delete contract <strong>#${contract.id}</strong> (${contract.recipient_name || 'Client'})?<br><br><span style="color:#ef4444;font-size:0.9em;">This action cannot be undone and will permanently remove this contract and its records.</span>`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#ef4444',
+    cancelButtonColor: '#64748b',
+    confirmButtonText: 'Yes, delete it',
+    cancelButtonText: 'Cancel',
+    reverseButtons: true,
+    focusCancel: true,
+  })
+
+  if (!result.isConfirmed) return
 
   deletingId.value = contract.id
   try {
@@ -717,9 +754,22 @@ async function deleteContract(contract) {
     })
     contracts.value = contracts.value.filter(c => c.id !== contract.id)
     selectedIds.value = selectedIds.value.filter(id => id !== contract.id)
+
+    Swal.fire({
+      title: 'Deleted!',
+      text: `Contract #${contract.id} has been permanently deleted.`,
+      icon: 'success',
+      timer: 2000,
+      showConfirmButton: false,
+    })
   } catch (err) {
     console.error('Delete contract error:', err)
-    alert(err.response?.data?.message || err.response?.data?.error || 'Failed to delete contract.')
+    Swal.fire({
+      title: 'Failed to Delete',
+      text: err.response?.data?.message || err.response?.data?.error || 'Failed to delete contract.',
+      icon: 'error',
+      confirmButtonColor: '#2563eb',
+    })
   } finally {
     deletingId.value = null
   }
@@ -728,8 +778,21 @@ async function deleteContract(contract) {
 async function bulkDeleteContracts() {
   const count = selectedIds.value.length
   if (!count) return
-  const confirmMsg = `Are you sure you want to delete ${count} selected contract(s)?\n\nThis action cannot be undone and will permanently remove these contracts.`
-  if (!confirm(confirmMsg)) return
+
+  const result = await Swal.fire({
+    title: `Delete ${count} Contract${count > 1 ? 's' : ''}?`,
+    html: `Are you sure you want to delete <strong>${count}</strong> selected contract${count > 1 ? 's' : ''}?<br><br><span style="color:#ef4444;font-size:0.9em;">This action cannot be undone and will permanently remove ${count > 1 ? 'these contracts' : 'this contract'} and all associated records.</span>`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#ef4444',
+    cancelButtonColor: '#64748b',
+    confirmButtonText: `Yes, delete ${count > 1 ? 'all ' + count : 'it'}`,
+    cancelButtonText: 'Cancel',
+    reverseButtons: true,
+    focusCancel: true,
+  })
+
+  if (!result.isConfirmed) return
 
   bulkDeleting.value = true
   try {
@@ -741,10 +804,22 @@ async function bulkDeleteContracts() {
     const deletedSet = new Set(selectedIds.value)
     contracts.value = contracts.value.filter(c => !deletedSet.has(c.id))
     selectedIds.value = []
-    alert(res.data?.message || `Successfully deleted ${count} contract(s).`)
+
+    Swal.fire({
+      title: 'Deleted!',
+      text: res.data?.message || `Successfully deleted ${count} contract(s).`,
+      icon: 'success',
+      timer: 2000,
+      showConfirmButton: false,
+    })
   } catch (err) {
     console.error('Bulk delete error:', err)
-    alert(err.response?.data?.message || err.response?.data?.error || 'Failed to delete selected contracts.')
+    Swal.fire({
+      title: 'Failed to Delete',
+      text: err.response?.data?.message || err.response?.data?.error || 'Failed to delete selected contracts.',
+      icon: 'error',
+      confirmButtonColor: '#2563eb',
+    })
   } finally {
     bulkDeleting.value = false
   }

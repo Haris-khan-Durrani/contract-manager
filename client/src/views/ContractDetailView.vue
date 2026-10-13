@@ -666,6 +666,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
+import Swal from 'sweetalert2'
 import { useAuthStore } from '../stores/auth'
 import { DEFAULT_COMPANY_STAMP, DEFAULT_COMPANY_SIGNATURE } from '../constants/defaultAssets'
 
@@ -976,13 +977,39 @@ async function extendExpiry() {
 }
 
 async function revokeContract() {
-  if (!confirm('Are you sure you want to revoke this contract? The public signing link will immediately stop working.')) return
+  const result = await Swal.fire({
+    title: 'Revoke Contract?',
+    text: 'Are you sure you want to revoke this contract? The public signing link will immediately stop working.',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#ef4444',
+    cancelButtonColor: '#64748b',
+    confirmButtonText: 'Yes, Revoke',
+    cancelButtonText: 'Cancel',
+    reverseButtons: true,
+    focusCancel: true,
+  })
+
+  if (!result.isConfirmed) return
+
   revoking.value = true
   try {
     await axios.post(`${apiBase}/contracts/${contractId}/revoke`, {}, { headers: getHeaders() })
+    Swal.fire({
+      title: 'Revoked!',
+      text: 'Contract has been revoked successfully.',
+      icon: 'success',
+      timer: 2000,
+      showConfirmButton: false,
+    })
     fetchContract()
   } catch (err) {
-    alert(err.response?.data?.error || 'Failed to revoke contract.')
+    Swal.fire({
+      title: 'Error',
+      text: err.response?.data?.error || 'Failed to revoke contract.',
+      icon: 'error',
+      confirmButtonColor: '#2563eb',
+    })
   } finally {
     revoking.value = false
   }
@@ -990,17 +1017,40 @@ async function revokeContract() {
 
 async function deleteContract() {
   const c = contract.value || {}
-  const confirmMsg = `Are you sure you want to delete contract #${c.id || contractId} (${c.template_name || 'Contract'} - ${c.recipient_name || 'Client'})?\n\nThis action cannot be undone and will permanently remove this contract.`
-  if (!confirm(confirmMsg)) return
+  const result = await Swal.fire({
+    title: 'Delete Contract?',
+    html: `Are you sure you want to delete contract <strong>#${c.id || contractId}</strong> (${c.recipient_name || 'Client'})?<br><br><span style="color:#ef4444;font-size:0.9em;">This action cannot be undone and will permanently remove this contract and its audit trail.</span>`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#ef4444',
+    cancelButtonColor: '#64748b',
+    confirmButtonText: 'Yes, delete it',
+    cancelButtonText: 'Cancel',
+    reverseButtons: true,
+    focusCancel: true,
+  })
+
+  if (!result.isConfirmed) return
 
   deleting.value = true
   try {
     await axios.delete(`${apiBase}/contracts/${contractId}`, { headers: getHeaders() })
-    alert(`Contract #${contractId} was deleted successfully.`)
+    await Swal.fire({
+      title: 'Deleted!',
+      text: `Contract #${contractId} was permanently deleted.`,
+      icon: 'success',
+      timer: 1800,
+      showConfirmButton: false,
+    })
     router.push('/contracts')
   } catch (err) {
     console.error('Delete contract error:', err)
-    alert(err.response?.data?.message || err.response?.data?.error || 'Failed to delete contract.')
+    Swal.fire({
+      title: 'Failed to Delete',
+      text: err.response?.data?.message || err.response?.data?.error || 'Failed to delete contract.',
+      icon: 'error',
+      confirmButtonColor: '#2563eb',
+    })
   } finally {
     deleting.value = false
   }
