@@ -679,6 +679,114 @@ router.post('/:id/revoke', requirePermission('contract:cancel'), async (req, res
   }
 });
 
+// ─── POST /api/contracts/bulk-delete ─────────────────────────────────────────
+router.post('/bulk-delete', requirePermission('contract:delete'), async (req, res) => {
+  try {
+    const { userId, locationId } = req.ghlUser;
+    const role = req.appUser?.role || req.ghlUser?.role || 'SALES';
+    const { ids } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'ids must be a non-empty array of contract IDs.' });
+    }
+
+    let deletedCount = 0;
+    const errors = [];
+
+    for (const contractId of ids) {
+      const [rows] = await db.execute(
+        'SELECT id, location_id, state, assigned_user_id, created_by_user_id FROM contract_instances WHERE id = ? AND location_id = ?',
+        [contractId, locationId]
+      );
+      if (!rows.length) continue;
+
+      const contract = rows[0];
+      if (role === 'SALES') {
+        const isOwner = contract.assigned_user_id === userId || contract.created_by_user_id === userId;
+        if (!isOwner || ['SIGNED', 'COMPLETED'].includes(contract.state)) {
+          errors.push(`Contract #${contractId} cannot be deleted with current permissions.`);
+          continue;
+        }
+      }
+
+      await db.execute('DELETE FROM contract_client_summaries WHERE contract_id = ?', [contractId]).catch(() => {});
+      await db.execute('DELETE FROM contract_audit_logs WHERE contract_instance_id = ?', [contractId]).catch(() => {});
+      await db.execute('DELETE FROM contract_events WHERE contract_instance_id = ?', [contractId]).catch(() => {});
+      await db.execute('DELETE FROM webhook_idempotency_keys WHERE contract_instance_id = ?', [contractId]).catch(() => {});
+      await db.execute('DELETE FROM contract_instances WHERE id = ? AND location_id = ?', [contractId, locationId]);
+      deletedCount++;
+    }
+
+    res.json({
+      success: true,
+      deletedCount,
+      errors: errors.length ? errors : undefined,
+      message: `Successfully deleted ${deletedCount} contract(s).`,
+    });
+  } catch (err) {
+    console.error('[Contracts] Bulk delete error:', err.message);
+    res.status(500).json({ error: 'Failed to bulk delete contracts: ' + err.message });
+  }
+});
+
+// ─── DELETE /api/contracts/:id ───────────────────────────────────────────────
+router.delete('/:id', requirePermission('contract:delete'), async (req, res) => {
+  try {
+    const { userId, locationId } = req.ghlUser;
+    const role = req.appUser?.role || req.ghlUser?.role || 'SALES';
+    const contractId = req.params.id;
+
+    const [rows] = await db.execute(
+      'SELECT id, location_id, state, assigned_user_id, created_by_user_id, recipient_name FROM contract_instances WHERE id = ? AND location_id = ?',
+      [contractId, locationId]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ error: 'Contract not found.' });
+    }
+
+    const contract = rows[0];
+
+    // Role constraints: SALES can only delete draft/unexecuted contracts assigned to or created by them
+    if (role === 'SALES') {
+      const isOwner = contract.assigned_user_id === userId || contract.created_by_user_id === userId;
+      if (!isOwner) {
+        return res.status(403).json({
+          error: 'Forbidden',
+          message: 'You can only delete contracts assigned to or created by you.',
+        });
+      }
+      if (['SIGNED', 'COMPLETED'].includes(contract.state)) {
+        return res.status(403).json({
+          error: 'Forbidden',
+          message: 'Signed or completed contracts can only be deleted by an administrator.',
+        });
+      }
+    }
+
+    // Clean up related child records safely
+    await db.execute('DELETE FROM contract_client_summaries WHERE contract_id = ?', [contractId]).catch(() => {});
+    await db.execute('DELETE FROM contract_audit_logs WHERE contract_instance_id = ?', [contractId]).catch(() => {});
+    await db.execute('DELETE FROM contract_events WHERE contract_instance_id = ?', [contractId]).catch(() => {});
+    await db.execute('DELETE FROM webhook_idempotency_keys WHERE contract_instance_id = ?', [contractId]).catch(() => {});
+
+    // Delete the contract instance itself
+    await db.execute(
+      'DELETE FROM contract_instances WHERE id = ? AND location_id = ?',
+      [contractId, locationId]
+    );
+
+    res.json({
+      success: true,
+      message: `Contract #${contractId} was deleted successfully.`,
+    });
+  } catch (err) {
+    console.error('[Contracts] Delete error:', err.message);
+    res.status(500).json({ error: 'Failed to delete contract: ' + err.message });
+  }
+});
+
+
 // ─── PATCH /api/contracts/:id/form ───────────────────────────────────────────
 router.patch('/:id/form', requirePermission('contract:form:submit'), async (req, res) => {
   try {

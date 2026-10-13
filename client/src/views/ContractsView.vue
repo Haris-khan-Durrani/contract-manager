@@ -194,11 +194,32 @@
         </div>
       </div>
 
-      <!-- Table Header Meta Count -->
-      <div class="table-results-meta">
+      <!-- Table Header Meta Count & Bulk Actions -->
+      <div class="table-results-meta" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
         <span class="results-count-text">
           Showing <strong>{{ filteredContracts.length }}</strong> of <strong>{{ contracts.length }}</strong> contracts
         </span>
+        <div v-if="selectedIds.length > 0" class="bulk-actions-group" style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 0.82rem; font-weight: 600; color: #2563eb; background: #eff6ff; padding: 2px 8px; border-radius: 6px; border: 1px solid #bfdbfe;">
+            {{ selectedIds.length }} selected
+          </span>
+          <button
+            type="button"
+            class="btn btn-outline-danger btn-sm"
+            style="font-weight: 600; padding: 4px 10px; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 4px;"
+            :disabled="bulkDeleting"
+            @click="bulkDeleteContracts"
+            title="Delete selected contracts"
+          >
+            <span v-if="bulkDeleting">Deleting…</span>
+            <span v-else style="display: inline-flex; align-items: center; gap: 4px;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+              </svg>
+              Delete Selected ({{ selectedIds.length }})
+            </span>
+          </button>
+        </div>
       </div>
 
       <!-- Loading State -->
@@ -238,6 +259,15 @@
           <table class="contracts-table">
             <thead>
               <tr>
+                <th style="width: 36px; text-align: center;">
+                  <input
+                    type="checkbox"
+                    :checked="isAllSelected"
+                    @change="toggleSelectAll"
+                    style="cursor: pointer; width: 15px; height: 15px; accent-color: #2563eb; vertical-align: middle;"
+                    title="Select or deselect all"
+                  />
+                </th>
                 <th>Contract #</th>
                 <th>Template</th>
                 <th>Status</th>
@@ -255,6 +285,14 @@
                 class="clickable-row"
                 @click="openContract(c.id)"
               >
+                <td style="text-align: center;" @click.stop>
+                  <input
+                    type="checkbox"
+                    :checked="selectedIds.includes(c.id)"
+                    @change="toggleSelectContract(c.id)"
+                    style="cursor: pointer; width: 15px; height: 15px; accent-color: #2563eb; vertical-align: middle;"
+                  />
+                </td>
                 <td>
                   <strong class="contract-id-badge">#{{ c.id }}</strong>
                 </td>
@@ -310,6 +348,25 @@
                     <router-link :to="`/contracts/${c.id}`" class="btn btn-secondary btn-sm">
                       Open →
                     </router-link>
+                    <!-- Delete Contract Button -->
+                    <button
+                      type="button"
+                      class="btn btn-outline-danger btn-sm"
+                      style="font-weight:600; padding:4px 8px; font-size:0.78rem; display:inline-flex; align-items:center; gap:4px;"
+                      :disabled="deletingId === c.id"
+                      @click="deleteContract(c)"
+                      title="Delete contract"
+                    >
+                      <span v-if="deletingId === c.id">…</span>
+                      <span v-else style="display:inline-flex; align-items:center; gap:3px;">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                          <line x1="10" y1="11" x2="10" y2="17"/>
+                          <line x1="14" y1="11" x2="14" y2="17"/>
+                        </svg>
+                        Delete
+                      </span>
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -344,6 +401,31 @@ const sortBy = ref('NEWEST')
 
 const copiedId = ref(null)
 const sendingContractId = ref(null)
+const deletingId = ref(null)
+const selectedIds = ref([])
+const bulkDeleting = ref(false)
+
+const isAllSelected = computed(() => {
+  if (!filteredContracts.value.length) return false
+  return filteredContracts.value.every(c => selectedIds.value.includes(c.id))
+})
+
+function toggleSelectAll() {
+  if (isAllSelected.value) {
+    selectedIds.value = []
+  } else {
+    selectedIds.value = filteredContracts.value.map(c => c.id)
+  }
+}
+
+function toggleSelectContract(id) {
+  const idx = selectedIds.value.indexOf(id)
+  if (idx > -1) {
+    selectedIds.value.splice(idx, 1)
+  } else {
+    selectedIds.value.push(id)
+  }
+}
 
 const statusOptions = [
   { label: 'All Contracts', value: '' },
@@ -621,6 +703,50 @@ async function sendViaGhl(contract) {
     alert(err.response?.data?.error || 'Failed to dispatch contract via GoHighLevel.')
   } finally {
     sendingContractId.value = null
+  }
+}
+
+async function deleteContract(contract) {
+  const confirmMsg = `Are you sure you want to delete contract #${contract.id} (${contract.template_name || 'Contract'} - ${contract.recipient_name || 'Client'})?\n\nThis action cannot be undone and will permanently remove this contract.`
+  if (!confirm(confirmMsg)) return
+
+  deletingId.value = contract.id
+  try {
+    await axios.delete(`${apiBase}/contracts/${contract.id}`, {
+      headers: getHeaders(),
+    })
+    contracts.value = contracts.value.filter(c => c.id !== contract.id)
+    selectedIds.value = selectedIds.value.filter(id => id !== contract.id)
+  } catch (err) {
+    console.error('Delete contract error:', err)
+    alert(err.response?.data?.message || err.response?.data?.error || 'Failed to delete contract.')
+  } finally {
+    deletingId.value = null
+  }
+}
+
+async function bulkDeleteContracts() {
+  const count = selectedIds.value.length
+  if (!count) return
+  const confirmMsg = `Are you sure you want to delete ${count} selected contract(s)?\n\nThis action cannot be undone and will permanently remove these contracts.`
+  if (!confirm(confirmMsg)) return
+
+  bulkDeleting.value = true
+  try {
+    const res = await axios.post(`${apiBase}/contracts/bulk-delete`, {
+      ids: selectedIds.value,
+    }, {
+      headers: getHeaders(),
+    })
+    const deletedSet = new Set(selectedIds.value)
+    contracts.value = contracts.value.filter(c => !deletedSet.has(c.id))
+    selectedIds.value = []
+    alert(res.data?.message || `Successfully deleted ${count} contract(s).`)
+  } catch (err) {
+    console.error('Bulk delete error:', err)
+    alert(err.response?.data?.message || err.response?.data?.error || 'Failed to delete selected contracts.')
+  } finally {
+    bulkDeleting.value = false
   }
 }
 

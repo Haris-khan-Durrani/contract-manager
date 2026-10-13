@@ -28,6 +28,7 @@ const PERMISSIONS = {
   'contract:view:own':     ['SALES', 'ADMIN', 'SUPER_ADMIN'],
   'contract:cancel':       ['ADMIN', 'SUPER_ADMIN'],
   'contract:supersede':    ['ADMIN', 'SUPER_ADMIN'],
+  'contract:delete':       ['ADMIN', 'SUPER_ADMIN', 'SALES'],
   'audit:view:all':        ['ADMIN', 'SUPER_ADMIN'],
   'audit:view:own':        ['SALES', 'ADMIN', 'SUPER_ADMIN'],
   'user:manage':           ['SUPER_ADMIN', 'ADMIN'],

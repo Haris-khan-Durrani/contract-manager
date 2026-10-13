@@ -65,6 +65,16 @@
           {{ revoking ? 'Revoking…' : '🚫 Revoke' }}
         </button>
 
+        <!-- Delete Contract -->
+        <button
+          class="btn btn-outline-danger"
+          @click="deleteContract"
+          :disabled="deleting"
+          title="Permanently delete this contract"
+        >
+          {{ deleting ? 'Deleting…' : '🗑️ Delete' }}
+        </button>
+
         <!-- If COMPLETED: Download Signed PDF (Agent only) -->
         <button
           v-if="contract.state === 'COMPLETED' || contract.ghl_file_url"
@@ -689,6 +699,7 @@ const showExtendModal = ref(false)
 const extendDays = ref(7)
 const extending = ref(false)
 const revoking  = ref(false)
+const deleting  = ref(false)
 const downloadingPdf = ref(false)
 
 // GHL Send Modal
@@ -974,6 +985,24 @@ async function revokeContract() {
     alert(err.response?.data?.error || 'Failed to revoke contract.')
   } finally {
     revoking.value = false
+  }
+}
+
+async function deleteContract() {
+  const c = contract.value || {}
+  const confirmMsg = `Are you sure you want to delete contract #${c.id || contractId} (${c.template_name || 'Contract'} - ${c.recipient_name || 'Client'})?\n\nThis action cannot be undone and will permanently remove this contract.`
+  if (!confirm(confirmMsg)) return
+
+  deleting.value = true
+  try {
+    await axios.delete(`${apiBase}/contracts/${contractId}`, { headers: getHeaders() })
+    alert(`Contract #${contractId} was deleted successfully.`)
+    router.push('/contracts')
+  } catch (err) {
+    console.error('Delete contract error:', err)
+    alert(err.response?.data?.message || err.response?.data?.error || 'Failed to delete contract.')
+  } finally {
+    deleting.value = false
   }
 }
 
