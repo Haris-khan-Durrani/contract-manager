@@ -207,7 +207,7 @@
               type="button"
               class="btn-rail-icon"
               :class="{ active: paletteTab === 'blocks' }"
-              @click="isLeftCollapsed = false; paletteTab = 'blocks'"
+              @click="setLeftCollapsed(false); paletteTab = 'blocks'"
               title="Document Components"
             >
               🧩
@@ -216,7 +216,7 @@
               type="button"
               class="btn-rail-icon"
               :class="{ active: paletteTab === 'prebuilt' }"
-              @click="isLeftCollapsed = false; paletteTab = 'prebuilt'"
+              @click="setLeftCollapsed(false); paletteTab = 'prebuilt'"
               title="360GI Prebuilt Clauses"
             >
               🏢
@@ -225,7 +225,7 @@
               type="button"
               class="btn-rail-icon"
               :class="{ active: paletteTab === 'layers' }"
-              @click="isLeftCollapsed = false; openLayersTab()"
+              @click="setLeftCollapsed(false); openLayersTab()"
               title="Layers &amp; Hierarchy"
             >
               📑
@@ -234,7 +234,7 @@
               type="button"
               class="btn-rail-icon"
               :class="{ active: paletteTab === 'tokens' }"
-              @click="isLeftCollapsed = false; paletteTab = 'tokens'"
+              @click="setLeftCollapsed(false); paletteTab = 'tokens'"
               title="Variables"
             >
               💲
@@ -705,10 +705,10 @@
               </div>
 
               <div class="zoom-controls">
-                <button class="btn-tool" @click="changeZoom(-0.15)" title="Zoom Out">−</button>
-                <span class="zoom-level">{{ Math.round(zoomScale * 100) }}%</span>
-                <button class="btn-tool" @click="changeZoom(0.15)" title="Zoom In">+</button>
-                <button class="btn-tool btn-fit" @click="fitZoom" title="Auto Fit to Screen">Fit</button>
+                <button class="btn-tool" @click="changeZoom(-0.15)" title="Zoom Out (Ctrl+Minus)">−</button>
+                <span class="zoom-level" title="Current Zoom">{{ Math.round(zoomScale * 100) }}%</span>
+                <button class="btn-tool" @click="changeZoom(0.15)" title="Zoom In (Ctrl+Plus)">+</button>
+                <button class="btn-tool btn-fit" @click="fitZoom(true)" title="Auto Fit to Screen">Fit</button>
               </div>
             </div>
 
@@ -723,7 +723,11 @@
           </div>
 
           <!-- SCROLLABLE ZOOMABLE A4 WORKSPACE -->
-          <div class="a4-scroll-viewport" :style="{ transform: `scale(${zoomScale})`, transformOrigin: 'top center' }">
+          <div
+            class="a4-scroll-viewport"
+            :style="{ transform: `scale(${zoomScale})`, transformOrigin: 'top center' }"
+            @wheel="onCanvasWheel"
+          >
             <!-- If raw HTML template -->
             <div v-if="documentSchema.rawHtml" class="html-canvas-view" style="position: relative;">
               <!-- Floating Row / Element Quick Action Toolbar -->
@@ -2398,15 +2402,72 @@ const canUndo = computed(() => undoStack.value.length > 0)
 const canRedo = computed(() => redoStack.value.length > 0)
 
 const activeTab = ref('builder') // 'builder' | 'form' | 'variables' | 'preview' | 'code' | 'versions'
-const codeSubTab = ref('html') // 'html' | 'css'
-const paletteTab = ref('blocks') // 'blocks' | 'prebuilt' | 'layers' | 'tokens'
-const zoomScale = ref(0.85)
+// Studio Preferences Persistence Helpers (localStorage)
+function saveStudioPreference(key, value) {
+  try {
+    localStorage.setItem(key, typeof value === 'object' ? JSON.stringify(value) : String(value))
+  } catch (e) {}
+}
+
+function getStudioPreference(key, fallback = null) {
+  try {
+    const val = localStorage.getItem(key)
+    if (val !== null && val !== undefined) return val
+  } catch (e) {}
+  return fallback
+}
+
+const paletteTab = ref(
+  (() => {
+    const saved = getStudioPreference('studio_palette_tab')
+    if (saved && ['blocks', 'prebuilt', 'layers', 'tokens'].includes(saved)) return saved
+    return 'blocks'
+  })()
+)
+
+watch(paletteTab, (newTab) => {
+  saveStudioPreference('studio_palette_tab', newTab)
+})
 
 // Responsive Layout & Panel Collapsing (Optimized for HighLevel CRM Iframe)
 const isInIframe = ref(typeof window !== 'undefined' && window.self !== window.top)
-const isLeftCollapsed = ref(false)
-const isRightCollapsed = ref(isInIframe.value) // In iframe, default right inspector collapsed to give maximum room to A4 document
-const isBottomStripCollapsed = ref(isInIframe.value) // In iframe, default compact bottom strip so full page height is visible
+
+const zoomScale = ref(
+  (() => {
+    const saved = getStudioPreference('studio_zoom_scale')
+    if (saved !== null) {
+      const parsed = parseFloat(saved)
+      if (!isNaN(parsed) && parsed >= 0.3 && parsed <= 2.5) {
+        return parsed
+      }
+    }
+    return isInIframe.value ? 0.72 : 0.85
+  })()
+)
+
+const isLeftCollapsed = ref(
+  (() => {
+    const saved = getStudioPreference('studio_left_collapsed')
+    if (saved !== null) return saved === 'true'
+    return false
+  })()
+)
+
+const isRightCollapsed = ref(
+  (() => {
+    const saved = getStudioPreference('studio_right_collapsed')
+    if (saved !== null) return saved === 'true'
+    return isInIframe.value
+  })()
+)
+
+const isBottomStripCollapsed = ref(
+  (() => {
+    const saved = getStudioPreference('studio_bottom_strip_collapsed')
+    if (saved !== null) return saved === 'true'
+    return isInIframe.value
+  })()
+)
 
 // Sidebar Drag Resizing State & Methods
 const defaultRightSidebarWidth = 340
@@ -2517,30 +2578,60 @@ function resetRightSidebarWidth() {
 
 function toggleLeftPane() {
   isLeftCollapsed.value = !isLeftCollapsed.value
+  saveStudioPreference('studio_left_collapsed', isLeftCollapsed.value)
+}
+
+function setLeftCollapsed(val) {
+  isLeftCollapsed.value = val
+  saveStudioPreference('studio_left_collapsed', val)
 }
 
 function toggleRightPane() {
   isRightCollapsed.value = !isRightCollapsed.value
+  saveStudioPreference('studio_right_collapsed', isRightCollapsed.value)
+}
+
+function setRightCollapsed(val) {
+  isRightCollapsed.value = val
+  saveStudioPreference('studio_right_collapsed', val)
 }
 
 function toggleBottomStrip() {
   isBottomStripCollapsed.value = !isBottomStripCollapsed.value
+  saveStudioPreference('studio_bottom_strip_collapsed', isBottomStripCollapsed.value)
 }
 
-function fitZoom() {
+function fitZoom(isManual = false) {
   nextTick(() => {
-    const canvasEl = document.querySelector('.studio-canvas-scroll')
+    const canvasEl = document.querySelector('.a4-scroll-viewport') || document.querySelector('.canvas-area-wrapper')
     if (canvasEl) {
       const availableWidth = canvasEl.clientWidth - 48
       if (availableWidth > 260) {
         // A4 page width with borders and shadows is ~830px
-        const calculated = Math.min(1.15, Math.max(0.45, Math.round((availableWidth / 830) * 100) / 100))
+        const calculated = Math.min(1.8, Math.max(0.45, Math.round((availableWidth / 830) * 100) / 100))
         zoomScale.value = calculated
+        if (isManual) {
+          saveStudioPreference('studio_zoom_scale', calculated)
+          saveStudioPreference('studio_zoom_is_custom', false)
+        }
         return
       }
     }
-    zoomScale.value = isInIframe.value ? 0.72 : 0.85
+    const fallback = isInIframe.value ? 0.72 : 0.85
+    zoomScale.value = fallback
+    if (isManual) {
+      saveStudioPreference('studio_zoom_scale', fallback)
+      saveStudioPreference('studio_zoom_is_custom', false)
+    }
   })
+}
+
+function onCanvasWheel(e) {
+  if (e.ctrlKey || e.metaKey) {
+    e.preventDefault()
+    const delta = e.deltaY < 0 ? 0.08 : -0.08
+    changeZoom(delta)
+  }
 }
 
 // Document Layers Tree State
@@ -2628,8 +2719,10 @@ function varTag(v) {
 
 function changeZoom(delta) {
   const next = Math.round((zoomScale.value + delta) * 100) / 100
-  if (next >= 0.4 && next <= 1.8) {
+  if (next >= 0.35 && next <= 2.5) {
     zoomScale.value = next
+    saveStudioPreference('studio_zoom_scale', next)
+    saveStudioPreference('studio_zoom_is_custom', true)
   }
 }
 
@@ -4680,15 +4773,32 @@ function formatDate(d) {
   })
 }
 
+function onWindowResize() {
+  updateFloatingToolbarPos()
+  const savedZoom = getStudioPreference('studio_zoom_scale')
+  const isCustomZoom = getStudioPreference('studio_zoom_is_custom') === 'true'
+  if (!savedZoom && !isCustomZoom) {
+    fitZoom(false)
+  }
+}
+
 onMounted(() => {
   loadTemplate()
   loadLocationUsers()
   window.addEventListener('keydown', onGlobalKeydown)
-  window.addEventListener('resize', updateFloatingToolbarPos)
-  window.addEventListener('resize', fitZoom)
-  setTimeout(() => {
-    fitZoom()
-  }, 350)
+  window.addEventListener('resize', onWindowResize)
+  window.addEventListener('mousemove', onRightResizeMove)
+  window.addEventListener('mouseup', endRightResize)
+  window.addEventListener('touchmove', onRightResizeMoveTouch)
+  window.addEventListener('touchend', endRightResize)
+
+  // Only run auto-fit on initial mount if user hasn't explicitly set/saved a zoom preference
+  const savedZoom = getStudioPreference('studio_zoom_scale')
+  if (!savedZoom) {
+    setTimeout(() => {
+      fitZoom(false)
+    }, 350)
+  }
   setTimeout(() => {
     refreshLayersList()
   }, 600)
@@ -4696,8 +4806,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('keydown', onGlobalKeydown)
-  window.removeEventListener('resize', updateFloatingToolbarPos)
-  window.removeEventListener('resize', fitZoom)
+  window.removeEventListener('resize', onWindowResize)
   window.removeEventListener('mousemove', onRightResizeMove)
   window.removeEventListener('mouseup', endRightResize)
   window.removeEventListener('touchmove', onRightResizeMoveTouch)
