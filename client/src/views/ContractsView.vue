@@ -1,378 +1,467 @@
 <template>
-  <div>
-    <!-- Page Header -->
-    <div class="page-header">
-      <div class="header-titles">
-        <h1 class="page-title">Contracts</h1>
-        <p class="page-subtitle">
-          Track all agreements across your pipeline from draft intake to signature and completion.
-        </p>
-      </div>
-
-      <div class="header-actions">
-        <button class="btn btn-secondary" @click="fetchContracts" :disabled="loading">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
-          </svg>
-          Refresh
-        </button>
-
-        <router-link to="/contracts/new" class="btn btn-primary">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="12" y1="5" x2="12" y2="19"/>
-            <line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>
-          Create Contract
-        </router-link>
-      </div>
-    </div>
-
-    <!-- Page Body -->
-    <div class="page-body animate-fade-in">
-      <!-- 1. Status Filter Pills Bar with Live Counts -->
-      <div class="status-pills-bar">
-        <button
-          v-for="s in statusOptions"
-          :key="s.value"
-          type="button"
-          class="status-pill-btn"
-          :class="{ active: selectedStatus === s.value }"
-          @click="selectedStatus = s.value"
-        >
-          <span>{{ s.label }}</span>
-          <span class="pill-count" :class="{ 'pill-count-active': selectedStatus === s.value }">
-            {{ getStatusCount(s.value) }}
-          </span>
-        </button>
-      </div>
-
-      <!-- 2. Advanced Multi-Filter Control Toolbar -->
-      <div class="filter-controls-card glass-card">
-        <div class="filter-grid">
-          <!-- Live Search Input -->
-          <div class="filter-group search-group">
-            <label class="filter-label">Search</label>
-            <div class="search-input-wrap">
-              <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="11" cy="11" r="8"/>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-              </svg>
-              <input
-                type="text"
-                v-model="searchQuery"
-                placeholder="Search contract #, client, email, phone, agent…"
-                class="filter-input search-field"
-              />
-              <button
-                v-if="searchQuery"
-                type="button"
-                class="btn-clear-search"
-                @click="searchQuery = ''"
-                title="Clear search text"
-              >✕</button>
-            </div>
-          </div>
-
-          <!-- Template Filter Dropdown -->
-          <div class="filter-group">
-            <label class="filter-label">Template</label>
-            <div class="select-wrap">
-              <select v-model="filterTemplate" class="filter-select">
-                <option value="">All Templates ({{ availableTemplates.length }})</option>
-                <option v-for="t in availableTemplates" :key="t" :value="t">{{ t }}</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- Assigned Agent Filter Dropdown -->
-          <div class="filter-group">
-            <label class="filter-label">Assigned Agent</label>
-            <div class="select-wrap">
-              <select v-model="filterAgent" class="filter-select">
-                <option value="">All Agents ({{ availableAgents.length }})</option>
-                <option v-for="a in availableAgents" :key="a" :value="a">{{ a }}</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- Application Mode (Type) Filter -->
-          <div class="filter-group">
-            <label class="filter-label">Application Type</label>
-            <div class="select-wrap">
-              <select v-model="filterType" class="filter-select">
-                <option value="">All Types</option>
-                <option value="NORMAL">Individual (NORMAL)</option>
-                <option value="TEAM">Team / Family (TEAM)</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- Date Range Preset Dropdown -->
-          <div class="filter-group">
-            <label class="filter-label">Date Filter</label>
-            <div class="select-wrap">
-              <select v-model="filterDateRange" class="filter-select">
-                <option value="ALL">All Time</option>
-                <option value="TODAY">Today</option>
-                <option value="LAST_7_DAYS">Last 7 Days</option>
-                <option value="THIS_MONTH">This Month</option>
-                <option value="LAST_30_DAYS">Last 30 Days</option>
-                <option value="CUSTOM">Custom Range…</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- Sort Order Dropdown -->
-          <div class="filter-group">
-            <label class="filter-label">Sort By</label>
-            <div class="select-wrap">
-              <select v-model="sortBy" class="filter-select">
-                <option value="NEWEST">Newest First</option>
-                <option value="OLDEST">Oldest First</option>
-                <option value="ID_DESC">Contract # (High to Low)</option>
-                <option value="ID_ASC">Contract # (Low to High)</option>
-                <option value="NAME_ASC">Client Name (A–Z)</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <!-- Custom Date Range Row (Shown when 'CUSTOM' is selected) -->
-        <div v-if="filterDateRange === 'CUSTOM'" class="custom-date-row animate-fade-in">
-          <div class="date-pick-field">
-            <label class="filter-label">From Date</label>
-            <input type="date" v-model="customStartDate" class="filter-input" />
-          </div>
-          <div class="date-pick-field">
-            <label class="filter-label">To Date</label>
-            <input type="date" v-model="customEndDate" class="filter-input" />
-          </div>
-        </div>
-
-        <!-- Active Filters Bar & Reset Action -->
-        <div v-if="hasActiveFilters" class="active-filters-bar animate-fade-in">
-          <div class="active-chips-left">
-            <span class="active-filters-label">Active Filters:</span>
-
-            <span v-if="selectedStatus" class="filter-chip">
-              Status: <strong>{{ getStatusLabel(selectedStatus) }}</strong>
-              <button type="button" @click="selectedStatus = ''" title="Remove status filter">✕</button>
-            </span>
-
-            <span v-if="searchQuery" class="filter-chip">
-              Search: <strong>"{{ searchQuery }}"</strong>
-              <button type="button" @click="searchQuery = ''" title="Clear search">✕</button>
-            </span>
-
-            <span v-if="filterTemplate" class="filter-chip">
-              Template: <strong>{{ filterTemplate }}</strong>
-              <button type="button" @click="filterTemplate = ''" title="Clear template filter">✕</button>
-            </span>
-
-            <span v-if="filterAgent" class="filter-chip">
-              Agent: <strong>{{ filterAgent }}</strong>
-              <button type="button" @click="filterAgent = ''" title="Clear agent filter">✕</button>
-            </span>
-
-            <span v-if="filterType" class="filter-chip">
-              Type: <strong>{{ filterType === 'TEAM' ? 'Team (TEAM)' : 'Individual (NORMAL)' }}</strong>
-              <button type="button" @click="filterType = ''" title="Clear type filter">✕</button>
-            </span>
-
-            <span v-if="filterDateRange !== 'ALL'" class="filter-chip">
-              Date: <strong>{{ getDateRangeLabel() }}</strong>
-              <button type="button" @click="filterDateRange = 'ALL'; customStartDate = ''; customEndDate = ''" title="Clear date filter">✕</button>
-            </span>
-          </div>
-
-          <button type="button" class="btn-reset-filters" @click="clearAllFilters">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-            </svg>
-            Reset All Filters
-          </button>
-        </div>
-      </div>
-
-      <!-- Table Header Meta Count & Bulk Actions -->
-      <div class="table-results-meta" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-        <span class="results-count-text">
-          Showing <strong>{{ filteredContracts.length }}</strong> of <strong>{{ contracts.length }}</strong> contracts
-        </span>
-        <div v-if="selectedIds.length > 0" class="bulk-actions-group" style="display: flex; align-items: center; gap: 10px;">
-          <span style="font-size: 0.82rem; font-weight: 600; color: #2563eb; background: #eff6ff; padding: 2px 8px; border-radius: 6px; border: 1px solid #bfdbfe;">
-            {{ selectedIds.length }} selected
-          </span>
-          <button
-            type="button"
-            class="btn btn-outline-danger btn-sm"
-            style="font-weight: 600; padding: 4px 10px; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 4px;"
-            :disabled="bulkDeleting"
-            @click="bulkDeleteContracts"
-            title="Delete selected contracts"
-          >
-            <span v-if="bulkDeleting">Deleting…</span>
-            <span v-else style="display: inline-flex; align-items: center; gap: 4px;">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-              </svg>
-              Delete Selected ({{ selectedIds.length }})
-            </span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Loading State -->
-      <div v-if="loading" class="glass-card" style="padding: var(--space-12); text-align: center;">
-        <div class="spinner"></div>
-        <p class="text-muted" style="margin-top: var(--space-4);">Loading contracts…</p>
-      </div>
-
-      <!-- Empty State -->
-      <div v-else-if="!filteredContracts.length" class="glass-card empty-card">
-        <div class="empty-icon">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+  <div class="contracts-page-root">
+    <!-- ─── TOP EXECUTIVE HEADER ─────────────────────────────────────── -->
+    <header class="contracts-header-card">
+      <div class="header-main-info">
+        <div class="header-badge-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
             <polyline points="14 2 14 8 20 8"/>
             <line x1="16" y1="13" x2="8" y2="13"/>
             <line x1="16" y1="17" x2="8" y2="17"/>
             <polyline points="10 9 9 9 8 9"/>
           </svg>
         </div>
-        <h2 style="margin: var(--space-4) 0 var(--space-2);">No Contracts Found</h2>
-        <p class="text-muted" style="max-width: 480px; margin: 0 auto var(--space-6);">
-          {{ hasActiveFilters ? 'No agreements match your current filter settings. Try clearing some filters or searching for another keyword.' : 'Get started by creating your first contract or triggering one from GoHighLevel.' }}
+        <div>
+          <div class="header-title-row">
+            <h1 class="header-title">Contracts &amp; Legal Agreements</h1>
+            <span class="live-count-chip">{{ contracts.length }} Total</span>
+          </div>
+          <p class="header-subtitle">
+            Manage your end-to-end digital contract lifecycle from draft intake to GoHighLevel dispatch and execution.
+          </p>
+        </div>
+      </div>
+
+      <div class="header-action-group">
+        <button 
+          type="button" 
+          class="btn-hdr btn-hdr-ghost" 
+          @click="fetchContracts" 
+          :disabled="loading"
+          title="Refresh agreements list"
+        >
+          <svg class="btn-svg" :class="{ 'spin-active': loading }" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 11-.57-8.38l5.67-5.19"/>
+          </svg>
+          <span>Refresh</span>
+        </button>
+
+        <router-link to="/contracts/new" class="btn-hdr btn-hdr-primary">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <line x1="12" y1="5" x2="12" y2="19"/>
+            <line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          <span>Create Contract</span>
+        </router-link>
+      </div>
+    </header>
+
+    <!-- ─── EXECUTIVE KPI SUMMARY METRICS ────────────────────────────── -->
+    <div class="kpi-metrics-grid">
+      <div class="kpi-card" :class="{ 'kpi-active': selectedStatus === '' }" @click="selectedStatus = ''">
+        <div class="kpi-icon-box kpi-icon-blue">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        </div>
+        <div class="kpi-content">
+          <div class="kpi-label">All Contracts</div>
+          <div class="kpi-value">{{ contracts.length }}</div>
+        </div>
+      </div>
+
+      <div class="kpi-card" :class="{ 'kpi-active': selectedStatus === 'DRAFT' }" @click="selectedStatus = 'DRAFT'">
+        <div class="kpi-icon-box kpi-icon-amber">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </div>
+        <div class="kpi-content">
+          <div class="kpi-label">Drafts / In Prep</div>
+          <div class="kpi-value">{{ getStatusCount('DRAFT') }}</div>
+        </div>
+      </div>
+
+      <div class="kpi-card" :class="{ 'kpi-active': selectedStatus === 'OPENED' }" @click="selectedStatus = 'OPENED'">
+        <div class="kpi-icon-box kpi-icon-cyan">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </div>
+        <div class="kpi-content">
+          <div class="kpi-label">Opened / Viewed</div>
+          <div class="kpi-value">{{ getStatusCount('OPENED') }}</div>
+        </div>
+      </div>
+
+      <div class="kpi-card" :class="{ 'kpi-active': selectedStatus === 'COMPLETED' }" @click="selectedStatus = 'COMPLETED'">
+        <div class="kpi-icon-box kpi-icon-emerald">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </div>
+        <div class="kpi-content">
+          <div class="kpi-label">Signed &amp; Sealed</div>
+          <div class="kpi-value">{{ getStatusCount('COMPLETED') }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── STATUS FILTER PILLS ROW ──────────────────────────────────── -->
+    <div class="status-pills-container">
+      <div class="status-pills-scroll">
+        <button
+          v-for="s in statusOptions"
+          :key="s.value"
+          type="button"
+          class="status-nav-chip"
+          :class="{ active: selectedStatus === s.value }"
+          @click="selectedStatus = s.value"
+        >
+          <span>{{ s.label }}</span>
+          <span class="chip-count">{{ getStatusCount(s.value) }}</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ─── MULTI-FILTER CONTROL CARD ────────────────────────────────── -->
+    <div class="filter-dashboard-card">
+      <div class="filter-controls-row">
+        <!-- Search Box -->
+        <div class="filter-cell search-cell">
+          <label class="filter-cell-label">Search Agreements</label>
+          <div class="search-box-wrap">
+            <svg class="search-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input
+              type="text"
+              v-model="searchQuery"
+              placeholder="Search contract #, client, email, agent…"
+              class="search-text-field"
+            />
+            <button
+              v-if="searchQuery"
+              type="button"
+              class="search-clear-x"
+              @click="searchQuery = ''"
+            >✕</button>
+          </div>
+        </div>
+
+        <!-- Template Filter -->
+        <div class="filter-cell">
+          <label class="filter-cell-label">Template</label>
+          <div class="select-box-wrap">
+            <select v-model="filterTemplate" class="filter-select-input">
+              <option value="">All Templates ({{ availableTemplates.length }})</option>
+              <option v-for="t in availableTemplates" :key="t" :value="t">{{ t }}</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Agent Filter -->
+        <div class="filter-cell">
+          <label class="filter-cell-label">Assigned Agent</label>
+          <div class="select-box-wrap">
+            <select v-model="filterAgent" class="filter-select-input">
+              <option value="">All Agents ({{ availableAgents.length }})</option>
+              <option v-for="a in availableAgents" :key="a" :value="a">{{ a }}</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Application Mode -->
+        <div class="filter-cell">
+          <label class="filter-cell-label">Application Type</label>
+          <div class="select-box-wrap">
+            <select v-model="filterType" class="filter-select-input">
+              <option value="">All Types</option>
+              <option value="NORMAL">Individual (Normal)</option>
+              <option value="TEAM">Team / Family</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Date Range Filter -->
+        <div class="filter-cell">
+          <label class="filter-cell-label">Date Range</label>
+          <div class="select-box-wrap">
+            <select v-model="filterDateRange" class="filter-select-input">
+              <option value="ALL">All Time</option>
+              <option value="TODAY">Today</option>
+              <option value="LAST_7_DAYS">Last 7 Days</option>
+              <option value="THIS_MONTH">This Month</option>
+              <option value="LAST_30_DAYS">Last 30 Days</option>
+              <option value="CUSTOM">Custom Range…</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Sort Order -->
+        <div class="filter-cell">
+          <label class="filter-cell-label">Sort Order</label>
+          <div class="select-box-wrap">
+            <select v-model="sortBy" class="filter-select-input">
+              <option value="NEWEST">Newest First</option>
+              <option value="OLDEST">Oldest First</option>
+              <option value="ID_DESC">Contract # (High to Low)</option>
+              <option value="ID_ASC">Contract # (Low to High)</option>
+              <option value="NAME_ASC">Client Name (A–Z)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Custom Date Pickers -->
+      <div v-if="filterDateRange === 'CUSTOM'" class="custom-date-subrow">
+        <div class="date-input-field">
+          <label class="filter-cell-label">Start Date</label>
+          <input type="date" v-model="customStartDate" class="filter-select-input" />
+        </div>
+        <div class="date-input-field">
+          <label class="filter-cell-label">End Date</label>
+          <input type="date" v-model="customEndDate" class="filter-select-input" />
+        </div>
+      </div>
+
+      <!-- Active Filter Tags -->
+      <div v-if="hasActiveFilters" class="active-tags-strip">
+        <div class="active-tags-list">
+          <span class="active-tags-heading">Active:</span>
+
+          <span v-if="selectedStatus" class="active-filter-tag">
+            Status: <strong>{{ getStatusLabel(selectedStatus) }}</strong>
+            <button type="button" @click="selectedStatus = ''">✕</button>
+          </span>
+
+          <span v-if="searchQuery" class="active-filter-tag">
+            Search: <strong>"{{ searchQuery }}"</strong>
+            <button type="button" @click="searchQuery = ''">✕</button>
+          </span>
+
+          <span v-if="filterTemplate" class="active-filter-tag">
+            Template: <strong>{{ filterTemplate }}</strong>
+            <button type="button" @click="filterTemplate = ''">✕</button>
+          </span>
+
+          <span v-if="filterAgent" class="active-filter-tag">
+            Agent: <strong>{{ filterAgent }}</strong>
+            <button type="button" @click="filterAgent = ''">✕</button>
+          </span>
+
+          <span v-if="filterType" class="active-filter-tag">
+            Type: <strong>{{ filterType === 'TEAM' ? 'Team' : 'Individual' }}</strong>
+            <button type="button" @click="filterType = ''">✕</button>
+          </span>
+
+          <span v-if="filterDateRange !== 'ALL'" class="active-filter-tag">
+            Date: <strong>{{ getDateRangeLabel() }}</strong>
+            <button type="button" @click="filterDateRange = 'ALL'; customStartDate = ''; customEndDate = ''">✕</button>
+          </span>
+        </div>
+
+        <button type="button" class="btn-clear-all" @click="clearAllFilters">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+          <span>Reset Filters</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ─── RESULTS BAR & BULK ACTIONS ───────────────────────────────── -->
+    <div class="table-meta-bar">
+      <div class="results-text">
+        Showing <strong>{{ filteredContracts.length }}</strong> of <strong>{{ contracts.length }}</strong> agreements
+      </div>
+
+      <transition name="fade">
+        <div v-if="selectedIds.length > 0" class="bulk-action-pill-bar">
+          <span class="selected-count-tag">
+            {{ selectedIds.length }} contract{{ selectedIds.length > 1 ? 's' : '' }} selected
+          </span>
+          <button
+            type="button"
+            class="btn-bulk-delete"
+            :disabled="bulkDeleting"
+            @click="bulkDeleteContracts"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+            </svg>
+            <span>{{ bulkDeleting ? 'Deleting…' : 'Delete Selected' }}</span>
+          </button>
+        </div>
+      </transition>
+    </div>
+
+    <!-- ─── CONTRACTS TABLE CARD ─────────────────────────────────────── -->
+    <div class="table-main-card">
+      <!-- Loading Skeleton -->
+      <div v-if="loading" class="table-loading-state">
+        <div class="table-spinner"></div>
+        <p class="loading-sub-text">Loading agreements from MySQL…</p>
+      </div>
+
+      <!-- Empty State -->
+      <div v-else-if="!filteredContracts.length" class="table-empty-state">
+        <div class="empty-icon-ring">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+        </div>
+        <h3 class="empty-title">No Contracts Match Criteria</h3>
+        <p class="empty-desc">
+          {{ hasActiveFilters ? 'No agreements match your search or filter settings. Try clearing some filters to view results.' : 'No contracts exist yet in this location. Create your first contract or trigger one automatically from GoHighLevel.' }}
         </p>
-        <div style="display: flex; gap: 10px; justify-content: center; align-items: center;">
-          <button v-if="hasActiveFilters" type="button" class="btn btn-secondary" @click="clearAllFilters">
+        <div class="empty-actions">
+          <button v-if="hasActiveFilters" type="button" class="btn-hdr btn-hdr-ghost" @click="clearAllFilters">
             Clear Filters
           </button>
-          <router-link to="/contracts/new" class="btn btn-primary">
-            Create New Contract
+          <router-link to="/contracts/new" class="btn-hdr btn-hdr-primary">
+            + Create New Contract
           </router-link>
         </div>
       </div>
 
-      <!-- Contracts Table -->
-      <div v-else class="glass-card table-card">
-        <div class="table-responsive">
-          <table class="contracts-table">
-            <thead>
-              <tr>
-                <th style="width: 36px; text-align: center;">
-                  <input
-                    type="checkbox"
-                    :checked="isAllSelected"
-                    @change="toggleSelectAll"
-                    style="cursor: pointer; width: 15px; height: 15px; accent-color: #2563eb; vertical-align: middle;"
-                    title="Select or deselect all"
-                  />
-                </th>
-                <th>Contract #</th>
-                <th>Template</th>
-                <th>Status</th>
-                <th>Type</th>
-                <th>Contact</th>
-                <th>Agent</th>
-                <th>Created / Updated</th>
-                <th style="text-align: right;">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="c in filteredContracts"
-                :key="c.id"
-                class="clickable-row"
-                @click="openContract(c.id)"
-              >
-                <td style="text-align: center;" @click.stop>
-                  <input
-                    type="checkbox"
-                    :checked="selectedIds.includes(c.id)"
-                    @change="toggleSelectContract(c.id)"
-                    style="cursor: pointer; width: 15px; height: 15px; accent-color: #2563eb; vertical-align: middle;"
-                  />
-                </td>
-                <td>
-                  <strong class="contract-id-badge">#{{ c.id }}</strong>
-                </td>
-                <td>
-                  <div class="template-name-cell">{{ c.template_name }}</div>
-                  <div class="text-muted small-text">{{ c.contract_type || 'Services Agreement' }}</div>
-                </td>
-                <td>
-                  <span class="badge" :class="getStatusBadgeClass(c.state)">
-                    {{ formatStatusLabel(c.state) }}
-                  </span>
-                </td>
-                <td>
-                  <span class="badge" :class="c.form_mode === 'TEAM' ? 'badge-primary' : 'badge-neutral'">
-                    {{ c.form_mode || 'NORMAL' }}
-                  </span>
-                </td>
-                <td>
-                  <div style="font-weight:600; color:var(--color-text-base);">{{ c.recipient_name || c.ghl_contact_id }}</div>
-                  <div v-if="c.recipient_email" class="text-muted small-text">{{ c.recipient_email }}</div>
-                </td>
-                <td>
-                  <div style="font-size:0.83rem; font-weight:500;">{{ c.assigned_user_name || '—' }}</div>
-                </td>
-                <td>
-                  <div style="font-weight: 500;">{{ formatDate(c.updated_at || c.created_at) }}</div>
-                  <div class="text-muted small-text">Created {{ formatDate(c.created_at) }}</div>
-                </td>
-                <td style="text-align: right;" @click.stop>
-                  <div style="display:inline-flex; gap:6px; align-items:center;">
-                    <!-- Direct "Send via GHL" button for Draft contracts -->
-                    <button
-                      v-if="['DRAFT', 'READY'].includes(c.state)"
-                      type="button"
-                      class="btn btn-primary btn-sm"
-                      style="font-weight:600; padding:4px 8px; font-size:0.78rem; background:#2563eb;"
-                      :disabled="sendingContractId === c.id"
-                      @click="sendViaGhl(c)"
-                      title="Send via GoHighLevel to client"
-                    >
-                      <span v-if="sendingContractId === c.id">Sending…</span>
-                      <span v-else>📤 Send via GHL</span>
-                    </button>
-                    <button
-                      v-if="c.signing_token"
-                      type="button"
-                      class="btn btn-secondary btn-sm"
-                      @click="copySigningLink(c.signing_token, c.id)"
-                      title="Copy Public Link"
-                    >
-                      {{ copiedId === c.id ? '✓ Copied' : '📋 Link' }}
-                    </button>
-                    <router-link :to="`/contracts/${c.id}`" class="btn btn-secondary btn-sm">
-                      Open →
-                    </router-link>
-                    <!-- Delete Contract Button -->
-                    <button
-                      type="button"
-                      class="btn btn-outline-danger btn-sm"
-                      style="font-weight:600; padding:4px 8px; font-size:0.78rem; display:inline-flex; align-items:center; gap:4px;"
-                      :disabled="deletingId === c.id"
-                      @click="deleteContract(c)"
-                      title="Delete contract"
-                    >
-                      <span v-if="deletingId === c.id">…</span>
-                      <span v-else style="display:inline-flex; align-items:center; gap:3px;">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                          <line x1="10" y1="11" x2="10" y2="17"/>
-                          <line x1="14" y1="11" x2="14" y2="17"/>
-                        </svg>
-                        Delete
-                      </span>
-                    </button>
+      <!-- Data Table -->
+      <div v-else class="table-scroll-wrapper">
+        <table class="contracts-executive-table">
+          <thead>
+            <tr>
+              <th style="width: 44px; text-align: center;">
+                <input
+                  type="checkbox"
+                  :checked="isAllSelected"
+                  @change="toggleSelectAll"
+                  class="custom-check"
+                  title="Select All"
+                />
+              </th>
+              <th style="width: 90px;">Contract</th>
+              <th style="width: 240px;">Template / Agreement</th>
+              <th style="width: 140px;">Status</th>
+              <th style="width: 110px;">Type</th>
+              <th style="width: 210px;">Client Contact</th>
+              <th style="width: 150px;">Assigned Agent</th>
+              <th style="width: 130px;">Date</th>
+              <th style="text-align: right; min-width: 200px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="c in filteredContracts"
+              :key="c.id"
+              class="contract-row-interactive"
+              @click="openContract(c.id)"
+            >
+              <!-- Checkbox -->
+              <td style="text-align: center;" @click.stop>
+                <input
+                  type="checkbox"
+                  :checked="selectedIds.includes(c.id)"
+                  @change="toggleSelectContract(c.id)"
+                  class="custom-check"
+                />
+              </td>
+
+              <!-- Contract ID -->
+              <td>
+                <span class="contract-number-badge">#{{ c.id }}</span>
+              </td>
+
+              <!-- Template & Type -->
+              <td>
+                <div class="template-title-text" :title="c.template_name">
+                  {{ c.template_name || 'Standard Agreement' }}
+                </div>
+                <div class="template-category-sub">
+                  {{ formatContractType(c.contract_type) }}
+                </div>
+              </td>
+
+              <!-- Status Pill with Live Dot -->
+              <td>
+                <span class="status-indicator-chip" :class="getStatusBadgeClass(c.state)">
+                  <span class="status-pulse-dot"></span>
+                  <span>{{ formatStatusLabel(c.state) }}</span>
+                </span>
+              </td>
+
+              <!-- Application Type -->
+              <td>
+                <span class="type-pill-chip" :class="c.form_mode === 'TEAM' ? 'team-mode' : 'single-mode'">
+                  <span class="type-icon">{{ c.form_mode === 'TEAM' ? '👥' : '👤' }}</span>
+                  <span>{{ c.form_mode === 'TEAM' ? 'Team' : 'Individual' }}</span>
+                </span>
+              </td>
+
+              <!-- Client Recipient -->
+              <td>
+                <div class="client-avatar-row">
+                  <div class="client-avatar-circle" :style="{ backgroundColor: getAvatarColor(c.recipient_name || c.ghl_contact_id) }">
+                    {{ getInitials(c.recipient_name || c.ghl_contact_id) }}
                   </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+                  <div class="client-info-block">
+                    <div class="client-name-bold" :title="c.recipient_name">
+                      {{ c.recipient_name || c.ghl_contact_id || 'Client' }}
+                    </div>
+                    <div v-if="c.recipient_email" class="client-email-sub" :title="c.recipient_email">
+                      {{ c.recipient_email }}
+                    </div>
+                  </div>
+                </div>
+              </td>
+
+              <!-- Assigned Agent -->
+              <td>
+                <div class="agent-info-block">
+                  <span class="agent-name-text">{{ c.assigned_user_name || '—' }}</span>
+                </div>
+              </td>
+
+              <!-- Created / Updated Date -->
+              <td>
+                <div class="date-main-text">{{ formatDate(c.updated_at || c.created_at) }}</div>
+                <div class="date-relative-sub">{{ formatRelativeDate(c.updated_at || c.created_at) }}</div>
+              </td>
+
+              <!-- Actions Column -->
+              <td style="text-align: right;" @click.stop>
+                <div class="row-actions-cluster">
+                  <!-- Direct "Send via GHL" button for Draft/Ready contracts -->
+                  <button
+                    v-if="['DRAFT', 'READY'].includes(c.state)"
+                    type="button"
+                    class="btn-row-action btn-send-ghl"
+                    :disabled="sendingContractId === c.id"
+                    @click="sendViaGhl(c)"
+                    title="Dispatch invitation via GoHighLevel"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    <span>{{ sendingContractId === c.id ? 'Sending…' : 'Send GHL' }}</span>
+                  </button>
+
+                  <!-- Copy Signing Link -->
+                  <button
+                    v-if="c.signing_token"
+                    type="button"
+                    class="btn-row-icon-btn"
+                    :class="{ 'btn-copied': copiedId === c.id }"
+                    @click="copySigningLink(c.signing_token, c.id)"
+                    :title="copiedId === c.id ? 'Copied to clipboard!' : 'Copy Public Signing Link'"
+                  >
+                    <svg v-if="copiedId !== c.id" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                    <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                  </button>
+
+                  <!-- View / Open Details -->
+                  <router-link :to="`/contracts/${c.id}`" class="btn-row-action btn-open-details">
+                    <span>Open</span>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                  </router-link>
+
+                  <!-- Delete Contract -->
+                  <button
+                    type="button"
+                    class="btn-row-icon-btn btn-delete-row"
+                    :disabled="deletingId === c.id"
+                    @click="deleteContract(c)"
+                    title="Permanently Delete Contract"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -458,7 +547,7 @@ function getDateRangeLabel() {
     } else if (customEndDate.value) {
       return `Until ${customEndDate.value}`
     }
-    return 'Custom Date Range'
+    return 'Custom Range'
   }
   return 'All Time'
 }
@@ -565,22 +654,12 @@ function isInDateRange(dateStr) {
 
 const filteredContracts = computed(() => {
   let list = contracts.value.filter(c => {
-    // 1. Status Filter
     if (!matchesStatus(c.state, selectedStatus.value)) return false
-
-    // 2. Template Filter
     if (filterTemplate.value && (c.template_name || '').trim() !== filterTemplate.value) return false
-
-    // 3. Agent Filter
     if (filterAgent.value && (c.assigned_user_name || '').trim() !== filterAgent.value) return false
-
-    // 4. Type / Mode Filter
     if (filterType.value && (c.form_mode || 'NORMAL') !== filterType.value) return false
-
-    // 5. Date Range Filter
     if (!isInDateRange(c.created_at || c.updated_at)) return false
 
-    // 6. Search Query
     if (searchQuery.value.trim()) {
       const q = searchQuery.value.trim().toLowerCase()
       const matchId = String(c.id).toLowerCase().includes(q) || `#${c.id}`.toLowerCase().includes(q)
@@ -593,11 +672,9 @@ const filteredContracts = computed(() => {
         return false
       }
     }
-
     return true
   })
 
-  // Sorting
   list = [...list].sort((a, b) => {
     if (sortBy.value === 'OLDEST') {
       return new Date(a.created_at || 0) - new Date(b.created_at || 0)
@@ -611,7 +688,6 @@ const filteredContracts = computed(() => {
     if (sortBy.value === 'NAME_ASC') {
       return (a.recipient_name || '').localeCompare(b.recipient_name || '')
     }
-    // Default NEWEST
     return new Date(b.updated_at || b.created_at || 0) - new Date(a.updated_at || a.created_at || 0)
   })
 
@@ -655,21 +731,21 @@ function openContract(id) {
 
 function getStatusBadgeClass(state) {
   const map = {
-    DRAFT:                  'badge-warning',
-    AWAITING_FORM:          'badge-warning',
-    READY:                  'badge-info',
-    SENT:                   'badge-primary',
-    VIEWED:                 'badge-primary',
-    OPENED:                 'badge-primary',
-    IN_PROGRESS:            'badge-primary',
-    SIGNED:                 'badge-success',
-    SIGNED_PENDING_STORAGE: 'badge-warning',
-    COMPLETED:              'badge-success',
-    EXPIRED:                'badge-neutral',
-    CANCELLED:              'badge-danger',
-    DECLINED:               'badge-danger',
+    DRAFT:                  'status-draft',
+    AWAITING_FORM:          'status-draft',
+    READY:                  'status-ready',
+    SENT:                   'status-sent',
+    VIEWED:                 'status-opened',
+    OPENED:                 'status-opened',
+    IN_PROGRESS:            'status-progress',
+    SIGNED:                 'status-completed',
+    SIGNED_PENDING_STORAGE: 'status-ready',
+    COMPLETED:              'status-completed',
+    EXPIRED:                'status-expired',
+    CANCELLED:              'status-cancelled',
+    DECLINED:               'status-cancelled',
   }
-  return map[state] || 'badge-neutral'
+  return map[state] || 'status-neutral'
 }
 
 function formatStatusLabel(state) {
@@ -677,18 +753,58 @@ function formatStatusLabel(state) {
     DRAFT:                  'Draft',
     AWAITING_FORM:          'Awaiting Form',
     READY:                  'Ready to Send',
-    SENT:                   'Sent to Client',
-    VIEWED:                 'Viewed by Client',
+    SENT:                   'Sent',
+    VIEWED:                 'Opened',
     OPENED:                 'Opened',
     IN_PROGRESS:            'In Progress',
     SIGNED:                 'Signed',
-    SIGNED_PENDING_STORAGE: 'Syncing with GHL',
+    SIGNED_PENDING_STORAGE: 'Syncing GHL',
     COMPLETED:              'Completed & Sealed',
     EXPIRED:                'Expired',
     CANCELLED:              'Cancelled',
     DECLINED:               'Declined',
   }
   return map[state] || state
+}
+
+function formatContractType(type) {
+  if (!type) return 'Legal Agreement'
+  return type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
+}
+
+function getInitials(name) {
+  if (!name) return 'CL'
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+}
+
+function getAvatarColor(name) {
+  const colors = ['#2563eb', '#059669', '#d97706', '#7c3aed', '#0284c7', '#dc2626', '#475569']
+  let hash = 0
+  for (let i = 0; i < (name || '').length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash)
+  }
+  return colors[Math.abs(hash) % colors.length]
+}
+
+function formatDate(d) {
+  if (!d) return ''
+  return new Date(d).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
+function formatRelativeDate(d) {
+  if (!d) return ''
+  const diff = Date.now() - new Date(d).getTime()
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+  if (days === 0) return 'Today'
+  if (days === 1) return 'Yesterday'
+  if (days < 30) return `${days}d ago`
+  return ''
 }
 
 async function sendViaGhl(contract) {
@@ -734,7 +850,7 @@ async function sendViaGhl(contract) {
 async function deleteContract(contract) {
   const result = await Swal.fire({
     title: 'Delete Contract?',
-    html: `Are you sure you want to delete contract <strong>#${contract.id}</strong> (${contract.recipient_name || 'Client'})?<br><br><span style="color:#ef4444;font-size:0.9em;">This action cannot be undone and will permanently remove this contract and its records.</span>`,
+    html: `Are you sure you want to delete contract <strong>#${contract.id}</strong> (${contract.recipient_name || 'Client'})?<br><br><span style="color:#ef4444;font-size:0.9em;">This action cannot be undone and will permanently remove this contract record.</span>`,
     icon: 'warning',
     showCancelButton: true,
     confirmButtonColor: '#ef4444',
@@ -781,7 +897,7 @@ async function bulkDeleteContracts() {
 
   const result = await Swal.fire({
     title: `Delete ${count} Contract${count > 1 ? 's' : ''}?`,
-    html: `Are you sure you want to delete <strong>${count}</strong> selected contract${count > 1 ? 's' : ''}?<br><br><span style="color:#ef4444;font-size:0.9em;">This action cannot be undone and will permanently remove ${count > 1 ? 'these contracts' : 'this contract'} and all associated records.</span>`,
+    html: `Are you sure you want to delete <strong>${count}</strong> selected contract${count > 1 ? 's' : ''}?<br><br><span style="color:#ef4444;font-size:0.9em;">This action will permanently delete these contracts and all records.</span>`,
     icon: 'warning',
     showCancelButton: true,
     confirmButtonColor: '#ef4444',
@@ -825,360 +941,806 @@ async function bulkDeleteContracts() {
   }
 }
 
-function formatDate(d) {
-  if (!d) return ''
-  return new Date(d).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
-}
-
 onMounted(() => {
   fetchContracts()
 })
 </script>
 
 <style scoped>
-.page-title {
-  font-family: var(--font-heading);
-  font-size: 1.85rem;
-  font-weight: 700;
-  color: var(--color-text-base);
+/* ─── TYPOGRAPHY LOCK ────────────────────────────────────────────────── */
+.contracts-page-root,
+.contracts-page-root * {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  box-sizing: border-box;
 }
 
-.page-subtitle {
-  color: var(--color-text-muted);
-  font-size: 0.95rem;
-  margin-top: var(--space-1);
-}
-
-/* Status Pills */
-.status-pills-bar {
+.contracts-page-root {
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 14px;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 18px 24px 80px;
+  color: #0f172a;
 }
 
-.status-pill-btn {
+/* ─── HEADER CARD ────────────────────────────────────────────────────── */
+.contracts-header-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 18px 22px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.header-main-info {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.header-badge-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: #eff6ff;
+  border: 1px solid #dbeafe;
+  color: #1d4ed8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.header-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  letter-spacing: -0.015em;
+}
+
+.live-count-chip {
+  font-size: 11px;
+  font-weight: 700;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  padding: 1px 8px;
+  border-radius: 12px;
+}
+
+.header-subtitle {
+  font-size: 12.5px;
+  color: #64748b;
+  margin: 2px 0 0;
+}
+
+.header-action-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-hdr {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+  text-decoration: none;
+}
+
+.btn-hdr-ghost {
+  background: #f8fafc;
+  color: #334155;
+  border-color: #cbd5e1;
+}
+.btn-hdr-ghost:hover:not(:disabled) {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.btn-hdr-primary {
+  background: #2563eb;
+  color: #ffffff;
+}
+.btn-hdr-primary:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.spin-active {
+  animation: rotate-anim 1s linear infinite;
+}
+@keyframes rotate-anim {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ─── KPI METRICS ────────────────────────────────────────────────────── */
+.kpi-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 900px) {
+  .kpi-metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.kpi-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.kpi-card:hover {
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+}
+
+.kpi-card.kpi-active {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+
+.kpi-icon-box {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.kpi-icon-blue { background: #dbeafe; color: #1d4ed8; }
+.kpi-icon-amber { background: #fef3c7; color: #d97706; }
+.kpi-icon-cyan { background: #e0f2fe; color: #0284c7; }
+.kpi-icon-emerald { background: #dcfce7; color: #16a34a; }
+
+.kpi-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.kpi-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.kpi-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+/* ─── STATUS PILLS SCROLL ────────────────────────────────────────────── */
+.status-pills-container {
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.status-pills-scroll {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.status-nav-chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 6px 12px;
-  background: var(--color-bg-card, #ffffff);
-  border: 1px solid var(--color-border, #e2e8f0);
-  border-radius: var(--radius-full, 9999px);
-  color: var(--color-text-muted, #64748b);
-  font-size: 0.82rem;
-  font-weight: 500;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
   cursor: pointer;
-  transition: all var(--transition-fast, 0.15s ease);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  white-space: nowrap;
+  transition: all 0.15s ease;
 }
 
-.status-pill-btn:hover {
-  color: var(--color-text-base, #1e293b);
-  border-color: #cbd5e1;
+.status-nav-chip:hover {
   background: #f8fafc;
+  color: #0f172a;
 }
 
-.status-pill-btn.active {
-  background: var(--color-primary, #2563eb);
-  border-color: var(--color-primary, #2563eb);
+.status-nav-chip.active {
+  background: #2563eb;
+  border-color: #2563eb;
   color: #ffffff;
-  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
 }
 
-.pill-count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1px 6px;
-  border-radius: 10px;
+.chip-count {
+  font-size: 10px;
   background: #f1f5f9;
   color: #475569;
-  font-size: 0.72rem;
+  padding: 1px 6px;
+  border-radius: 10px;
   font-weight: 700;
-  min-width: 18px;
 }
 
-.pill-count-active {
+.status-nav-chip.active .chip-count {
   background: rgba(255, 255, 255, 0.25);
   color: #ffffff;
 }
 
-/* Filter Controls Toolbar Card */
-.filter-controls-card {
-  padding: 16px;
-  margin-bottom: 16px;
-  border-radius: var(--radius-lg, 12px);
-  border: 1px solid var(--color-border, #e2e8f0);
+/* ─── FILTER CONTROLS CARD ───────────────────────────────────────────── */
+.filter-dashboard-card {
   background: #ffffff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px 18px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 }
 
-.filter-grid {
+.filter-controls-row {
   display: grid;
-  grid-template-columns: 2fr 1.3fr 1.1fr 1fr 1fr 1fr;
+  grid-template-columns: 2fr 1.2fr 1.1fr 1fr 1fr 1fr;
   gap: 12px;
-  align-items: end;
+  align-items: flex-end;
 }
 
-@media (max-width: 1200px) {
-  .filter-grid {
+@media (max-width: 1100px) {
+  .filter-controls-row {
     grid-template-columns: repeat(3, 1fr);
   }
-  .search-group {
+  .search-cell {
     grid-column: span 3;
   }
 }
 
-@media (max-width: 768px) {
-  .filter-grid {
+@media (max-width: 680px) {
+  .filter-controls-row {
     grid-template-columns: 1fr;
   }
-  .search-group {
+  .search-cell {
     grid-column: span 1;
   }
 }
 
-.filter-group {
+.filter-cell {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.filter-label {
-  font-size: 0.76rem;
-  font-weight: 600;
+.filter-cell-label {
+  font-size: 11px;
+  font-weight: 700;
   color: #475569;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.3px;
 }
 
-.search-input-wrap {
+.search-box-wrap {
   position: relative;
   display: flex;
   align-items: center;
 }
 
-.search-icon {
+.search-svg {
   position: absolute;
   left: 10px;
   color: #94a3b8;
   pointer-events: none;
 }
 
-.filter-input,
-.filter-select {
+.search-text-field {
   width: 100%;
-  padding: 7px 10px;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
+  height: 36px;
+  padding: 0 28px 0 32px;
   background: #ffffff;
-  font-size: 0.84rem;
-  color: #1e293b;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  font-size: 12.5px;
+  color: #0f172a;
   outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition: all 0.15s;
 }
 
-.search-field {
-  padding-left: 32px;
-  padding-right: 28px;
-}
-
-.filter-input:focus,
-.filter-select:focus {
+.search-text-field:focus {
   border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
 }
 
-.btn-clear-search {
+.search-clear-x {
   position: absolute;
   right: 8px;
   background: none;
   border: none;
   color: #94a3b8;
-  font-size: 0.85rem;
+  font-size: 11px;
   cursor: pointer;
-  padding: 2px 4px;
+  padding: 2px;
 }
 
-.btn-clear-search:hover {
-  color: #1e293b;
-}
-
-.select-wrap {
+.select-box-wrap {
   position: relative;
 }
 
-/* Custom Date Row */
-.custom-date-row {
+.filter-select-input {
+  width: 100%;
+  height: 36px;
+  padding: 0 8px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  font-size: 12.5px;
+  color: #0f172a;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.filter-select-input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+}
+
+.custom-date-subrow {
   display: flex;
-  gap: 16px;
-  margin-top: 12px;
-  padding-top: 12px;
+  gap: 12px;
+  margin-top: 10px;
+  padding-top: 10px;
   border-top: 1px dashed #e2e8f0;
 }
 
-.date-pick-field {
+.date-input-field {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  min-width: 160px;
 }
 
-/* Active Filters Bar */
-.active-filters-bar {
+.active-tags-strip {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-top: 14px;
-  padding-top: 12px;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 10px;
   border-top: 1px solid #f1f5f9;
   flex-wrap: wrap;
 }
 
-.active-chips-left {
+.active-tags-list {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
-.active-filters-label {
-  font-size: 0.78rem;
-  font-weight: 600;
+.active-tags-heading {
+  font-size: 11px;
+  font-weight: 700;
   color: #64748b;
+  text-transform: uppercase;
 }
 
-.filter-chip {
+.active-filter-tag {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 8px;
-  background: #f1f5f9;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  font-size: 0.78rem;
-  color: #334155;
+  padding: 2px 8px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e40af;
+  border-radius: 5px;
+  font-size: 11.5px;
 }
 
-.filter-chip button {
+.active-filter-tag button {
   background: none;
   border: none;
   cursor: pointer;
-  color: #64748b;
-  font-size: 0.78rem;
+  color: #3b82f6;
+  font-size: 10px;
   padding: 0;
-  display: flex;
-  align-items: center;
 }
-
-.filter-chip button:hover {
+.active-filter-tag button:hover {
   color: #ef4444;
 }
 
-.btn-reset-filters {
+.btn-clear-all {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  background: #fff;
+  gap: 4px;
+  background: transparent;
   border: 1px solid #fca5a5;
-  border-radius: 6px;
   color: #dc2626;
-  font-size: 0.78rem;
+  border-radius: 5px;
+  padding: 3px 8px;
+  font-size: 11px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s ease;
 }
-
-.btn-reset-filters:hover {
+.btn-clear-all:hover {
   background: #fef2f2;
-  border-color: #ef4444;
 }
 
-/* Table Results Meta Bar */
-.table-results-meta {
+/* ─── TABLE RESULTS BAR ──────────────────────────────────────────────── */
+.table-meta-bar {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  align-items: center;
   padding: 0 4px;
+  min-height: 32px;
 }
 
-.results-count-text {
-  font-size: 0.82rem;
+.results-text {
+  font-size: 12px;
   color: #64748b;
 }
 
-/* Table styling */
-.table-card {
-  padding: 4px;
+.bulk-action-pill-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.contracts-table {
+.selected-count-tag {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #1d4ed8;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  padding: 2px 8px;
+  border-radius: 5px;
+}
+
+.btn-bulk-delete {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: #ef4444;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-bulk-delete:hover:not(:disabled) {
+  background: #dc2626;
+}
+
+/* ─── TABLE CONTAINER & ROWS ─────────────────────────────────────────── */
+.table-main-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.table-scroll-wrapper {
+  overflow-x: auto;
+}
+
+.contracts-executive-table {
   width: 100%;
   border-collapse: collapse;
+  font-size: 12.5px;
 }
 
-.contracts-table th, .contracts-table td {
+.contracts-executive-table thead th {
+  background: #f8fafc;
   padding: 10px 14px;
+  font-weight: 700;
+  color: #475569;
   text-align: left;
-  font-size: 0.85rem;
-  border-bottom: 1px solid var(--color-border, #e2e8f0);
-}
-
-.contracts-table th {
-  color: var(--color-text-muted, #64748b);
-  font-weight: 600;
-  background: var(--color-bg-base, #f8fafc);
-  font-size: 0.78rem;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.4px;
 }
 
-.clickable-row {
+.contracts-executive-table tbody td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.contract-row-interactive {
   cursor: pointer;
-  transition: background var(--transition-fast, 0.15s ease);
+  transition: all 0.12s ease;
 }
 
-.clickable-row:hover {
-  background: rgba(37, 99, 235, 0.03);
+.contract-row-interactive:hover {
+  background: #f8fafc;
 }
 
-.contract-id-badge {
-  font-family: monospace;
-  font-size: 0.88rem;
-  color: #0f172a;
+.custom-check {
+  cursor: pointer;
+  width: 15px;
+  height: 15px;
+  accent-color: #2563eb;
+  vertical-align: middle;
 }
 
-.template-name-cell {
+.contract-number-badge {
+  display: inline-block;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: #1e40af;
+  background: #eff6ff;
+  border: 1px solid #dbeafe;
+  padding: 2px 6px;
+  border-radius: 5px;
+}
+
+.template-title-text {
   font-weight: 600;
-  color: #1e293b;
-  max-width: 280px;
+  color: #0f172a;
+  max-width: 260px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.empty-card {
-  padding: var(--space-12, 48px);
-  text-align: center;
+.template-category-sub {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 1px;
 }
 
-.empty-icon {
-  width: 72px;
-  height: 72px;
+/* Status Indicators */
+.status-indicator-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.status-pulse-dot {
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
-  background: var(--color-bg-base, #f8fafc);
+  background: currentColor;
+}
+
+.status-draft { background: #fef3c7; color: #b45309; }
+.status-ready { background: #e0f2fe; color: #0369a1; }
+.status-sent { background: #ede9fe; color: #6d28d9; }
+.status-opened { background: #eff6ff; color: #1d4ed8; }
+.status-progress { background: #eff6ff; color: #2563eb; }
+.status-completed { background: #dcfce7; color: #15803d; }
+.status-expired { background: #f1f5f9; color: #64748b; }
+.status-cancelled { background: #fee2e2; color: #b91c1c; }
+.status-neutral { background: #f1f5f9; color: #475569; }
+
+/* Type Pills */
+.type-pill-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 5px;
+}
+
+.single-mode { background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; }
+.team-mode { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+
+/* Client Avatar Row */
+.client-avatar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.client-avatar-circle {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto;
-  color: var(--color-text-muted, #94a3b8);
+  font-size: 10px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.client-info-block {
+  overflow: hidden;
+}
+
+.client-name-bold {
+  font-weight: 600;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 170px;
+}
+
+.client-email-sub {
+  font-size: 11px;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 170px;
+}
+
+.agent-name-text {
+  font-size: 12px;
+  font-weight: 500;
+  color: #334155;
+}
+
+.date-main-text {
+  font-weight: 600;
+  color: #334155;
+  font-size: 12px;
+}
+
+.date-relative-sub {
+  font-size: 10.5px;
+  color: #94a3b8;
+}
+
+/* Row Actions Cluster */
+.row-actions-cluster {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.btn-row-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.15s;
+  border: 1px solid transparent;
+}
+
+.btn-send-ghl {
+  background: #2563eb;
+  color: #ffffff;
+}
+.btn-send-ghl:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.btn-open-details {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #1e293b;
+}
+.btn-open-details:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+.btn-row-icon-btn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-row-icon-btn:hover:not(:disabled) {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.btn-copied {
+  background: #ecfdf5 !important;
+  border-color: #a7f3d0 !important;
+  color: #059669 !important;
+}
+
+.btn-delete-row:hover:not(:disabled) {
+  background: #fee2e2;
+  color: #dc2626;
+  border-color: #fca5a5;
+}
+
+/* Empty & Loading States */
+.table-loading-state,
+.table-empty-state {
+  text-align: center;
+  padding: 50px 20px;
+}
+
+.table-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  margin: 0 auto 10px;
+  animation: rotate-anim 0.8s linear infinite;
+}
+
+.loading-sub-text {
+  font-size: 12.5px;
+  color: #64748b;
+}
+
+.empty-icon-ring {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #f1f5f9;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 14px;
+}
+
+.empty-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 6px;
+}
+
+.empty-desc {
+  font-size: 12.5px;
+  color: #64748b;
+  max-width: 480px;
+  margin: 0 auto 16px;
+  line-height: 1.45;
+}
+
+.empty-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
 }
 </style>
