@@ -447,6 +447,31 @@
                 </div>
               </div>
 
+              <!-- Quick Platform Connect Presets -->
+              <div class="platform-quick-bar">
+                <span class="quick-bar-label">⚡ Platform Connection Guides:</span>
+                <div class="quick-bar-pills">
+                  <button type="button" class="quick-brand-btn brand-make" @click="openPlatformGuide('make')">
+                    <span class="brand-dot">🟣</span> Make.com Recipe
+                  </button>
+                  <button type="button" class="quick-brand-btn brand-zapier" @click="openPlatformGuide('zapier')">
+                    <span class="brand-dot">🟠</span> Zapier Pipeline
+                  </button>
+                  <button type="button" class="quick-brand-btn brand-n8n" @click="openPlatformGuide('n8n')">
+                    <span class="brand-dot">🔴</span> n8n Workflow
+                  </button>
+                  <button type="button" class="quick-brand-btn brand-slack" @click="openPlatformGuide('slack')">
+                    <span class="brand-dot">💬</span> Slack / Discord
+                  </button>
+                  <button type="button" class="quick-brand-btn brand-sec" @click="openPlatformGuide('security')">
+                    <span class="brand-dot">🔒</span> HMAC Security
+                  </button>
+                  <button type="button" class="quick-brand-btn brand-dict" @click="openPlatformGuide('schema')">
+                    <span class="brand-dot">📋</span> Field Dictionary
+                  </button>
+                </div>
+              </div>
+
               <!-- Ping Result -->
               <div v-if="testWebhookResult" class="ping-banner" :class="testWebhookResult.success ? 'ping-success' : 'ping-error'">
                 <div class="ping-banner-header">
@@ -481,15 +506,65 @@
                     <svg v-else width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
                   </button>
                 </div>
+                <div class="field-sub-row">
+                  <span class="field-explanation">Sent in header <code>X-Webhook-Signature</code> as an HMAC-SHA256 hex digest of the raw JSON body to verify authenticity.</span>
+                </div>
+              </div>
+
+              <!-- Key Output Mapping Cheat Sheet -->
+              <div class="cheat-sheet-box">
+                <div class="cheat-sheet-header">
+                  <span class="cheat-sheet-title">★ Key Output Fields for Operations (Click to copy JSON path)</span>
+                  <span class="cheat-sheet-hint">Use these paths directly in your automation scenario / zap</span>
+                </div>
+                <div class="cheat-sheet-grid">
+                  <div class="cheat-card" @click="copyToClipboard('documents.packageZipUrl', 'ZIP Package URL')">
+                    <div class="cheat-card-top">
+                      <span class="cheat-card-badge badge-zip">📦 Full Case Archive</span>
+                      <span class="cheat-copy-tag">Copy</span>
+                    </div>
+                    <code class="cheat-path">documents.packageZipUrl</code>
+                    <div class="cheat-desc">ZIP containing Signed PDF + 9-page Summary + all client attachments.</div>
+                  </div>
+                  <div class="cheat-card" @click="copyToClipboard('documents.signedContractPdfUrl', 'Signed PDF URL')">
+                    <div class="cheat-card-top">
+                      <span class="cheat-card-badge badge-pdf">📄 Executed Contract</span>
+                      <span class="cheat-copy-tag">Copy</span>
+                    </div>
+                    <code class="cheat-path">documents.signedContractPdfUrl</code>
+                    <div class="cheat-desc">Direct PDF download of the signed legal agreement with digital audit certificates.</div>
+                  </div>
+                  <div class="cheat-card" @click="copyToClipboard('documents.clientSummaryPdfUrl', 'Summary PDF URL')">
+                    <div class="cheat-card-top">
+                      <span class="cheat-card-badge badge-summary">📑 Client Summary PDF</span>
+                      <span class="cheat-copy-tag">Copy</span>
+                    </div>
+                    <code class="cheat-path">documents.clientSummaryPdfUrl</code>
+                    <div class="cheat-desc">Official 9-page Client Summary dossier PDF with client profile and forms.</div>
+                  </div>
+                  <div class="cheat-card" @click="copyToClipboard('client.fullName', 'Client Full Name')">
+                    <div class="cheat-card-top">
+                      <span class="cheat-card-badge badge-client">👤 Client Name &amp; ID</span>
+                      <span class="cheat-copy-tag">Copy</span>
+                    </div>
+                    <code class="cheat-path">client.fullName</code>
+                    <div class="cheat-desc">Client legal name (also <code>client.ghlContactId</code> for instant CRM lookups).</div>
+                  </div>
+                </div>
               </div>
 
               <!-- Terminal Code Box -->
               <div class="code-terminal-card">
                 <div class="terminal-bar">
                   <span class="terminal-title">OUTBOUND PAYLOAD SCHEMA (JSON)</span>
-                  <button type="button" class="btn-terminal-copy" @click="copyToClipboard(sampleOutboundJson, 'Schema JSON')">
-                    Copy JSON
-                  </button>
+                  <div class="terminal-btn-group">
+                    <button type="button" class="btn-terminal-copy" @click="copyToClipboard(sampleCurlCommand, 'cURL Test Command')">
+                      📋 Copy cURL
+                    </button>
+                    <button type="button" class="btn-terminal-copy" @click="copyToClipboard(sampleOutboundJson, 'Schema JSON')">
+                      📄 Copy JSON
+                    </button>
+                  </div>
                 </div>
                 <pre class="terminal-body"><code>{{ sampleOutboundJson }}</code></pre>
               </div>
@@ -522,43 +597,520 @@
                 </div>
               </div>
 
+              <!-- Inbound Workflow Breadcrumb Banner -->
+              <div class="flow-diagram-bar">
+                <div class="flow-step">
+                  <span class="flow-step-num">1</span>
+                  <span>GHL Trigger (Won / Tag)</span>
+                </div>
+                <span class="flow-arrow">&rarr;</span>
+                <div class="flow-step">
+                  <span class="flow-step-num">2</span>
+                  <span>Custom Webhook (POST)</span>
+                </div>
+                <span class="flow-arrow">&rarr;</span>
+                <div class="flow-step">
+                  <span class="flow-step-num">3</span>
+                  <span>Rule Engine Matching</span>
+                </div>
+                <span class="flow-arrow">&rarr;</span>
+                <div class="flow-step">
+                  <span class="flow-step-num">4</span>
+                  <span>Ready Draft Contract</span>
+                </div>
+              </div>
+
+              <!-- Quick Helper Info for Inbound Auth -->
+              <div class="inbound-helper-card">
+                <div class="inbound-helper-header">
+                  <strong>Required HTTP Headers for Inbound Webhook:</strong>
+                </div>
+                <div class="inbound-headers-grid">
+                  <div class="header-chip">
+                    <span class="header-name">Authorization:</span>
+                    <code class="header-val">Bearer {{ form.GHL_WEBHOOK_SECRET || 'YOUR_GHL_WEBHOOK_SECRET' }}</code>
+                  </div>
+                  <div class="header-chip">
+                    <span class="header-name">Content-Type:</span>
+                    <code class="header-val">application/json</code>
+                  </div>
+                </div>
+              </div>
+
               <div class="code-terminal-card">
                 <div class="terminal-bar">
-                  <span class="terminal-title">INBOUND PAYLOAD REQUEST BODY</span>
-                  <button type="button" class="btn-terminal-copy" @click="copyToClipboard(sampleInboundJson, 'Inbound JSON')">
-                    Copy JSON
-                  </button>
+                  <span class="terminal-title">INBOUND PAYLOAD REQUEST BODY (GHL MERGE TAGS)</span>
+                  <div class="terminal-btn-group">
+                    <button type="button" class="btn-terminal-copy" @click="copyToClipboard(sampleInboundCurlCommand, 'Inbound cURL Command')">
+                      📋 Copy cURL
+                    </button>
+                    <button type="button" class="btn-terminal-copy" @click="copyToClipboard(sampleInboundJson, 'Inbound JSON')">
+                      📄 Copy JSON
+                    </button>
+                  </div>
                 </div>
                 <pre class="terminal-body"><code>{{ sampleInboundJson }}</code></pre>
               </div>
+
+              <div class="doc-jump-card">
+                <div>
+                  <div class="doc-jump-title">Need step-by-step GoHighLevel Workflow instructions?</div>
+                  <div class="doc-jump-sub">Learn how to setup Opportunity Won triggers and automated drafting in seconds.</div>
+                </div>
+                <button type="button" class="btn-terminal-copy btn-jump" @click="openPlatformGuide('ghl')">
+                  Open GHL Setup Guide &rarr;
+                </button>
+              </div>
             </div>
 
-            <!-- Subtab 2.3: Docs -->
+            <!-- Subtab 2.3: Comprehensive Documentation & Guides -->
             <div v-else-if="webhookTab === 'docs'" class="subtab-pane">
-              <div class="docs-dual-column">
-                <div class="doc-box">
-                  <div class="doc-header-pill">AUTOMATION</div>
-                  <h4 class="doc-title">1. Trigger Contract Generation from GHL Workflows</h4>
-                  <p class="doc-p">Trigger automatic contract drafts whenever an Opportunity moves to Won.</p>
-                  <ol class="doc-steps">
-                    <li>Open <strong>GHL &rarr; Automations &rarr; Workflows</strong>.</li>
-                    <li>Add Trigger: <strong>Opportunity Status Changed</strong> (Won).</li>
-                    <li>Add Action: <strong>Custom Webhook (POST)</strong>.</li>
-                    <li>URL: <code>{{ inboundWebhookUrl }}</code></li>
-                    <li>Header: <code>Authorization: Bearer {{ form.GHL_WEBHOOK_SECRET }}</code></li>
-                  </ol>
+              <!-- Platform Switcher Navigation -->
+              <div class="platform-nav-tabs">
+                <button 
+                  type="button" 
+                  class="platform-nav-btn" 
+                  :class="{ active: selectedDocPlatform === 'make' }"
+                  @click="selectedDocPlatform = 'make'"
+                >
+                  <span class="brand-dot">🟣</span> Make.com
+                </button>
+                <button 
+                  type="button" 
+                  class="platform-nav-btn" 
+                  :class="{ active: selectedDocPlatform === 'zapier' }"
+                  @click="selectedDocPlatform = 'zapier'"
+                >
+                  <span class="brand-dot">🟠</span> Zapier
+                </button>
+                <button 
+                  type="button" 
+                  class="platform-nav-btn" 
+                  :class="{ active: selectedDocPlatform === 'n8n' }"
+                  @click="selectedDocPlatform = 'n8n'"
+                >
+                  <span class="brand-dot">🔴</span> n8n
+                </button>
+                <button 
+                  type="button" 
+                  class="platform-nav-btn" 
+                  :class="{ active: selectedDocPlatform === 'slack' }"
+                  @click="selectedDocPlatform = 'slack'"
+                >
+                  <span class="brand-dot">💬</span> Slack &amp; Discord
+                </button>
+                <button 
+                  type="button" 
+                  class="platform-nav-btn" 
+                  :class="{ active: selectedDocPlatform === 'ghl' }"
+                  @click="selectedDocPlatform = 'ghl'"
+                >
+                  <span class="brand-dot">🟢</span> GHL Workflows (Inbound)
+                </button>
+                <button 
+                  type="button" 
+                  class="platform-nav-btn" 
+                  :class="{ active: selectedDocPlatform === 'security' }"
+                  @click="selectedDocPlatform = 'security'"
+                >
+                  <span class="brand-dot">🔒</span> HMAC Security &amp; API
+                </button>
+                <button 
+                  type="button" 
+                  class="platform-nav-btn" 
+                  :class="{ active: selectedDocPlatform === 'schema' }"
+                  @click="selectedDocPlatform = 'schema'"
+                >
+                  <span class="brand-dot">📋</span> Field Dictionary
+                </button>
+              </div>
+
+              <!-- PLATFORM 1: MAKE.COM -->
+              <div v-if="selectedDocPlatform === 'make'" class="platform-doc-container">
+                <div class="platform-doc-header">
+                  <div class="platform-badge badge-make">🟣 MAKE.COM (INTEGROMAT)</div>
+                  <h3 class="platform-heading">Automated Case Dossier Ingestion Scenario</h3>
+                  <p class="platform-sub">
+                    Automatically download client case attachments and signed legal PDFs to Google Drive, create a row in Google Sheets, and notify your Operations channel in Slack.
+                  </p>
                 </div>
 
-                <div class="doc-box">
-                  <div class="doc-header-pill">OPERATIONS HANDOFF</div>
-                  <h4 class="doc-title">2. Receiving Dossiers in Make / Zapier / ERP</h4>
-                  <p class="doc-p">Directly ingest client attachments and legal PDFs into cloud drives and processing pipelines.</p>
-                  <ol class="doc-steps">
-                    <li>Create Catch Hook in Make.com or Zapier.</li>
-                    <li>Paste destination URL into Outbound tab and click <strong>Test Ping</strong>.</li>
-                    <li>Map <code>documents.packageZipUrl</code> to download the complete case archive.</li>
-                    <li>Map <code>documents.signedContractPdfUrl</code> for executed contract.</li>
-                  </ol>
+                <div class="flow-diagram-bar">
+                  <div class="flow-step"><span>1. Custom Webhook</span></div>
+                  <span class="flow-arrow">&rarr;</span>
+                  <div class="flow-step"><span>2. HTTP Get a file</span></div>
+                  <span class="flow-arrow">&rarr;</span>
+                  <div class="flow-step"><span>3. Google Drive Upload</span></div>
+                  <span class="flow-arrow">&rarr;</span>
+                  <div class="flow-step"><span>4. Slack / Sheets Notice</span></div>
+                </div>
+
+                <div class="guide-steps-list">
+                  <div class="guide-step-card">
+                    <div class="step-badge">Step 1</div>
+                    <div class="step-body">
+                      <h4 class="step-title">Create Custom Webhook in Make.com</h4>
+                      <p class="step-text">
+                        Create a new Scenario in Make.com. Add the <strong>Webhooks &rarr; Custom Webhook</strong> module. 
+                        Click <em>Add</em>, name it <code>Contract Manager Operations Handoff</code>, and copy the generated Webhook URL.
+                      </p>
+                      <div class="step-action-row">
+                        <button type="button" class="btn-inline-action" @click="webhookTab = 'operations'">
+                          &larr; Paste URL in Outbound Tab &amp; Click "Test Ping"
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="guide-step-card">
+                    <div class="step-badge">Step 2</div>
+                    <div class="step-body">
+                      <h4 class="step-title">Download Complete Case ZIP or Signed PDF</h4>
+                      <p class="step-text">
+                        Add an <strong>HTTP &rarr; Get a file</strong> module. In the <em>URL</em> field, map:
+                      </p>
+                      <div class="code-pill-row">
+                        <div class="code-pill-item" @click="copyToClipboard('1.documents.packageZipUrl', 'ZIP Expression')">
+                          <code>1.documents.packageZipUrl</code>
+                          <span class="pill-label">Downloads Complete Archive ZIP (Signed PDF + Summary + Uploads)</span>
+                        </div>
+                        <div class="code-pill-item" @click="copyToClipboard('1.documents.signedContractPdfUrl', 'PDF Expression')">
+                          <code>1.documents.signedContractPdfUrl</code>
+                          <span class="pill-label">Downloads Executed PDF Agreement Only</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="guide-step-card">
+                    <div class="step-badge">Step 3</div>
+                    <div class="step-body">
+                      <h4 class="step-title">Upload Archive to Google Drive / OneDrive / Dropbox</h4>
+                      <p class="step-text">
+                        Add a <strong>Google Drive &rarr; Upload a File</strong> module. 
+                        Set the folder path to <code>/Operations/Client Files/&#123;&#123; 1.client.fullName &#125;&#125;</code>. 
+                        Pass the binary file output from Step 2 into <em>File</em>.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div class="guide-step-card">
+                    <div class="step-badge">Step 4</div>
+                    <div class="step-body">
+                      <h4 class="step-title">Send Alert to Slack / Microsoft Teams / ClickUp</h4>
+                      <p class="step-text">
+                        Add a <strong>Slack &rarr; Create a Message</strong> module to post into <code>#operations-cases</code>. 
+                        Copy the template message below:
+                      </p>
+                      <div class="code-terminal-card mini">
+                        <div class="terminal-bar">
+                          <span class="terminal-title">MAKE.COM SLACK NOTIFICATION FORMULA</span>
+                          <button type="button" class="btn-terminal-copy" @click="copyMakeSlackFormula">
+                            Copy Formula
+                          </button>
+                        </div>
+                        <pre class="terminal-body"><code>📁 *New Operations Dossier Received!*
+• *Client:* &#123;&#123;1.client.fullName&#125;&#125; (&#123;&#123;1.client.nationality&#125;&#125;)
+• *Contract:* &#123;&#123;1.contract.templateName&#125;&#125; (#&#123;&#123;1.contract.id&#125;&#125;)
+• *Counsellor:* &#123;&#123;1.handover.counsellorName&#125;&#125; | *Branch:* &#123;&#123;1.handover.registeredBranch&#125;&#125;
+• *Signed PDF:* &#123;&#123;1.documents.signedContractPdfUrl&#125;&#125;
+• *Full ZIP:* &#123;&#123;1.documents.packageZipUrl&#125;&#125;</code></pre>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- PLATFORM 2: ZAPIER -->
+              <div v-else-if="selectedDocPlatform === 'zapier'" class="platform-doc-container">
+                <div class="platform-doc-header">
+                  <div class="platform-badge badge-zapier">🟠 ZAPIER PIPELINE</div>
+                  <h3 class="platform-heading">3-Step Instant Cloud Pipeline</h3>
+                  <p class="platform-sub">
+                    Directly stream client dossier packages into Google Drive, AWS S3, or Dropbox and notify your operations managers without writing a single line of code.
+                  </p>
+                </div>
+
+                <div class="flow-diagram-bar">
+                  <div class="flow-step"><span>1. Webhooks Catch Hook</span></div>
+                  <span class="flow-arrow">&rarr;</span>
+                  <div class="flow-step"><span>2. Google Drive Upload</span></div>
+                  <span class="flow-arrow">&rarr;</span>
+                  <div class="flow-step"><span>3. Slack / Teams Alert</span></div>
+                </div>
+
+                <div class="guide-steps-list">
+                  <div class="guide-step-card">
+                    <div class="step-badge">Step 1</div>
+                    <div class="step-body">
+                      <h4 class="step-title">Trigger: Webhooks by Zapier &rarr; Catch Hook</h4>
+                      <p class="step-text">
+                        Create a new Zap. Choose <strong>Webhooks by Zapier</strong> as the trigger and select <strong>Catch Hook</strong>. 
+                        Zapier gives you a unique URL.
+                      </p>
+                      <div class="step-action-row">
+                        <button type="button" class="btn-inline-action" @click="webhookTab = 'operations'">
+                          &larr; Paste URL in Outbound Tab &amp; Click "Test Ping"
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="guide-step-card">
+                    <div class="step-badge">Step 2</div>
+                    <div class="step-body">
+                      <h4 class="step-title">Action: Google Drive &rarr; Upload File</h4>
+                      <p class="step-text">
+                        In Zapier, choose <strong>Google Drive</strong> &rarr; <strong>Upload File</strong>.
+                        In the <em>File</em> parameter, choose <code>documents packageZipUrl</code>. 
+                        Zapier automatically streams and saves the full case package archive into your chosen folder!
+                      </p>
+                    </div>
+                  </div>
+
+                  <div class="guide-step-card">
+                    <div class="step-badge">Step 3</div>
+                    <div class="step-body">
+                      <h4 class="step-title">Action: Slack / Teams Channel Notification</h4>
+                      <p class="step-text">
+                        Add a <strong>Slack &rarr; Send Channel Message</strong> action. Map <code>client fullName</code>, <code>handover counsellorName</code>, and include direct links to <code>documents signedContractPdfUrl</code> and <code>documents packageZipUrl</code>.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- PLATFORM 3: N8N -->
+              <div v-else-if="selectedDocPlatform === 'n8n'" class="platform-doc-container">
+                <div class="platform-doc-header">
+                  <div class="platform-badge badge-n8n">🔴 N8N (SELF-HOSTED &amp; CLOUD)</div>
+                  <h3 class="platform-heading">Complete n8n Workflow with Direct Canvas Import</h3>
+                  <p class="platform-sub">
+                    Copy the JSON workflow below and press <code>Ctrl+V</code> inside your n8n workspace to instantly deploy the full case reception, file download, and cloud storage flow.
+                  </p>
+                </div>
+
+                <div class="code-terminal-card">
+                  <div class="terminal-bar">
+                    <span class="terminal-title">N8N READY-TO-PASTE WORKFLOW JSON</span>
+                    <button type="button" class="btn-terminal-copy" @click="copyToClipboard(sampleN8nWorkflow, 'n8n Workflow JSON')">
+                      📋 Copy n8n Workflow (Ctrl+V)
+                    </button>
+                  </div>
+                  <pre class="terminal-body"><code>{{ sampleN8nWorkflow }}</code></pre>
+                </div>
+
+                <div class="guide-steps-list" style="margin-top: 14px;">
+                  <div class="guide-step-card">
+                    <div class="step-badge">Node 1</div>
+                    <div class="step-body">
+                      <h4 class="step-title">Webhook Node (POST)</h4>
+                      <p class="step-text">Listens on <code>/webhook/contract-operations-handoff</code>. Set <em>Response Mode</em> to "Immediately" (HTTP 200 OK).</p>
+                    </div>
+                  </div>
+                  <div class="guide-step-card">
+                    <div class="step-badge">Node 2</div>
+                    <div class="step-body">
+                      <h4 class="step-title">HTTP Request Node (Binary Stream)</h4>
+                      <p class="step-text">Fetches <code>&#123;&#123; $json.body.documents.packageZipUrl &#125;&#125;</code> with <em>Response Format</em> set to <strong>File</strong>.</p>
+                    </div>
+                  </div>
+                  <div class="guide-step-card">
+                    <div class="step-badge">Node 3</div>
+                    <div class="step-body">
+                      <h4 class="step-title">Storage &amp; Notification Nodes</h4>
+                      <p class="step-text">Routes the binary file to Nextcloud, Google Drive, AWS S3, or local disk, and triggers Telegram / Slack alerts.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- PLATFORM 4: SLACK & DISCORD -->
+              <div v-else-if="selectedDocPlatform === 'slack'" class="platform-doc-container">
+                <div class="platform-doc-header">
+                  <div class="platform-badge badge-slack">💬 SLACK &amp; DISCORD ALERTS</div>
+                  <h3 class="platform-heading">Rich Channel Notifications with Interactive Action Buttons</h3>
+                  <p class="platform-sub">
+                    Send formatted Block Kit messages directly into Slack or Discord with 1-click download buttons for operations teams.
+                  </p>
+                </div>
+
+                <div class="code-terminal-card">
+                  <div class="terminal-bar">
+                    <span class="terminal-title">SLACK BLOCK KIT TEMPLATE (JSON)</span>
+                    <button type="button" class="btn-terminal-copy" @click="copyToClipboard(sampleSlackBlockKit, 'Slack Block Kit')">
+                      📋 Copy Slack Block Kit
+                    </button>
+                  </div>
+                  <pre class="terminal-body"><code>{{ sampleSlackBlockKit }}</code></pre>
+                </div>
+
+                <div class="code-terminal-card" style="margin-top: 14px;">
+                  <div class="terminal-bar">
+                    <span class="terminal-title">DISCORD WEBHOOK EMBED TEMPLATE (JSON)</span>
+                    <button type="button" class="btn-terminal-copy" @click="copyToClipboard(sampleDiscordEmbed, 'Discord Embed')">
+                      📋 Copy Discord Embed
+                    </button>
+                  </div>
+                  <pre class="terminal-body"><code>{{ sampleDiscordEmbed }}</code></pre>
+                </div>
+              </div>
+
+              <!-- PLATFORM 5: GHL INBOUND TRIGGER -->
+              <div v-else-if="selectedDocPlatform === 'ghl'" class="platform-doc-container">
+                <div class="platform-doc-header">
+                  <div class="platform-badge badge-ghl">🟢 GOHIGHLEVEL WORKFLOW TRIGGER</div>
+                  <h3 class="platform-heading">Trigger Automatic Contract Generation from GHL</h3>
+                  <p class="platform-sub">
+                    When an Opportunity moves to Won, or a specific tag (e.g. <code>contract-ready</code>) is added in GoHighLevel, automatically create and prepare the contract draft.
+                  </p>
+                </div>
+
+                <div class="guide-steps-list">
+                  <div class="guide-step-card">
+                    <div class="step-badge">Step 1</div>
+                    <div class="step-body">
+                      <h4 class="step-title">Open GHL Automations &rarr; Workflows</h4>
+                      <p class="step-text">
+                        Create a new Workflow. Add Trigger: <strong>Opportunity Status Changed</strong> (filter: <em>Status = Won</em>) OR <strong>Contact Tag Added</strong>.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div class="guide-step-card">
+                    <div class="step-badge">Step 2</div>
+                    <div class="step-body">
+                      <h4 class="step-title">Add Action: Custom Webhook</h4>
+                      <p class="step-text">
+                        In Workflow Actions, choose <strong>Custom Webhook</strong>.
+                      </p>
+                      <ul class="clean-bullet-list">
+                        <li><strong>Method:</strong> <code>POST</code></li>
+                        <li><strong>URL:</strong> <code>{{ inboundWebhookUrl }}</code></li>
+                      </ul>
+                      <div class="step-action-row">
+                        <button type="button" class="btn-inline-action" @click="copyToClipboard(inboundWebhookUrl, 'Inbound URL')">
+                          Copy Inbound Webhook URL
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="guide-step-card">
+                    <div class="step-badge">Step 3</div>
+                    <div class="step-body">
+                      <h4 class="step-title">Configure Headers &amp; Security</h4>
+                      <p class="step-text">Add the following two headers to the webhook action:</p>
+                      <ul class="clean-bullet-list">
+                        <li><strong>Authorization:</strong> <code>Bearer {{ form.GHL_WEBHOOK_SECRET || 'YOUR_GHL_WEBHOOK_SECRET' }}</code></li>
+                        <li><strong>Content-Type:</strong> <code>application/json</code></li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  <div class="guide-step-card">
+                    <div class="step-badge">Step 4</div>
+                    <div class="step-body">
+                      <h4 class="step-title">Set Request Body with GHL Merge Tags</h4>
+                      <p class="step-text">Select <em>Custom Data (Raw JSON)</em> and paste the body below:</p>
+                      <div class="code-terminal-card mini">
+                        <div class="terminal-bar">
+                          <span class="terminal-title">GHL REQUEST BODY JSON</span>
+                          <button type="button" class="btn-terminal-copy" @click="copyToClipboard(sampleInboundJson, 'Inbound JSON')">
+                            Copy JSON
+                          </button>
+                        </div>
+                        <pre class="terminal-body"><code>{{ sampleInboundJson }}</code></pre>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="guide-step-card">
+                    <div class="step-badge">Step 5</div>
+                    <div class="step-body">
+                      <h4 class="step-title">Automated Execution by Contract Manager</h4>
+                      <p class="step-text">
+                        When received, the Contract Manager rule engine evaluates the client data, matches the correct legal template, populates custom values, and stages the contract draft ready for signing!
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- PLATFORM 6: HMAC SECURITY & CUSTOM CODE -->
+              <div v-else-if="selectedDocPlatform === 'security'" class="platform-doc-container">
+                <div class="platform-doc-header">
+                  <div class="platform-badge badge-sec">🔒 HMAC-SHA256 SECURITY</div>
+                  <h3 class="platform-heading">Cryptographic Signature Verification &amp; Custom API</h3>
+                  <p class="platform-sub">
+                    Every outbound webhook POST includes an <code>X-Webhook-Signature</code> header containing an HMAC-SHA256 hex digest of the raw payload. Verify this to guarantee that requests are genuine and untampered.
+                  </p>
+                </div>
+
+                <div class="code-terminal-card">
+                  <div class="terminal-bar">
+                    <span class="terminal-title">NODE.JS (EXPRESS) VERIFICATION MIDDLEWARE</span>
+                    <button type="button" class="btn-terminal-copy" @click="copyToClipboard(sampleNodeHmacCode, 'Node.js Code')">
+                      📋 Copy Node.js Snippet
+                    </button>
+                  </div>
+                  <pre class="terminal-body"><code>{{ sampleNodeHmacCode }}</code></pre>
+                </div>
+
+                <div class="code-terminal-card" style="margin-top: 14px;">
+                  <div class="terminal-bar">
+                    <span class="terminal-title">PYTHON (FASTAPI / FLASK) VERIFICATION ENDPOINT</span>
+                    <button type="button" class="btn-terminal-copy" @click="copyToClipboard(samplePythonHmacCode, 'Python Code')">
+                      📋 Copy Python Snippet
+                    </button>
+                  </div>
+                  <pre class="terminal-body"><code>{{ samplePythonHmacCode }}</code></pre>
+                </div>
+              </div>
+
+              <!-- PLATFORM 7: DATA DICTIONARY -->
+              <div v-else-if="selectedDocPlatform === 'schema'" class="platform-doc-container">
+                <div class="platform-doc-header">
+                  <div class="platform-badge badge-dict">📋 EXHAUSTIVE DATA DICTIONARY</div>
+                  <h3 class="platform-heading">Complete Outbound Payload Schema Reference</h3>
+                  <p class="platform-sub">
+                    Comprehensive catalog of all fields transmitted when sales shares a completed dossier with Operations.
+                  </p>
+                </div>
+
+                <div class="dict-filter-row">
+                  <input 
+                    v-model="dictSearchQuery" 
+                    type="text" 
+                    class="clean-input dict-search-input" 
+                    placeholder="Search field path, type, or description (e.g. 'packageZipUrl', 'client', 'signedAt')…" 
+                  />
+                  <span class="dict-count-pill">{{ filteredDataDictionary.length }} Fields</span>
+                </div>
+
+                <div class="field-table-wrapper">
+                  <table class="field-ref-table">
+                    <thead>
+                      <tr>
+                        <th style="width: 28%;">JSON Field Path</th>
+                        <th style="width: 14%;">Data Type</th>
+                        <th style="width: 26%;">Example Value</th>
+                        <th style="width: 32%;">Description &amp; Operational Use</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="item in filteredDataDictionary" :key="item.field">
+                        <td class="col-path">
+                          <code class="clickable-code" @click="copyToClipboard(item.field, item.field)" title="Click to copy path">
+                            {{ item.field }}
+                          </code>
+                        </td>
+                        <td class="col-type"><span class="type-pill">{{ item.type }}</span></td>
+                        <td class="col-sample"><code>{{ item.sample }}</code></td>
+                        <td class="col-desc">{{ item.desc }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>
@@ -1221,9 +1773,26 @@ const activeTab = ref('ghl') // 'ghl', 'webhooks', 'signing', 'branding', 'schem
 
 // Webhook Subtabs
 const webhookTab = ref('operations') // 'operations', 'inbound', 'docs'
+const selectedDocPlatform = ref('make') // 'make', 'zapier', 'n8n', 'slack', 'ghl', 'security', 'schema'
+const dictSearchQuery = ref('')
 const testingWebhook = ref(false)
 const testWebhookResult = ref(null)
 const copyToast = ref('')
+
+function openPlatformGuide(platform) {
+  webhookTab.value = 'docs'
+  selectedDocPlatform.value = platform
+}
+
+function copyMakeSlackFormula() {
+  const text = `📁 *New Operations Dossier Received!*
+• *Client:* {{1.client.fullName}} ({{1.client.nationality}})
+• *Contract:* {{1.contract.templateName}} (#{{1.contract.id}})
+• *Counsellor:* {{1.handover.counsellorName}} | *Branch:* {{1.handover.registeredBranch}}
+• *Signed PDF:* {{1.documents.signedContractPdfUrl}}
+• *Full ZIP:* {{1.documents.packageZipUrl}}`
+  copyToClipboard(text, 'Make.com Slack Formula')
+}
 
 // Form State
 const form = ref({
@@ -1483,6 +2052,263 @@ const sampleInboundJson = computed(() => {
     opportunityId: "{{opportunity.id}}",
     trigger: "OPPORTUNITY_WON"
   }, null, 2)
+})
+
+const sampleCurlCommand = computed(() => {
+  const url = form.value.OPERATIONS_WEBHOOK_URL || 'https://hook.eu1.make.com/your-endpoint'
+  return `curl -X POST "${url}" \\
+  -H "Content-Type: application/json" \\
+  -H "X-Webhook-Event: client_dossier.shared_with_operations" \\
+  -H "X-Webhook-Signature: a8f4b238e0789726dc6a0f7e...hex_hmac_sha256" \\
+  -d '${sampleOutboundJson.value.replace(/'/g, "'\\''")}'`
+})
+
+const sampleInboundCurlCommand = computed(() => {
+  const url = inboundWebhookUrl.value
+  const secret = form.value.GHL_WEBHOOK_SECRET || 'YOUR_GHL_WEBHOOK_SECRET'
+  return `curl -X POST "${url}" \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer ${secret}" \\
+  -d '{\\n  "locationId": "NJOPxsxylG8ulEPo9hX9",\\n  "contactId": "SAMPLE_CONTACT_ID",\\n  "opportunityId": "SAMPLE_OPPORTUNITY_ID",\\n  "trigger": "OPPORTUNITY_WON"\\n}'`
+})
+
+const sampleSlackBlockKit = computed(() => {
+  return JSON.stringify({
+    blocks: [
+      {
+        type: "header",
+        text: {
+          type: "plain_text",
+          text: "🚀 New Client Case Handover to Operations",
+          emoji: true
+        }
+      },
+      {
+        type: "section",
+        fields: [
+          { type: "mrkdwn", text: "*Client Name:*\n{{client.fullName}}" },
+          { type: "mrkdwn", text: "*Nationality:*\n{{client.nationality}}" },
+          { type: "mrkdwn", text: "*Contract Template:*\n{{contract.templateName}} (#{{contract.id}})" },
+          { type: "mrkdwn", text: "*Counsellor & Branch:*\n{{handover.counsellorName}} ({{handover.registeredBranch}})" }
+        ]
+      },
+      {
+        type: "actions",
+        elements: [
+          {
+            type: "button",
+            text: { type: "plain_text", text: "📦 Download Full Case ZIP" },
+            style: "primary",
+            url: "{{documents.packageZipUrl}}"
+          },
+          {
+            type: "button",
+            text: { type: "plain_text", text: "📄 View Signed Contract" },
+            url: "{{documents.signedContractPdfUrl}}"
+          },
+          {
+            type: "button",
+            text: { type: "plain_text", text: "📑 View Summary PDF" },
+            url: "{{documents.clientSummaryPdfUrl}}"
+          }
+        ]
+      }
+    ]
+  }, null, 2)
+})
+
+const sampleDiscordEmbed = computed(() => {
+  return JSON.stringify({
+    content: "📁 **New Operations Case Handoff Received!**",
+    embeds: [
+      {
+        title: "Client Case Dossier Ready for Processing",
+        color: 3066993,
+        fields: [
+          { name: "Client Name", value: "{{client.fullName}}", inline: true },
+          { name: "Nationality", value: "{{client.nationality}}", inline: true },
+          { name: "Contract", value: "{{contract.templateName}} (#{{contract.id}})", inline: false },
+          { name: "Counsellor", value: "{{handover.counsellorName}} ({{handover.registeredBranch}})", inline: true },
+          { name: "Signed At", value: "{{contract.signedAt}}", inline: true }
+        ],
+        description: "[📦 Download Full Case Package ZIP]({{documents.packageZipUrl}})\n[📄 Executed Agreement PDF]({{documents.signedContractPdfUrl}})\n[📑 9-Page Client Summary PDF]({{documents.clientSummaryPdfUrl}})"
+      }
+    ]
+  }, null, 2)
+})
+
+const sampleN8nWorkflow = computed(() => {
+  return JSON.stringify({
+    name: "Contract Operations Dossier Ingestion",
+    nodes: [
+      {
+        parameters: {
+          httpMethod: "POST",
+          path: "contract-operations-handoff",
+          responseMode: "onReceived",
+          options: {}
+        },
+        name: "Contract Webhook",
+        type: "n8n-nodes-base.webhook",
+        typeVersion: 1,
+        position: [240, 300]
+      },
+      {
+        parameters: {
+          url: "={{ $json.body.documents.packageZipUrl }}",
+          responseFormat: "file",
+          options: {}
+        },
+        name: "Download Dossier ZIP",
+        type: "n8n-nodes-base.httpRequest",
+        typeVersion: 4.1,
+        position: [460, 300]
+      },
+      {
+        parameters: {
+          operation: "upload",
+          name: "={{ $('Contract Webhook').item.json.body.client.fullName }}_Dossier_{{ $('Contract Webhook').item.json.body.contract.id }}.zip",
+          binaryData: true,
+          binaryPropertyName: "data"
+        },
+        name: "Upload to Google Drive",
+        type: "n8n-nodes-base.googleDrive",
+        typeVersion: 2,
+        position: [680, 300]
+      }
+    ],
+    connections: {
+      "Contract Webhook": {
+        main: [[{ node: "Download Dossier ZIP", type: "main", index: 0 }]]
+      },
+      "Download Dossier ZIP": {
+        main: [[{ node: "Upload to Google Drive", type: "main", index: 0 }]]
+      }
+    }
+  }, null, 2)
+})
+
+const sampleNodeHmacCode = computed(() => {
+  const secret = form.value.OPERATIONS_WEBHOOK_SECRET || 'your_shared_secret'
+  return `// Node.js (Express) Webhook Signature Verification
+const express = require('express');
+const crypto = require('crypto');
+const app = express();
+
+const WEBHOOK_SECRET = process.env.OPERATIONS_WEBHOOK_SECRET || '${secret}';
+
+// Ensure raw body is preserved for signature calculation
+app.use(express.json({
+  verify: (req, res, buf) => { req.rawBody = buf; }
+}));
+
+app.post('/webhook/operations', (req, res) => {
+  const signature = req.headers['x-webhook-signature'];
+  const event = req.headers['x-webhook-event'];
+
+  // Verify HMAC-SHA256 signature
+  const expectedSignature = crypto
+    .createHmac('sha256', WEBHOOK_SECRET)
+    .update(req.rawBody)
+    .digest('hex');
+
+  if (signature !== expectedSignature) {
+    console.warn('⚠️ Invalid HMAC signature received!');
+    return res.status(401).json({ error: 'Invalid webhook signature.' });
+  }
+
+  const { event: evt, client, contract, documents, handover } = req.body;
+  console.log(\`✅ Verified case handoff for: \${client.fullName} (\${contract.templateName})\`);
+  console.log(\`📦 Case ZIP Package URL: \${documents.packageZipUrl}\`);
+
+  // Respond immediately with 200 OK
+  res.status(200).json({ received: true });
+});
+
+app.listen(4000, () => console.log('Webhook server running on port 4000'));`
+})
+
+const samplePythonHmacCode = computed(() => {
+  const secret = form.value.OPERATIONS_WEBHOOK_SECRET || 'your_shared_secret'
+  return `# Python (FastAPI / Flask) Webhook Signature Verification
+import hmac
+import hashlib
+from fastapi import FastAPI, Request, HTTPException, Header
+
+app = FastAPI()
+WEBHOOK_SECRET = "${secret}"
+
+@app.post("/webhook/operations")
+async def receive_operations_webhook(
+    request: Request,
+    x_webhook_signature: str = Header(None),
+    x_webhook_event: str = Header(None)
+):
+    raw_body = await request.body()
+
+    # Calculate expected HMAC-SHA256
+    expected_sig = hmac.new(
+        WEBHOOK_SECRET.encode("utf-8"),
+        raw_body,
+        hashlib.sha256
+    ).hexdigest()
+
+    if not hmac.compare_digest(x_webhook_signature or "", expected_sig):
+        raise HTTPException(status_code=401, detail="Invalid HMAC signature")
+
+    payload = await request.json()
+    client_name = payload["client"]["fullName"]
+    zip_url = payload["documents"]["packageZipUrl"]
+
+    print(f"✅ Handover received for {client_name} - ZIP: {zip_url}")
+    return {"status": "success", "client": client_name}`
+})
+
+const payloadDataDictionary = [
+  { field: 'event', type: 'String', sample: '"client_dossier.shared_with_operations"', desc: 'Event identifier. Always "client_dossier.shared_with_operations" when staff initiates handoff.' },
+  { field: 'eventId', type: 'String', sample: '"evt_ops_1042_1713180000"', desc: 'Unique idempotent transaction ID (includes contract ID and timestamp). Safe for deduplication.' },
+  { field: 'timestamp', type: 'ISO 8601 String', sample: '"2026-10-15T02:30:00.000Z"', desc: 'UTC timestamp when the webhook payload was generated and dispatched.' },
+  { field: 'locationId', type: 'String', sample: '"NJOPxsxylG8ulEPo9hX9"', desc: 'GoHighLevel Sub-Account Location ID where the client contract lives.' },
+  
+  { field: 'handover.action', type: 'String', sample: '"OPERATIONS_HANDOFF"', desc: 'Internal workflow classification descriptor.' },
+  { field: 'handover.sharedByUserId', type: 'String', sample: '"usr_928192"', desc: 'Internal user ID or GHL ID of the staff member who initiated the handover.' },
+  { field: 'handover.sharedByName', type: 'String', sample: '"Akram Mammeri"', desc: 'Full display name of the staff member who clicked "Share with Operations".' },
+  { field: 'handover.sharedAt', type: 'ISO 8601 String', sample: '"2026-10-15T02:30:00.000Z"', desc: 'Exact timestamp when the file was handed over to Operations.' },
+  { field: 'handover.counsellorName', type: 'String', sample: '"Akram Mammeri"', desc: 'Assigned immigration counsellor / sales consultant handling the account.' },
+  { field: 'handover.registeredBranch', type: 'String', sample: '"Dubai HQ"', desc: 'Branch office where the client was registered and contract was closed.' },
+  
+  { field: 'client.fullName', type: 'String', sample: '"Ahmed Al Mansoor"', desc: 'Primary client full legal name as executed on the contract.' },
+  { field: 'client.email', type: 'String', sample: '"ahmed.mansoor@example.com"', desc: 'Client email address.' },
+  { field: 'client.phone', type: 'String', sample: '"+971501234567"', desc: 'Client mobile number in international E.164 format.' },
+  { field: 'client.nationality', type: 'String', sample: '"Emirati"', desc: 'Client nationality/citizenship from the dossier summary.' },
+  { field: 'client.ghlContactId', type: 'String', sample: '"cont_8829103"', desc: 'GoHighLevel CRM Contact ID. Use to update CRM tags or pipeline stages.' },
+  { field: 'client.ghlOpportunityId', type: 'String', sample: '"opp_551920"', desc: 'GoHighLevel Deal/Opportunity ID associated with this contract.' },
+  { field: 'client.dateOfBirth', type: 'String', sample: '"1985-04-12"', desc: 'Client date of birth from summary records.' },
+  { field: 'client.residentialAddress', type: 'String', sample: '"Downtown Dubai, UAE"', desc: 'Full residential address from client dossier.' },
+  
+  { field: 'contract.id', type: 'Number', sample: '1042', desc: 'Internal primary key ID of the contract in Contract Manager.' },
+  { field: 'contract.templateName', type: 'String', sample: '"Cyprus Permanent Residency Agreement"', desc: 'Official legal template title.' },
+  { field: 'contract.contractType', type: 'String', sample: '"IMMIGRATION_SERVICES"', desc: 'Contract category classification.' },
+  { field: 'contract.state', type: 'String', sample: '"COMPLETED"', desc: 'Contract status (COMPLETED indicates fully signed and certified).' },
+  { field: 'contract.signedAt', type: 'ISO 8601 String', sample: '"2026-10-15T02:28:45.000Z"', desc: 'Timestamp when the client completed digital signature.' },
+  { field: 'contract.pdfSha256', type: 'String (64 Hex)', sample: '"e3b0c44298fc1c149afbf4c8996fb92427..."', desc: 'Cryptographic SHA-256 tamper-proof hash of the signed contract PDF.' },
+  
+  { field: 'documents.packageZipUrl', type: 'String (URL)', sample: '"https://services.leadconnectorhq.com/.../Case_Package_1042.zip"', desc: '★ COMPLETE CASE DOSSIER ZIP. Contains signed contract PDF + 9-page Client Summary PDF + all client uploaded supporting files.' },
+  { field: 'documents.signedContractPdfUrl', type: 'String (URL)', sample: '"https://services.leadconnectorhq.com/.../contract_1042_signed.pdf"', desc: 'Direct download URL for the finalized, digitally signed PDF agreement.' },
+  { field: 'documents.clientSummaryPdfUrl', type: 'String (URL)', sample: '"https://services.leadconnectorhq.com/.../Client_Summary_1042.pdf"', desc: 'Direct download URL for the generated 9-page Client Summary PDF dossier.' },
+  { field: 'documents.attachments[]', type: 'Array of Objects', sample: '[{ name: "Passport.pdf", url: "https://...", mimeType: "application/pdf", sizeBytes: 1420500, category: "Identity" }]', desc: 'List of individual client-uploaded supporting documents (identity, financial, proof of address).' },
+  { field: 'summaryData', type: 'Object', sample: '{ "marital_status": "Married", "invest_budget": "$350,000", ... }', desc: 'Raw key-value object containing all answers and custom fields captured in the dossier.' }
+]
+
+const filteredDataDictionary = computed(() => {
+  if (!dictSearchQuery.value) return payloadDataDictionary
+  const q = dictSearchQuery.value.toLowerCase().trim()
+  return payloadDataDictionary.filter(item => 
+    item.field.toLowerCase().includes(q) ||
+    item.type.toLowerCase().includes(q) ||
+    item.desc.toLowerCase().includes(q) ||
+    item.sample.toLowerCase().includes(q)
+  )
 })
 
 async function loadSettings() {
@@ -2577,53 +3403,512 @@ onMounted(() => {
   line-height: 1.45;
 }
 
-.docs-dual-column {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
+.terminal-btn-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-@media (max-width: 800px) {
-  .docs-dual-column { grid-template-columns: 1fr; }
+.platform-quick-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-top: 10px;
+}
+.quick-bar-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #475569;
+}
+.quick-bar-pills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.quick-brand-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.quick-brand-btn:hover {
+  border-color: #94a3b8;
+  background: #f1f5f9;
+  transform: translateY(-1px);
 }
 
-.doc-box {
+.cheat-sheet-box {
+  margin-top: 16px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
-  padding: 14px;
+  padding: 12px 14px;
+}
+.cheat-sheet-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.cheat-sheet-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1e293b;
+}
+.cheat-sheet-hint {
+  font-size: 11px;
+  color: #64748b;
+}
+.cheat-sheet-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+}
+.cheat-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cheat-card:hover {
+  border-color: #38bdf8;
+  box-shadow: 0 2px 8px rgba(56, 189, 248, 0.15);
+  transform: translateY(-1px);
+}
+.cheat-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.cheat-card-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.badge-zip { background: #e0e7ff; color: #4338ca; }
+.badge-pdf { background: #fee2e2; color: #b91c1c; }
+.badge-summary { background: #e0f2fe; color: #0369a1; }
+.badge-client { background: #fef3c7; color: #b45309; }
+.cheat-copy-tag {
+  font-size: 10px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+.cheat-card:hover .cheat-copy-tag {
+  color: #0284c7;
+}
+.cheat-path {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #0f172a;
+  background: #f1f5f9;
+  padding: 2px 6px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+.cheat-desc {
+  font-size: 10.5px;
+  color: #64748b;
+  line-height: 1.35;
 }
 
-.doc-header-pill {
-  font-size: 10px;
+.flow-diagram-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-top: 10px;
+  margin-bottom: 12px;
+  overflow-x: auto;
+  flex-wrap: wrap;
+}
+.flow-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #1e293b;
+}
+.flow-step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  background: #3b82f6;
+  color: #fff;
+  font-size: 9.5px;
   font-weight: 700;
-  color: #0369a1;
-  background: #e0f2fe;
-  display: inline-block;
-  padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: 50%;
+}
+.flow-arrow {
+  color: #94a3b8;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.inbound-helper-card {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+.inbound-helper-header {
+  font-size: 11.5px;
+  color: #166534;
   margin-bottom: 6px;
 }
+.inbound-headers-grid {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.header-chip {
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.header-name {
+  font-weight: 600;
+  color: #15803d;
+}
+.header-val {
+  background: #fff;
+  border: 1px solid #86efac;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+  color: #14532d;
+}
+.doc-jump-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-top: 14px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.doc-jump-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1e293b;
+}
+.doc-jump-sub {
+  font-size: 11px;
+  color: #64748b;
+}
+.btn-jump {
+  padding: 5px 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #2563eb;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-jump:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+}
 
-.doc-title {
+.platform-nav-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 10px;
+  margin-bottom: 16px;
+}
+.platform-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: #f1f5f9;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.platform-nav-btn:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+.platform-nav-btn.active {
+  background: #1e293b;
+  color: #fff;
+  border-color: #0f172a;
+}
+.platform-doc-container {
+  animation: fadeIn 0.2s ease-in-out;
+}
+.platform-doc-header {
+  margin-bottom: 14px;
+}
+.platform-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-bottom: 6px;
+  letter-spacing: 0.5px;
+}
+.badge-make { background: #ede9fe; color: #6d28d9; }
+.badge-zapier { background: #ffedd5; color: #c2410c; }
+.badge-n8n { background: #ffe4e6; color: #be123c; }
+.badge-slack { background: #e0e7ff; color: #3730a3; }
+.badge-ghl { background: #dcfce7; color: #15803d; }
+.badge-sec { background: #f1f5f9; color: #334155; }
+.badge-dict { background: #e0f2fe; color: #0369a1; }
+.platform-heading {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
   margin: 0 0 4px;
+}
+.platform-sub {
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.45;
+  margin: 0;
+}
+.guide-steps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.guide-step-card {
+  display: flex;
+  gap: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 14px;
+  transition: border-color 0.15s ease;
+}
+.guide-step-card:hover {
+  border-color: #cbd5e1;
+}
+.step-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #1e293b;
+  background: #e2e8f0;
+  border-radius: 6px;
+  padding: 3px 8px;
+  height: fit-content;
+  white-space: nowrap;
+}
+.step-body {
+  flex: 1;
+}
+.step-title {
   font-size: 13px;
   font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 4px;
 }
-
-.doc-p {
-  margin: 0 0 8px;
+.step-text {
   font-size: 11.5px;
-  color: #64748b;
-  line-height: 1.4;
+  color: #475569;
+  line-height: 1.45;
+  margin: 0 0 6px;
 }
-
-.doc-steps {
-  margin: 0;
-  padding-left: 16px;
+.step-action-row {
+  margin-top: 6px;
+}
+.btn-inline-action {
+  font-size: 11px;
+  font-weight: 600;
+  color: #2563eb;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 5px;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+.btn-inline-action:hover {
+  background: #dbeafe;
+}
+.code-pill-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+.code-pill-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+.code-pill-item:hover {
+  border-color: #38bdf8;
+}
+.code-pill-item code {
+  font-family: monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: #0284c7;
+  background: #f0f9ff;
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+.code-pill-item .pill-label {
+  font-size: 10.5px;
+  color: #64748b;
+}
+.clean-bullet-list {
+  margin: 4px 0;
+  padding-left: 18px;
   font-size: 11.5px;
   color: #334155;
   line-height: 1.5;
+}
+.code-terminal-card.mini {
+  margin-top: 8px;
+}
+.code-terminal-card.mini .terminal-body {
+  max-height: 130px;
+  font-size: 11px;
+}
+.dict-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.dict-search-input {
+  flex: 1;
+  font-size: 12px;
+}
+.dict-count-pill {
+  font-size: 11px;
+  font-weight: 700;
+  color: #0284c7;
+  background: #e0f2fe;
+  padding: 4px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.field-table-wrapper {
+  overflow-x: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+}
+.field-ref-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11.5px;
+  text-align: left;
+}
+.field-ref-table th {
+  background: #f8fafc;
+  padding: 8px 12px;
+  font-weight: 700;
+  color: #475569;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.field-ref-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: top;
+  line-height: 1.4;
+}
+.field-ref-table tbody tr:hover {
+  background: #f8fafc;
+}
+.col-path code.clickable-code {
+  font-family: monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: #0f172a;
+  background: #f1f5f9;
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-block;
+}
+.col-path code.clickable-code:hover {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+.type-pill {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  color: #475569;
+  background: #f1f5f9;
+  padding: 1px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.col-sample code {
+  font-family: monospace;
+  font-size: 10.5px;
+  color: #0369a1;
+  word-break: break-all;
+}
+.col-desc {
+  color: #334155;
+  font-size: 11px;
 }
 
 /* ─── BRANDING SIDE BY SIDE ─────────────────────────────────────────── */
