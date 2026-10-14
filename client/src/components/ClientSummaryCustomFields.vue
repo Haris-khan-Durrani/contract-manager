@@ -353,7 +353,7 @@ function formatType(t) {
 .styled-textarea,
 .styled-select {
   width: 100%;
-  background: #f8fafc;
+  background-color: #f8fafc;
   border: 1px solid #cbd5e1;
   border-radius: 6px;
   padding: 8px 12px;
@@ -362,10 +362,22 @@ function formatType(t) {
   transition: border-color 0.2s ease;
 }
 
+.styled-select {
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 10px center;
+  background-repeat: no-repeat;
+  background-size: 16px 16px;
+  padding-right: 32px;
+}
+
 .styled-input:focus,
 .styled-textarea:focus,
 .styled-select:focus {
-  background: #ffffff;
+  background-color: #ffffff;
   border-color: #2563eb;
   outline: none;
 }
