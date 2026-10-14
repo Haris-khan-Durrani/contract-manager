@@ -40,6 +40,16 @@
             <span class="status-dot"></span>
             <span class="status-text">Not Started</span>
           </span>
+
+          <!-- Shared with Operations Indicator Pill -->
+          <span 
+            v-if="sharedWithOpsAt" 
+            class="status-pill status-ops-shared" 
+            :title="`Dispatched to Operations on ${formatDate(sharedWithOpsAt)} at ${formatTime(sharedWithOpsAt)} by ${sharedWithOpsBy || 'Staff'}`"
+          >
+            <span class="status-dot-ops"></span>
+            <span class="status-text">Shared with Ops</span>
+          </span>
         </div>
 
         <div class="action-btn-group">
@@ -91,6 +101,22 @@
           </button>
 
           <div class="action-divider"></div>
+
+          <!-- Share with Operations Button (Appears once summary is completed) -->
+          <button
+            v-if="summaryStatus === 'COMPLETED'"
+            type="button"
+            class="action-btn action-btn-share-ops"
+            :disabled="sharingWithOps"
+            @click="shareWithOperations"
+            :title="sharedWithOpsAt ? `Dispatched to Operations on ${formatDate(sharedWithOpsAt)} at ${formatTime(sharedWithOpsAt)}. Click to resend.` : 'Share full case dossier, signed contract, and files with Operations'"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+            <span>{{ sharingWithOps ? 'Sharing with Ops…' : (sharedWithOpsAt ? 'Reshare with Operations' : 'Share with Operations') }}</span>
+          </button>
 
           <!-- Workflow action buttons -->
           <button
@@ -1903,6 +1929,9 @@ const lastSavedAt = ref(null)
 const saving = ref(false)
 const savingMode = ref('DRAFT')
 const isPrinting = ref(false)
+const sharingWithOps = ref(false)
+const sharedWithOpsAt = ref(null)
+const sharedWithOpsBy = ref('')
 
 // Tabs navigation
 const currentTab = ref('page1')
@@ -2251,8 +2280,12 @@ async function loadSelectedContract() {
         custom_fields: data.summary.custom_fields || {},
         attachments: Array.isArray(data.summary.attachments) ? data.summary.attachments : [],
       }
+      sharedWithOpsAt.value = data.summary.shared_with_ops_at || null
+      sharedWithOpsBy.value = data.summary.shared_with_ops_by || ''
     } else {
       form.value = getDefaultForm()
+      sharedWithOpsAt.value = null
+      sharedWithOpsBy.value = ''
     }
   } catch (err) {
     console.error('Load summary error:', err)
@@ -2435,6 +2468,49 @@ function printDocument() {
   }, 200)
 }
 
+// Dispatches completed dossier, signed agreement & files to Operations Webhook
+async function shareWithOperations() {
+  if (!selectedContractId.value) return
+  if (summaryStatus.value !== 'COMPLETED') {
+    alert('Please mark the Client Summary as COMPLETED before sharing with Operations.')
+    return
+  }
+
+  const clientName = selectedContract.value?.recipient_name || form.value.client_name || 'Client'
+  const isReshare = Boolean(sharedWithOpsAt.value)
+  const confirmMsg = isReshare
+    ? `Resend all case details to Operations for ${clientName}?\n\nThis will re-dispatch the signed legal agreement, updated 9-page client summary dossier, and all ${form.value.attachments?.length || 0} attachment(s) to the Operations webhook.`
+    : `Share all case details with Operations for ${clientName}?\n\nThis will send the complete client summary dossier, signed legal agreement, and all ${form.value.attachments?.length || 0} attachment(s) directly to the Operations team via webhook.`
+
+  if (!confirm(confirmMsg)) return
+
+  sharingWithOps.value = true
+  try {
+    const res = await axios.post(
+      `${apiBase}/client-summary/${selectedContractId.value}/share-operations`,
+      {},
+      { headers: getHeaders() }
+    )
+
+    sharedWithOpsAt.value = res.data.sharedAt || new Date().toISOString()
+    sharedWithOpsBy.value = res.data.sharedByName || 'Staff'
+    form.value.shared_with_ops_at = sharedWithOpsAt.value
+    form.value.shared_with_ops_by = sharedWithOpsBy.value
+
+    alert(
+      `✓ Dispatched to Operations Successfully!\n\n` +
+      `${res.data.message}\n` +
+      `• Attachments Included: ${res.data.attachmentsCount || 0}\n` +
+      `• Webhook Status: ${res.data.webhookDelivered ? 'Delivered (HTTP 200)' : res.data.webhookNotice || 'Recorded'}`
+    )
+  } catch (err) {
+    console.error('Share with Operations failed:', err)
+    alert(err.response?.data?.error || 'Failed to dispatch case dossier to Operations.')
+  } finally {
+    sharingWithOps.value = false
+  }
+}
+
 function formatDate(d) {
   if (!d) return '—'
   return new Date(d).toLocaleDateString('en-US', {
@@ -2590,6 +2666,20 @@ onMounted(async () => {
   border-color: #e2e8f0;
 }
 
+.status-ops-shared {
+  background: #f0fdf4;
+  color: #15803d;
+  border-color: #bbf7d0;
+}
+
+.status-dot-ops {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #16a34a;
+  box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.25);
+}
+
 .status-dot-pulse {
   width: 7px;
   height: 7px;
@@ -2720,6 +2810,22 @@ onMounted(async () => {
   background: #fef3c7;
   color: #92400e;
   border-color: #fcd34d;
+}
+
+/* Share with Operations Button */
+.action-btn-share-ops {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.3);
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.action-btn-share-ops:hover:not(:disabled) {
+  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+  transform: translateY(-0.5px);
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.45);
 }
 
 /* Contract Selector Card */

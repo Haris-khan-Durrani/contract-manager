@@ -135,6 +135,56 @@
         </div>
       </div>
 
+      <!-- 3. Operations Team Handoff Webhook -->
+      <div class="glass-card" style="padding: var(--space-6);">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: var(--space-4);">
+          <div style="font-size: 1.5rem;">🚀</div>
+          <div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <h3 style="margin: 0; font-size: 1.1rem; font-family: var(--font-heading);">Operations Team Handoff Webhook</h3>
+              <span class="badge badge-info" style="font-size: 10px;">Post-Contract Onboarding</span>
+            </div>
+            <p style="margin: 0; font-size: var(--text-xs); color: var(--color-text-muted);">
+              Dispatch completed Client Summaries, signed agreements, and client file attachments directly to Operations / Processing / CRM / ERP.
+            </p>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4);">
+          <div style="grid-column: span 2;">
+            <label class="form-label">Operations Webhook URL</label>
+            <input 
+              v-model="form.OPERATIONS_WEBHOOK_URL" 
+              type="text" 
+              class="form-control" 
+              placeholder="https://n8n.yourcompany.com/webhook/operations-handoff or Zapier / Make webhook URL" 
+            />
+            <span style="font-size: var(--text-xs); color: var(--color-text-muted); display: block; margin-top: 4px;">
+              When sales clicks <strong>"Share with Operations"</strong> on a completed summary, the full dossier JSON, signed contract PDF, summary PDF, and attachments will be POSTed here.
+            </span>
+          </div>
+
+          <div style="grid-column: span 2;">
+            <label class="form-label" style="display: flex; justify-content: space-between;">
+              <span>Operations Webhook Secret Key</span>
+              <span class="badge badge-info" style="font-size: 10px;">HMAC-SHA256 Signing</span>
+            </label>
+            <input 
+              v-model="form.OPERATIONS_WEBHOOK_SECRET" 
+              :type="showSecret.OPERATIONS_WEBHOOK_SECRET ? 'text' : 'password'" 
+              class="form-control" 
+              placeholder="Enter secret for HMAC-SHA256 payload verification" 
+            />
+            <div style="margin-top: 4px; display: flex; justify-content: space-between; font-size: var(--text-xs); color: var(--color-text-muted);">
+              <span>Passed in <code>X-Webhook-Signature</code> header for tamper-proof verification</span>
+              <a href="javascript:void(0)" @click="toggleShow('OPERATIONS_WEBHOOK_SECRET')">
+                {{ showSecret.OPERATIONS_WEBHOOK_SECRET ? 'Hide' : 'Show' }}
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- 3. Performance & Worker Configurations -->
       <div class="glass-card" style="padding: var(--space-6);">
         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: var(--space-4);">
@@ -825,6 +875,8 @@ const form = ref({
   RESTRICT_CONTACTS_TO_ASSIGNED: 'true',
   COMPANY_STAMP_URL: '',
   COMPANY_SIGNATURE_URL: '',
+  OPERATIONS_WEBHOOK_URL: '',
+  OPERATIONS_WEBHOOK_SECRET: '',
 })
 
 const uploadingStampMedia = ref(false)
@@ -943,6 +995,7 @@ const showSecret = ref({
   GHL_SHARED_SECRET: false,
   GHL_PRIVATE_INTEGRATION_TOKEN: false,
   GHL_WEBHOOK_SECRET: false,
+  OPERATIONS_WEBHOOK_SECRET: false,
 })
 
 function toggleShow(field) {

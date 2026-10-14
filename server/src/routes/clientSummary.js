@@ -10,6 +10,8 @@
  */
 const express = require('express');
 const router = express.Router();
+const axios = require('axios');
+const crypto = require('crypto');
 const db = require('../config/db');
 const { ghlAuthMiddleware } = require('../middleware/ghlAuth');
 const { loadAppUser, requireClientSummaryAccess, hasPermission } = require('../middleware/rbac');
@@ -526,6 +528,13 @@ router.post('/:contractId', async (req, res) => {
       privateToken: req.ghlUser?.privateToken,
     }).catch(err => console.warn('[ClientSummary] Audit sync failed:', err.message));
 
+    // If marked COMPLETED, trigger async PDF generation and permanent upload to GHL Media
+    if (validStatus === 'COMPLETED') {
+      setImmediate(() => {
+        generateAndUploadSummaryToGHL(contractId, locationId, req.ghlUser?.privateToken);
+      });
+    }
+
     res.json({
       success: true,
       status: validStatus,
@@ -539,8 +548,97 @@ router.post('/:contractId', async (req, res) => {
   }
 });
 
+/**
+ * Generates and uploads the Client Summary PDF (and optionally Case ZIP) directly to GoHighLevel Media Library.
+ * Stores the permanent GHL URLs in MySQL so they can be loaded instantly every time.
+ */
+async function generateAndUploadSummaryToGHL(contractId, locationId, privateToken) {
+  try {
+    const { generateSummaryPdf } = require('../services/clientSummaryPdfService');
+    const { compileClientPackageZip } = require('../services/clientSummaryZipService');
+
+    const [contractRows] = await db.execute(
+      `SELECT ci.*, ct.name AS template_name, ct.contract_type
+       FROM contract_instances ci
+       JOIN contract_templates ct ON ct.id = ci.template_id
+       WHERE ci.id = ? AND ci.location_id = ? LIMIT 1`,
+      [contractId, locationId]
+    );
+    if (!contractRows.length) return;
+    const contract = contractRows[0];
+
+    const [summaryRows] = await db.execute(
+      `SELECT * FROM contract_client_summaries WHERE location_id = ? AND contract_id = ? LIMIT 1`,
+      [locationId, contractId]
+    );
+    if (!summaryRows.length) return;
+
+    let summaryData = {};
+    try {
+      summaryData = JSON.parse(summaryRows[0].summary_data_json || '{}');
+    } catch {
+      summaryData = {};
+    }
+
+    console.log(`[Client Summary] Generating and uploading PDF for contract #${contractId} to GHL Media...`);
+    const pdfBuffer = await generateSummaryPdf(contract, summaryData);
+    const pdfFilename = `Client_Summary_Contract_${contractId}_${Date.now()}.pdf`;
+
+    const summaryPdfUrl = await ghlService.uploadMediaFile({
+      locationId,
+      buffer: pdfBuffer,
+      filename: pdfFilename,
+      mimeType: 'application/pdf',
+      privateToken,
+    });
+
+    if (summaryPdfUrl) {
+      summaryData.summary_pdf_url = summaryPdfUrl;
+      summaryData.summary_pdf_uploaded_at = new Date().toISOString();
+
+      // Also compile and upload the Case Package ZIP
+      try {
+        const { zipBuffer, zipFilename } = await compileClientPackageZip(contract.id, locationId);
+        const packageZipUrl = await ghlService.uploadMediaFile({
+          locationId,
+          buffer: zipBuffer,
+          filename: zipFilename,
+          mimeType: 'application/zip',
+          privateToken,
+        });
+        if (packageZipUrl) {
+          summaryData.package_zip_url = packageZipUrl;
+        }
+      } catch (zipUploadErr) {
+        console.warn(`[Client Summary] ZIP upload to GHL notice:`, zipUploadErr.message);
+      }
+
+      await db.execute(
+        `UPDATE contract_client_summaries SET summary_data_json = ?, updated_at = NOW() WHERE contract_id = ? AND location_id = ?`,
+        [JSON.stringify(summaryData), contractId, locationId]
+      );
+
+      // Also update GHL Contact custom field
+      if (contract.ghl_contact_id) {
+        await ghlService.updateContact(locationId, contract.ghl_contact_id, {
+          customFields: [
+            { id: 'client_summary_pdf_url', value: summaryPdfUrl },
+            ...(summaryData.package_zip_url ? [{ id: 'case_package_zip_url', value: summaryData.package_zip_url }] : []),
+            { id: 'client_summary_status', value: 'Completed' },
+            { id: 'client_summary_completed_date', value: new Date().toISOString() },
+          ],
+        }).catch(err => console.warn('[Client Summary] GHL contact fields update notice:', err.message));
+      }
+
+      console.log(`[Client Summary] Successfully stored and cached summary PDF in GHL Media for contract #${contractId}: ${summaryPdfUrl}`);
+    }
+  } catch (err) {
+    console.warn('[Client Summary] Background GHL upload warning:', err.message);
+  }
+}
+
 // ─── GET /api/client-summary/:contractId/pdf ─────────────────────────────────
-// Download standalone Client Summary PDF
+// Download standalone Client Summary PDF (uses fast GHL CDN stream if cached)
 router.get('/:contractId/pdf', async (req, res) => {
   try {
     const { locationId } = req.ghlUser;
@@ -573,6 +671,18 @@ router.get('/:contractId/pdf', async (req, res) => {
       }
     }
 
+    // Fast CDN stream if already stored in GHL Media
+    if (summaryData.summary_pdf_url) {
+      try {
+        const fileRes = await axios.get(summaryData.summary_pdf_url, { responseType: 'arraybuffer', timeout: 15000 });
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="Client_Summary_Contract_${contractId}.pdf"`);
+        return res.send(Buffer.from(fileRes.data));
+      } catch (streamErr) {
+        console.warn('[Client Summary] Streaming cached summary_pdf_url failed, falling back to dynamic generation:', streamErr.message);
+      }
+    }
+
     const pdfBuffer = await generateSummaryPdf(contractRows[0], summaryData);
 
     res.setHeader('Content-Type', 'application/pdf');
@@ -592,6 +702,26 @@ router.get('/:contractId/package-zip', async (req, res) => {
     const { contractId } = req.params;
     const { compileClientPackageZip } = require('../services/clientSummaryZipService');
 
+    // Fast CDN stream if already stored in GHL Media
+    const [summaryRows] = await db.execute(
+      `SELECT * FROM contract_client_summaries WHERE location_id = ? AND contract_id = ? LIMIT 1`,
+      [locationId, contractId]
+    );
+    if (summaryRows.length) {
+      try {
+        const sData = JSON.parse(summaryRows[0].summary_data_json || '{}');
+        if (sData.package_zip_url) {
+          const fileRes = await axios.get(sData.package_zip_url, { responseType: 'arraybuffer', timeout: 20000 });
+          res.setHeader('Content-Type', 'application/zip');
+          res.setHeader('Content-Disposition', `attachment; filename="Case_Package_Contract_${contractId}.zip"`);
+          res.setHeader('Content-Length', fileRes.data.length);
+          return res.send(Buffer.from(fileRes.data));
+        }
+      } catch (zipStreamErr) {
+        console.warn('[Client Summary] Streaming cached package_zip_url failed, compiling dynamically:', zipStreamErr.message);
+      }
+    }
+
     const { zipBuffer, zipFilename } = await compileClientPackageZip(contractId, locationId);
 
     res.setHeader('Content-Type', 'application/zip');
@@ -601,6 +731,220 @@ router.get('/:contractId/package-zip', async (req, res) => {
   } catch (err) {
     console.error('[Client Summary] Package ZIP error:', err.message);
     res.status(500).json({ error: err.message || 'Failed to compile Case Package ZIP.' });
+  }
+});
+
+// ─── POST /api/client-summary/:contractId/share-operations ───────────────────
+// Hand off completed client summary, signed legal agreement, and attachments to Operations Webhook
+router.post('/:contractId/share-operations', async (req, res) => {
+  try {
+    const { userId, locationId, name = '' } = req.ghlUser;
+    const { role } = req.appUser;
+    const { contractId } = req.params;
+
+    // 1. Fetch Contract & Template info
+    const [contractRows] = await db.execute(
+      `SELECT ci.*, ct.name AS template_name, ct.contract_type
+       FROM contract_instances ci
+       JOIN contract_templates ct ON ct.id = ci.template_id
+       WHERE ci.id = ? AND ci.location_id = ? LIMIT 1`,
+      [contractId, locationId]
+    );
+
+    if (!contractRows.length) {
+      return res.status(404).json({ error: 'Contract not found.' });
+    }
+
+    const contract = contractRows[0];
+    const isCompleted = contract.state === 'COMPLETED' || contract.signed_at;
+    if (!isCompleted) {
+      return res.status(400).json({ error: 'Contract has not been signed yet.' });
+    }
+
+    // Role check
+    const restrictToAssigned = settingsService.get('RESTRICT_CONTACTS_TO_ASSIGNED', 'true') !== 'false';
+    const canViewAll = hasPermission(role, 'contract:view:all') || !restrictToAssigned;
+    if (!canViewAll && contract.assigned_user_id !== userId) {
+      return res.status(403).json({ error: 'You are not assigned to this contract.' });
+    }
+
+    // 2. Fetch Client Summary Data
+    const [summaryRows] = await db.execute(
+      `SELECT * FROM contract_client_summaries WHERE location_id = ? AND contract_id = ? LIMIT 1`,
+      [locationId, contractId]
+    );
+
+    if (!summaryRows.length || summaryRows[0].status !== 'COMPLETED') {
+      return res.status(400).json({
+        error: 'Client summary must be marked as COMPLETED before sharing with operations.',
+      });
+    }
+
+    let summaryData = {};
+    try {
+      summaryData = JSON.parse(summaryRows[0].summary_data_json || '{}');
+    } catch {
+      summaryData = {};
+    }
+
+    // Ensure Client Summary PDF is uploaded to GHL Media if not already cached
+    if (!summaryData.summary_pdf_url) {
+      try {
+        const { generateSummaryPdf } = require('../services/clientSummaryPdfService');
+        const pdfBuffer = await generateSummaryPdf(contract, summaryData);
+        const pdfFilename = `Client_Summary_Contract_${contractId}_${Date.now()}.pdf`;
+        const ghlUrl = await ghlService.uploadMediaFile({
+          locationId,
+          buffer: pdfBuffer,
+          filename: pdfFilename,
+          mimeType: 'application/pdf',
+          privateToken: req.ghlUser?.privateToken,
+        });
+        if (ghlUrl) {
+          summaryData.summary_pdf_url = ghlUrl;
+          summaryData.summary_pdf_uploaded_at = new Date().toISOString();
+        }
+      } catch (pdfGenErr) {
+        console.warn('[Client Summary] On-demand PDF upload notice:', pdfGenErr.message);
+      }
+    }
+
+    // 3. Resolve Operations Webhook Settings
+    const webhookUrl = (settingsService.get('OPERATIONS_WEBHOOK_URL') || process.env.OPERATIONS_WEBHOOK_URL || '').trim();
+    const webhookSecret = (settingsService.get('OPERATIONS_WEBHOOK_SECRET') || process.env.OPERATIONS_WEBHOOK_SECRET || '').trim();
+
+    const appBaseUrl = settingsService.get('SIGNING_BASE_URL') || 'http://localhost:5173';
+    const apiBaseUrl = process.env.API_BASE_URL || `${appBaseUrl.replace(':5173', ':3000')}/api`;
+
+    const attachments = Array.isArray(summaryData.attachments) ? summaryData.attachments : [];
+
+    // 4. Build Complete Operations Case Dossier Payload
+    const nowIso = new Date().toISOString();
+    const payload = {
+      event: 'client_dossier.shared_with_operations',
+      eventId: `evt_ops_${contract.id}_${Date.now()}`,
+      timestamp: nowIso,
+      locationId,
+      handover: {
+        action: 'OPERATIONS_HANDOFF',
+        sharedByUserId: userId,
+        sharedByName: name || req.appUser?.name || userId,
+        sharedAt: nowIso,
+        counsellorName: contract.assigned_user_name || summaryData.counsellor_name || 'Staff',
+        registeredBranch: summaryData.registered_at || 'Dubai',
+      },
+      client: {
+        ghlContactId: contract.ghl_contact_id,
+        ghlOpportunityId: contract.ghl_opportunity_id,
+        fullName: contract.recipient_name || summaryData.client_name,
+        email: contract.recipient_email || summaryData.email,
+        phone: contract.recipient_phone || summaryData.contact_mobile,
+        nationality: summaryData.nationality,
+        dateOfBirth: summaryData.dob,
+        residentialAddress: summaryData.residential_address,
+      },
+      contract: {
+        id: contract.id,
+        templateName: contract.template_name,
+        contractType: contract.contract_type,
+        state: contract.state,
+        signedAt: contract.signed_at,
+        pdfSha256: contract.pdf_sha256,
+        ghlFileUrl: contract.ghl_file_url || null,
+      },
+      documents: {
+        // Direct permanent GHL Media URLs (fallback to API download links if not yet uploaded)
+        signedContractPdfUrl: contract.ghl_file_url || `${apiBaseUrl}/contracts/${contract.id}/pdf`,
+        clientSummaryPdfUrl: summaryData.summary_pdf_url || `${apiBaseUrl}/client-summary/${contract.id}/pdf`,
+        packageZipUrl: summaryData.package_zip_url || `${apiBaseUrl}/client-summary/${contract.id}/package-zip`,
+        attachments: attachments.map(att => ({
+          name: att.name || 'Attachment',
+          url: att.url || '',
+          mimeType: att.mimeType || 'application/octet-stream',
+          sizeBytes: att.sizeBytes || 0,
+          category: att.category || 'General',
+        })),
+      },
+      summaryData,
+    };
+
+    // 5. If Webhook URL is configured, POST with HMAC SHA-256 Signature
+    let webhookSuccess = false;
+    let webhookMessage = '';
+
+    if (webhookUrl) {
+      try {
+        const signature = crypto
+          .createHmac('sha256', webhookSecret || 'ops_secret')
+          .update(JSON.stringify(payload))
+          .digest('hex');
+
+        const webhookRes = await axios.post(webhookUrl, payload, {
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Webhook-Signature': signature,
+            'X-Event-Type': 'OPERATIONS_HANDOFF',
+            ...(webhookSecret ? { Authorization: `Bearer ${webhookSecret}` } : {}),
+          },
+          timeout: 15000,
+        });
+
+        webhookSuccess = true;
+        webhookMessage = `Webhook delivered successfully (HTTP ${webhookRes.status}).`;
+      } catch (whErr) {
+        console.error('[Client Summary] Webhook post error:', whErr.response?.data || whErr.message);
+        return res.status(502).json({
+          error: `Operations Webhook returned an error: ${whErr.response?.data?.message || whErr.message}`,
+        });
+      }
+    } else {
+      webhookMessage = 'Simulated handoff: Operations Webhook URL is not set in Settings. Payload prepared and audit logged.';
+    }
+
+    // 6. Record shared status in summary_data_json
+    summaryData.shared_with_ops_at = nowIso;
+    summaryData.shared_with_ops_by = name || req.appUser?.name || userId;
+
+    await db.execute(
+      `UPDATE contract_client_summaries 
+       SET summary_data_json = ?, updated_at = NOW() 
+       WHERE contract_id = ? AND location_id = ?`,
+      [JSON.stringify(summaryData), contractId, locationId]
+    );
+
+    // 7. Audit Log & GHL Conversation Note Sync
+    const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || '';
+    await logContractAuditAndSync(contract.id, {
+      action: 'SHARED_WITH_OPERATIONS',
+      actorType: 'USER',
+      actorId: userId,
+      actorName: name || req.appUser?.name || userId,
+      fromState: contract.state,
+      toState: contract.state,
+      ipAddress: clientIp,
+      metadata: {
+        sharedAt: nowIso,
+        webhookUrl: webhookUrl || 'Not configured',
+        attachmentsCount: attachments.length,
+        hasSummaryPdf: Boolean(summaryData.summary_pdf_url),
+        hasContractPdf: Boolean(contract.ghl_file_url),
+      },
+      privateToken: req.ghlUser?.privateToken,
+    }).catch(err => console.warn('[Client Summary] Audit sync notice:', err.message));
+
+    res.json({
+      success: true,
+      message: 'All details, signed legal agreement, client summary, and files have been successfully shared with Operations.',
+      sharedAt: nowIso,
+      sharedByName: summaryData.shared_with_ops_by,
+      webhookDelivered: webhookSuccess,
+      webhookNotice: webhookMessage,
+      attachmentsCount: attachments.length,
+      documents: payload.documents,
+    });
+  } catch (err) {
+    console.error('[Client Summary] Share operations error:', err.message);
+    res.status(500).json({ error: 'Failed to share details with Operations: ' + err.message });
   }
 });
 

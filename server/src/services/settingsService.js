@@ -25,6 +25,8 @@ const DEFAULT_SETTINGS = {
   COMPANY_STAMP_URL:             DEFAULT_COMPANY_STAMP,
   COMPANY_SIGNATURE_URL:         DEFAULT_COMPANY_SIGNATURE,
   CLIENT_SUMMARY_CUSTOM_SCHEMA:  JSON.stringify({ sections: [], fields: [] }),
+  OPERATIONS_WEBHOOK_URL:        '',
+  OPERATIONS_WEBHOOK_SECRET:     'ops_secret_dev_123',
 };
 
 class SettingsService {
@@ -92,6 +94,34 @@ class SettingsService {
           description: 'Default authorized officer signature for contracts',
           isSecret: false,
           category: 'branding',
+        });
+      }
+
+      // Ensure OPERATIONS_WEBHOOK_URL is seeded if not present
+      if (!this._cache.has('OPERATIONS_WEBHOOK_URL')) {
+        await db.execute(
+          `INSERT IGNORE INTO system_settings (setting_key, setting_value, description, is_secret, category)
+           VALUES ('OPERATIONS_WEBHOOK_URL', '', 'Outbound Webhook URL to dispatch completed Client Dossiers to Operations team', 0, 'operations')`
+        ).catch(() => {});
+        this._cache.set('OPERATIONS_WEBHOOK_URL', {
+          value: '',
+          description: 'Outbound Webhook URL to dispatch completed Client Dossiers to Operations team',
+          isSecret: false,
+          category: 'operations',
+        });
+      }
+
+      // Ensure OPERATIONS_WEBHOOK_SECRET is seeded if not present
+      if (!this._cache.has('OPERATIONS_WEBHOOK_SECRET')) {
+        await db.execute(
+          `INSERT IGNORE INTO system_settings (setting_key, setting_value, description, is_secret, category)
+           VALUES ('OPERATIONS_WEBHOOK_SECRET', 'ops_secret_dev_123', 'Secret key for signing outbound Operations handoff webhooks (HMAC SHA-256)', 1, 'operations')`
+        ).catch(() => {});
+        this._cache.set('OPERATIONS_WEBHOOK_SECRET', {
+          value: 'ops_secret_dev_123',
+          description: 'Secret key for signing outbound Operations handoff webhooks (HMAC SHA-256)',
+          isSecret: true,
+          category: 'operations',
         });
       }
 
