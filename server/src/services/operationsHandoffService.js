@@ -7,7 +7,7 @@ function createService({db,ghlService,env=process.env,send=fetch}) {
   const c=config();if(!c.enabled)return {queued:false};
   if(!c.url||!c.secret||c.secret.length<32||!c.activation||isNaN(Date.parse(c.activation)))throw new Error('Configure Operations URL, secret and activation date before enabling handoff.');
   if(db.driver!=='MYSQL')throw new Error('Operations handoff requires MySQL.');
-  if(previousStatus==='COMPLETED'||contract.state!=='COMPLETED'&&!contract.signed_at||!contract.ghl_opportunity_id||contract.creation_mode!=='AUTOMATIC')return {queued:false};
+  if(previousStatus==='COMPLETED'||contract.state!=='COMPLETED'&&!contract.signed_at||!contract.ghl_opportunity_id)return {queued:false};
   const created=Date.parse(contract.created_at),activation=Date.parse(c.activation);if(!Number.isFinite(created)||created<activation)return {queued:false};
   const [prior]=await connection.execute("SELECT COUNT(*) AS n FROM contract_instances WHERE location_id=? AND ghl_contact_id=? AND id<>? AND (state='COMPLETED' OR signed_at IS NOT NULL) AND (created_at<? OR (created_at=? AND id<?))",[contract.location_id,contract.ghl_contact_id,contract.id,contract.created_at,contract.created_at,contract.id]);if(prior[0].n)return {queued:false};
   const eventId='summary-'+createHash('sha256').update(contract.location_id+':'+contract.id).digest('hex');
