@@ -13,7 +13,7 @@ OPERATIONS_ACTIVATION_DATE=2026-10-14
 
 Use MySQL for this handoff. The service creates operations_summary_outbox at startup when enabled. Summary completion and outbox insertion commit together. Delivery runs every minute with HMAC signatures, stable event IDs and retry/backoff. Pipeline identity is resolved through the existing location-scoped GHL service. Failed records remain in the outbox with their reason; skipped receiver results are retained as SKIPPED.
 
-Source gates: automatic contract, signed/completed contract, source contract created on/after activation, opportunity present, first completed summary transition, and no earlier signed/completed contract for the same contact. Existing historical summaries are not scanned or backfilled. Operations also independently validates the activation date, approved pipelines and new-client/procedure flags.
+Source gates: signed/completed contract, source contract created on/after activation, opportunity present, first completed summary transition, and no earlier signed/completed contract for the same contact. Existing historical summaries are not scanned or backfilled. Operations also independently validates the activation date, approved pipelines and new-client/procedure flags.
 
 If your new-client eligibility policy differs, update these explicit source gates before enabling. For a separate Operations GHL location, implement source-to-Operations contact mapping first; otherwise use the same location/contact identity.
 
