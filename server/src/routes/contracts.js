@@ -761,11 +761,57 @@ router.patch('/:id/form', requirePermission('contract:form:submit'), async (req,
       return res.status(409).json({ error: `Cannot edit form on contract in state: ${contract.state}` });
     }
 
-    // Save form_response_json (non-GHL values stay here)
+    // Save form_response_json and form_data_json (non-GHL values stay here)
     await db.execute(
-      'UPDATE contract_instances SET form_response_json = ?, updated_at = NOW() WHERE id = ?',
-      [JSON.stringify(formResponse), contract.id]
+      'UPDATE contract_instances SET form_response_json = ?, form_data_json = ?, updated_at = NOW() WHERE id = ?',
+      [JSON.stringify(formResponse), JSON.stringify(formResponse), contract.id]
     );
+
+    // Rebuild snapshot for DRAFT or AWAITING_FORM contracts so preview tab stays updated
+    if (contract.state === 'DRAFT' || contract.state === 'AWAITING_FORM') {
+      try {
+        const [cRows] = await db.execute(
+          `SELECT ct.id, ct.name, ct.current_version, ct.document_schema_json, ct.conditional_rules_json,
+                  cf.schema_json AS form_schema_json
+           FROM contract_instances ci
+           JOIN contract_templates ct ON ct.id = ci.template_id
+           LEFT JOIN contract_forms cf ON cf.id = ct.form_id
+           WHERE ci.id = ?`,
+          [contract.id]
+        );
+        if (cRows.length) {
+          const tRow = cRows[0];
+          const formSchema = typeof tRow.form_schema_json === 'string'
+            ? JSON.parse(tRow.form_schema_json)
+            : (tRow.form_schema_json || { fields: [] });
+          const templateObj = {
+            id: tRow.id,
+            name: tRow.name,
+            current_version: tRow.current_version,
+            document_schema_json: typeof tRow.document_schema_json === 'string'
+              ? JSON.parse(tRow.document_schema_json)
+              : tRow.document_schema_json,
+            conditional_rules_json: tRow.conditional_rules_json,
+          };
+          const built = await snapshotService.buildSnapshot({
+            contractInstanceId: contract.id,
+            template: templateObj,
+            formSchema,
+            formResponse,
+            locationId,
+            ghlContactId: contract.ghl_contact_id,
+            ghlOpportunityId: contract.ghl_opportunity_id || null,
+            assignedUserId: contract.assigned_user_id,
+            privateToken: req.ghlUser?.privateToken,
+          });
+          if (built?.snapshot) {
+            await db.execute('UPDATE contract_instances SET snapshot_json = ? WHERE id = ?', [JSON.stringify(built.snapshot), contract.id]);
+          }
+        }
+      } catch (sErr) {
+        console.warn('[Contracts] Snapshot rebuild on form update notice:', sErr.message);
+      }
+    }
 
     // Batch update GHL Contact/Opportunity fields if provided (debounced by frontend)
     if (ghlFields?.contact && Object.keys(ghlFields.contact).length) {

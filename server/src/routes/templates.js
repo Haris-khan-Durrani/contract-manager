@@ -188,7 +188,7 @@ router.get('/', async (req, res) => {
     let [templates] = await db.execute(
       `SELECT ct.id, ct.name, ct.contract_type, ct.current_version, ct.is_active,
               ct.validity_days, ct.created_at, ct.updated_at, ct.form_id,
-              cf.name AS form_name
+              cf.name AS form_name, cf.schema_json AS form_schema
        FROM contract_templates ct
        LEFT JOIN contract_forms cf ON cf.id = ct.form_id
        WHERE (ct.location_id = ? 
@@ -207,7 +207,7 @@ router.get('/', async (req, res) => {
       [templates] = await db.execute(
         `SELECT ct.id, ct.name, ct.contract_type, ct.current_version, ct.is_active,
                 ct.validity_days, ct.created_at, ct.updated_at, ct.form_id,
-                cf.name AS form_name
+                cf.name AS form_name, cf.schema_json AS form_schema
          FROM contract_templates ct
          LEFT JOIN contract_forms cf ON cf.id = ct.form_id
          WHERE (ct.location_id = ? 

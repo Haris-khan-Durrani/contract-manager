@@ -179,9 +179,20 @@
               <div v-if="selectedTemplate" class="linked-form-banner animate-fade-in" style="margin-top: 14px;">
                 <div class="linked-form-icon">📋</div>
                 <div class="linked-form-content">
-                  <span class="linked-form-label">Attached Legal Form:</span>
-                  <strong>{{ selectedTemplate.form_name || 'Standard Client Intake Form' }}</strong>
-                  <small>Schedule One and commercial variables will be populated from your entries below.</small>
+                  <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <span class="linked-form-label">Attached Legal Intake Form:</span>
+                    <strong>{{ selectedTemplate.form_name || 'Standard Client Intake Form' }}</strong>
+                    <span v-if="templateFormFields.length" class="badge badge-success badge-xs">
+                      {{ templateFormFields.length }} Dynamic Field{{ templateFormFields.length === 1 ? '' : 's' }}
+                    </span>
+                    <span v-else class="badge badge-neutral badge-xs">Standard Fields</span>
+                  </div>
+                  <small v-if="templateFormFields.length">
+                    All {{ templateFormFields.length }} intake specifications are brought in front below (Section 3) and automatically saved to the contract workspace.
+                  </small>
+                  <small v-else>
+                    Schedule One and commercial variables will be populated from your entries below.
+                  </small>
                 </div>
                 <span class="badge badge-success badge-xs">Auto-Linked</span>
               </div>
@@ -195,7 +206,7 @@
                 <span class="section-icon">🔍</span>
                 <div>
                   <h3 class="section-title">2. Find GoHighLevel Lead / Contact</h3>
-                  <p class="section-sub">Search and select a contact to automatically fill the applicant details below.</p>
+                  <p class="section-sub">Search and select a contact to automatically fill applicant &amp; intake details below.</p>
                 </div>
               </div>
 
@@ -274,12 +285,174 @@
 
             <div class="section-divider"></div>
 
-            <!-- SECTION 3: Main Applicant: 1 (Schedule One) -->
+            <!-- SECTION 3: Template Intake & Specifications Form -->
+            <div class="card-section">
+              <div class="section-title-wrap">
+                <span class="section-icon">📋</span>
+                <div style="flex: 1;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                    <h3 class="section-title">
+                      3. Template Intake Specifications
+                      <span v-if="selectedTemplate?.form_name" style="font-weight: 600; color: #4f46e5; font-size: 0.92rem; margin-left: 6px;">
+                        ({{ selectedTemplate.form_name }})
+                      </span>
+                    </h3>
+                    <div style="display: flex; gap: 6px; align-items: center;" v-if="selectedTemplate">
+                      <span v-if="templateFormFields.length" class="badge badge-primary badge-xs">
+                        {{ completedIntakeFieldsCount }}/{{ templateFormFields.length }} Completed
+                      </span>
+                      <span v-if="selectedTemplate.form_name" class="badge badge-success badge-xs">Auto-Linked</span>
+                    </div>
+                  </div>
+                  <p class="section-sub">
+                    Intake specifications linked to this template. Completed values are automatically embedded into the agreement and saved directly to the contract workspace (Tab 1).
+                  </p>
+                </div>
+              </div>
+
+              <!-- When no template selected yet -->
+              <div v-if="!selectedTemplate" class="empty-intake-banner animate-fade-in">
+                <span style="font-size: 1.3rem;">📋</span>
+                <div>
+                  <strong>No Template Selected</strong>
+                  <p style="margin: 2px 0 0; font-size: 0.82rem; color: #64748b;">
+                    Select an agreement template in Step 1 to load its dynamic intake specifications here.
+                  </p>
+                </div>
+              </div>
+
+              <!-- Loading Indicator -->
+              <div v-else-if="loadingTemplateForm" class="intake-loading-card">
+                <div class="spinner-inline">Loading template intake fields…</div>
+              </div>
+
+              <!-- Template Has Form Fields -->
+              <div v-else-if="templateFormFields.length" class="intake-form-box-card animate-fade-in">
+                <div class="intake-form-grid">
+                  <div
+                    v-for="f in templateFormFields"
+                    :key="f.id || f.key"
+                    class="form-group"
+                    :class="{
+                      'full-col': f.type === 'textarea' || f.width === 'full' || f.type === 'file',
+                      'half-col': f.width === 'half'
+                    }"
+                  >
+                    <div class="field-label-row">
+                      <label class="field-label">
+                        {{ f.label }}
+                        <span v-if="f.required" class="req">*</span>
+                        <span v-if="f.ghlFieldId" class="badge badge-info badge-xs" style="margin-left: 4px;" title="Mapped to GoHighLevel Contact Field">GHL</span>
+                      </label>
+                      <span v-if="formResponses[f.key]" class="field-filled-indicator">✓</span>
+                    </div>
+
+                    <!-- Text / Number / Currency / Date / Phone / Email -->
+                    <div v-if="['text', 'number', 'currency', 'date', 'phone', 'email'].includes(f.type)" class="input-with-icon-wrap">
+                      <span v-if="f.type === 'currency'" class="input-addon-currency">$</span>
+                      <input
+                        :type="f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : f.type === 'email' ? 'email' : f.type === 'phone' ? 'tel' : 'text'"
+                        v-model="formResponses[f.key]"
+                        class="form-control"
+                        :class="{ 'has-currency-addon': f.type === 'currency' }"
+                        :placeholder="f.placeholder || (f.type === 'currency' ? 'e.g. 5,000 USD' : '')"
+                        @input="onIntakeFieldInput(f.key, $event.target.value)"
+                      />
+                    </div>
+
+                    <!-- Textarea -->
+                    <textarea
+                      v-else-if="f.type === 'textarea'"
+                      v-model="formResponses[f.key]"
+                      class="form-control"
+                      rows="3"
+                      :placeholder="f.placeholder"
+                      @input="onIntakeFieldInput(f.key, $event.target.value)"
+                    ></textarea>
+
+                    <!-- Dropdown -->
+                    <select
+                      v-else-if="f.type === 'dropdown' || f.type === 'select'"
+                      v-model="formResponses[f.key]"
+                      class="form-control form-select"
+                      @change="onIntakeFieldInput(f.key, $event.target.value)"
+                    >
+                      <option value="">{{ f.placeholder || '-- Select an option --' }}</option>
+                      <option
+                        v-for="(opt, oi) in (f.options || [])"
+                        :key="oi"
+                        :value="typeof opt === 'object' ? (opt.value ?? opt.label) : opt"
+                      >
+                        {{ typeof opt === 'object' ? (opt.label ?? opt.value) : opt }}
+                      </option>
+                    </select>
+
+                    <!-- Radio -->
+                    <div v-else-if="f.type === 'radio'" class="radio-chip-group">
+                      <label
+                        v-for="(opt, oi) in (f.options || [])"
+                        :key="oi"
+                        class="radio-chip"
+                        :class="{ active: formResponses[f.key] === (typeof opt === 'object' ? (opt.value ?? opt.label) : opt) }"
+                      >
+                        <input
+                          type="radio"
+                          :name="'radio_' + (f.id || f.key)"
+                          :value="typeof opt === 'object' ? (opt.value ?? opt.label) : opt"
+                          v-model="formResponses[f.key]"
+                          @change="onIntakeFieldInput(f.key, formResponses[f.key])"
+                        />
+                        <span>{{ typeof opt === 'object' ? (opt.label ?? opt.value) : opt }}</span>
+                      </label>
+                    </div>
+
+                    <!-- Checkbox -->
+                    <label v-else-if="f.type === 'checkbox'" class="check-label" style="margin-top: 6px;">
+                      <input
+                        type="checkbox"
+                        v-model="formResponses[f.key]"
+                        @change="onIntakeFieldInput(f.key, formResponses[f.key])"
+                      />
+                      <span>{{ f.placeholder || f.label }}</span>
+                    </label>
+
+                    <!-- Fallback Input -->
+                    <input
+                      v-else
+                      type="text"
+                      v-model="formResponses[f.key]"
+                      class="form-control"
+                      :placeholder="f.placeholder"
+                      @input="onIntakeFieldInput(f.key, $event.target.value)"
+                    />
+
+                    <small v-if="f.helpText" class="text-muted" style="display:block; margin-top:4px; font-size:0.75rem;">
+                      {{ f.helpText }}
+                    </small>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Notice when no specific intake form fields -->
+              <div v-else class="empty-intake-banner animate-fade-in">
+                <span style="font-size: 1.2rem;">ℹ️</span>
+                <div>
+                  <strong>No custom intake questions attached to "{{ selectedTemplate.name }}".</strong>
+                  <p style="margin: 2px 0 0; font-size: 0.8rem; color: #64748b;">
+                    Standard Schedule One applicant details and commercial terms below will be used for this contract.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div class="section-divider"></div>
+
+            <!-- SECTION 4: Main Applicant: 1 (Schedule One) -->
             <div class="card-section">
               <div class="section-title-wrap">
                 <span class="section-icon">👤</span>
                 <div>
-                  <h3 class="section-title">3. Schedule One: Main Applicant 1 Details</h3>
+                  <h3 class="section-title">4. Schedule One: Main Applicant 1 Details</h3>
                   <p class="section-sub">Details populated into Schedule One of the contract.</p>
                 </div>
               </div>
@@ -374,12 +547,12 @@
 
             <div class="section-divider"></div>
 
-            <!-- SECTION 4: Application Type & Additional Team Applicants (Repeater) -->
+            <!-- SECTION 5: Application Type & Additional Team Applicants (Repeater) -->
             <div class="card-section">
               <div class="section-title-wrap">
                 <span class="section-icon">👥</span>
                 <div>
-                  <h3 class="section-title">4. Application Mode & Group Applicants</h3>
+                  <h3 class="section-title">5. Application Mode &amp; Group Applicants</h3>
                   <p class="section-sub">Select Individual for a single applicant, or Team to add Main Applicant 2, 3, etc. into Schedule One.</p>
                 </div>
               </div>
@@ -537,12 +710,12 @@
 
             <div class="section-divider"></div>
 
-            <!-- SECTION 5: Commercial Terms & Fees (Rich Text Editor) -->
+            <!-- SECTION 6: Commercial Terms & Fees (Rich Text Editor) -->
             <div class="card-section">
               <div class="section-title-wrap">
                 <span class="section-icon">💼</span>
                 <div>
-                  <h3 class="section-title">5. Commercial Terms &amp; Fees (Schedule Three)</h3>
+                  <h3 class="section-title">6. Commercial Terms &amp; Fees (Schedule Three)</h3>
                   <p class="section-sub">Use the rich editor below to format professional fees, milestones, tables, and payment conditions.</p>
                 </div>
               </div>
@@ -610,12 +783,12 @@
 
             <div class="section-divider"></div>
 
-            <!-- SECTION 6: Client Signature Controls -->
+            <!-- SECTION 7: Client Signature Controls -->
             <div class="card-section">
               <div class="section-title-wrap">
                 <span class="section-icon">✍️</span>
                 <div>
-                  <h3 class="section-title">6. Client Signature Controls</h3>
+                  <h3 class="section-title">7. Client Signature Controls</h3>
                   <p class="section-sub">Configure permitted signature methods for the client (public link validity defaults to 1 day).</p>
                 </div>
               </div>
@@ -680,6 +853,18 @@
                   {{ form.formMode === 'TEAM' ? `👥 Team (${teamMembers.length + 1} Applicants)` : '👤 Individual (1 Applicant)' }}
                 </span>
               </div>
+              <div class="summary-row" v-if="selectedTemplate?.form_name">
+                <span class="summary-k">Intake Form:</span>
+                <strong class="summary-v" style="color: #4f46e5; max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  📋 {{ selectedTemplate.form_name }}
+                </strong>
+              </div>
+              <div class="summary-row" v-if="templateFormFields.length">
+                <span class="summary-k">Intake Fields:</span>
+                <span class="summary-v">
+                  <strong style="color: #16a34a;">{{ completedIntakeFieldsCount }}</strong> / {{ templateFormFields.length }} filled
+                </span>
+              </div>
               <div class="summary-row">
                 <span class="summary-k">Main Applicant: 1</span>
                 <strong class="summary-v">{{ form.recipientName || '—' }}</strong>
@@ -710,6 +895,10 @@
               <div class="check-item" :class="{ ok: form.recipientName && form.recipientEmail }">
                 <span class="check-bullet">{{ (form.recipientName && form.recipientEmail) ? '✓' : '○' }}</span>
                 <span>Applicant 1 Name & Email filled</span>
+              </div>
+              <div v-if="requiredIntakeFieldsCount > 0" class="check-item" :class="{ ok: allRequiredIntakeFilled }">
+                <span class="check-bullet">{{ allRequiredIntakeFilled ? '✓' : '○' }}</span>
+                <span>Required intake completed ({{ filledRequiredIntakeCount }}/{{ requiredIntakeFieldsCount }})</span>
               </div>
               <div class="check-item" :class="{ ok: atLeastOneSignatureMethod }">
                 <span class="check-bullet">{{ atLeastOneSignatureMethod ? '✓' : '○' }}</span>
@@ -982,6 +1171,11 @@ const templateSearch             = ref('')
 const showTemplateDropdown       = ref(false)
 const templateSearchContainerRef = ref(null)
 
+// Dynamic Intake Form (loaded based on selectedTemplate)
+const templateFormFields           = ref([])
+const templateFormSections         = ref([])
+const loadingTemplateForm          = ref(false)
+
 // Location Users / Staff Members
 const locationUsers        = ref([])
 const loadingUsers         = ref(false)
@@ -1063,6 +1257,30 @@ const canCreate = computed(() => {
   )
 })
 
+const completedIntakeFieldsCount = computed(() => {
+  return templateFormFields.value.filter(f => {
+    const val = formResponses.value[f.key]
+    return val !== undefined && val !== null && String(val).trim() !== ''
+  }).length
+})
+
+const requiredIntakeFieldsCount = computed(() => {
+  return templateFormFields.value.filter(f => f.required).length
+})
+
+const filledRequiredIntakeCount = computed(() => {
+  return templateFormFields.value.filter(f => {
+    if (!f.required) return false
+    const val = formResponses.value[f.key]
+    return val !== undefined && val !== null && String(val).trim() !== ''
+  }).length
+})
+
+const allRequiredIntakeFilled = computed(() => {
+  if (requiredIntakeFieldsCount.value === 0) return true
+  return filledRequiredIntakeCount.value >= requiredIntakeFieldsCount.value
+})
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function getHeaders() {
   const token = auth.sessionToken || auth.token || localStorage.getItem('contract_auth_token') || ''
@@ -1095,6 +1313,7 @@ async function loadTemplates() {
       if (found) {
         selectedTemplate.value = found
         templateSearch.value = found.name
+        loadTemplateIntakeForm(found)
       }
     }
   } catch (e) {
@@ -1166,6 +1385,154 @@ function openTemplatePicker() {
   showTemplateDropdown.value = true
 }
 
+// ─── Dynamic Template Intake Form Loaders & Sync ───────────────────────────────
+async function loadTemplateIntakeForm(t) {
+  templateFormFields.value = []
+  templateFormSections.value = []
+  if (!t) return
+
+  loadingTemplateForm.value = true
+  try {
+    let rawSchema = t.form_schema
+    let formObj = null
+
+    // If schema is not directly on template, check loaded forms list
+    if (!rawSchema && t.form_id && forms.value?.length) {
+      formObj = forms.value.find(f => f.id === t.form_id)
+      if (formObj?.schema_json) {
+        rawSchema = formObj.schema_json
+      }
+    }
+
+    // If still not found and template has form_id, fetch form directly
+    if (!rawSchema && t.form_id) {
+      try {
+        const res = await api.get(`/forms/${t.form_id}`, { headers: getHeaders() })
+        if (res.data?.form?.schema_json) {
+          rawSchema = res.data.form.schema_json
+        }
+      } catch (err) {
+        console.warn('Could not fetch form schema for form_id:', t.form_id, err.message)
+      }
+    }
+
+    // Parse schema
+    if (rawSchema) {
+      const parsed = typeof rawSchema === 'string' ? JSON.parse(rawSchema) : rawSchema
+      let fields = []
+
+      if (Array.isArray(parsed.fields) && parsed.fields.length) {
+        fields = parsed.fields
+      } else if (Array.isArray(parsed.sections) && parsed.sections.length) {
+        templateFormSections.value = parsed.sections
+        fields = parsed.sections.flatMap(sec => (sec.fields || []).map(f => ({ ...f, sectionTitle: sec.title })))
+      }
+
+      templateFormFields.value = fields
+
+      // Initialize defaults for any missing keys in formResponses
+      fields.forEach(f => {
+        if (!f.key) return
+        if (formResponses.value[f.key] === undefined || formResponses.value[f.key] === null) {
+          if (f.type === 'checkbox') {
+            formResponses.value[f.key] = false
+          } else if (f.defaultValue !== undefined && f.defaultValue !== null) {
+            formResponses.value[f.key] = f.defaultValue
+          } else {
+            formResponses.value[f.key] = ''
+          }
+        }
+      })
+
+      // If a GHL contact is already selected, prefill matching fields
+      if (selectedContact.value) {
+        autoFillIntakeFromContact(selectedContact.value, fields)
+      }
+    }
+  } catch (e) {
+    console.error('Error loading template intake form schema:', e)
+  } finally {
+    loadingTemplateForm.value = false
+  }
+}
+
+function autoFillIntakeFromContact(c, fields = templateFormFields.value) {
+  if (!c) return
+  const fullName = c.name || `${c.firstName || ''} ${c.lastName || ''}`.trim()
+  const email = c.email || ''
+  const phone = c.phone || ''
+  const company = c.companyName || ''
+  const address = c.address1 || c.address || ''
+  const dob = c.dateOfBirth || ''
+
+  // Build custom fields lookup map from GHL contact
+  const customMap = {}
+  if (Array.isArray(c.customFields)) {
+    c.customFields.forEach(cf => {
+      if (cf.id) customMap[cf.id] = cf.value
+      if (cf.fieldKey) customMap[cf.fieldKey] = cf.value
+      if (cf.name) customMap[cf.name.toLowerCase().replace(/[^a-z0-9]/g, '_')] = cf.value
+    })
+  }
+
+  (fields || []).forEach(f => {
+    if (!f.key) return
+    const curVal = formResponses.value[f.key]
+    const isEmpty = curVal === undefined || curVal === null || curVal === ''
+
+    if (f.key === 'client_name' && fullName) {
+      formResponses.value['client_name'] = fullName
+      if (!form.value.recipientName) form.value.recipientName = fullName
+    } else if (f.key === 'client_email' && email) {
+      formResponses.value['client_email'] = email
+      if (!form.value.recipientEmail) form.value.recipientEmail = email
+    } else if (f.key === 'phone' && phone) {
+      formResponses.value['phone'] = phone
+      if (!form.value.recipientPhone) form.value.recipientPhone = phone
+    } else if (f.key === 'company_name' && company && isEmpty) {
+      formResponses.value['company_name'] = company
+    } else if (f.key === 'address' && address && isEmpty) {
+      formResponses.value['address'] = address
+    } else if (f.key === 'date_of_birth' && dob && isEmpty) {
+      formResponses.value['date_of_birth'] = dob
+    }
+
+    // Check by ghlFieldId mapping
+    if (f.ghlFieldId && isEmpty) {
+      if (f.ghlFieldId === 'contact.name') {
+        formResponses.value[f.key] = fullName
+      } else if (f.ghlFieldId === 'contact.email') {
+        formResponses.value[f.key] = email
+      } else if (f.ghlFieldId === 'contact.phone') {
+        formResponses.value[f.key] = phone
+      } else if (f.ghlFieldId === 'contact.companyName') {
+        formResponses.value[f.key] = company
+      } else if (f.ghlFieldId === 'contact.address1') {
+        formResponses.value[f.key] = address
+      } else if (f.ghlFieldId === 'contact.dateOfBirth') {
+        formResponses.value[f.key] = dob
+      } else if (customMap[f.ghlFieldId] !== undefined) {
+        formResponses.value[f.key] = customMap[f.ghlFieldId]
+      } else {
+        const cleanGhlId = f.ghlFieldId.replace(/^contact\./, '').replace(/^customField_/, '')
+        if (customMap[cleanGhlId] !== undefined) formResponses.value[f.key] = customMap[cleanGhlId]
+      }
+    }
+  })
+}
+
+function onIntakeFieldInput(key, val) {
+  formResponses.value[key] = val
+  if (key === 'client_name') {
+    form.value.recipientName = val
+  } else if (key === 'client_email') {
+    form.value.recipientEmail = val
+  } else if (key === 'phone') {
+    form.value.recipientPhone = val
+  }
+}
+
+// ─── Template Selection ──────────────────────────────────────────────────────
 function selectTemplate(t) {
   form.value.templateId = t.id
   selectedTemplate.value = t
@@ -1173,6 +1540,7 @@ function selectTemplate(t) {
   if (t?.form_id) form.value.formId = t.form_id
   templateSearch.value = t.name
   showTemplateDropdown.value = false
+  loadTemplateIntakeForm(t)
 }
 
 function onTemplateChange() {
@@ -1180,7 +1548,13 @@ function onTemplateChange() {
   selectedTemplate.value = t || null
   form.value.validityDays = 1
   if (t?.form_id) form.value.formId = t.form_id
-  if (t) templateSearch.value = t.name
+  if (t) {
+    templateSearch.value = t.name
+    loadTemplateIntakeForm(t)
+  } else {
+    templateFormFields.value = []
+    templateFormSections.value = []
+  }
 }
 
 // ─── Contact Search ───────────────────────────────────────────────────────────
@@ -1231,6 +1605,9 @@ function selectContact(c) {
   formResponses.value['phone']        = c.phone || ''
   if (c.companyName) formResponses.value['company_name'] = c.companyName
   if (c.monetaryValue) formResponses.value['contract_value'] = String(c.monetaryValue)
+
+  // Autofill dynamic template intake form fields
+  autoFillIntakeFromContact(c)
 }
 
 function clearContact() {
@@ -1407,6 +1784,9 @@ function resetForm() {
   selectedTemplate.value = null
   templateSearch.value = ''
   showTemplateDropdown.value = false
+  templateFormFields.value = []
+  templateFormSections.value = []
+  loadingTemplateForm.value = false
 }
 
 // ─── Lifecycle ────────────────────────────────────────────────────────────────
@@ -2538,6 +2918,123 @@ onUnmounted(() => {
   background: #f8fafc;
   border-radius: 10px;
   border: 1px dashed #cbd5e1;
+}
+
+/* ── Dynamic Template Intake Form Styling ── */
+.intake-form-box-card {
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 22px;
+  position: relative;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.intake-form-box-card:hover {
+  border-color: #cbd5e1;
+}
+
+.intake-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+@media (min-width: 1200px) {
+  .intake-form-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.field-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.field-filled-indicator {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #16a34a;
+  background: #dcfce7;
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
+.input-with-icon-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-addon-currency {
+  position: absolute;
+  left: 12px;
+  font-weight: 700;
+  color: #64748b;
+  pointer-events: none;
+}
+
+.has-currency-addon {
+  padding-left: 26px !important;
+}
+
+.radio-chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.radio-chip {
+  padding: 6px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 8px;
+  color: #334155;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.radio-chip input[type="radio"] {
+  margin: 0;
+  accent-color: #4f46e5;
+}
+
+.radio-chip:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+.radio-chip.active {
+  border-color: #4f46e5;
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+.empty-intake-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+  color: #334155;
+}
+
+.intake-loading-card {
+  padding: 24px;
+  text-align: center;
+  background: #f8fafc;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
 }
 
 @media (max-width: 1024px) {
