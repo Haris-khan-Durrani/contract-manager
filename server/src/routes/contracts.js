@@ -28,6 +28,7 @@ const settingsService  = require('../services/settingsService');
 const pdfService       = require('../services/pdfService');
 const { getClientIp }  = require('../utils/ipHelper');
 const { logContractAuditAndSync } = require('../services/auditSyncService');
+const { toIsoUtcString }          = require('../utils/dateHelper');
 
 // Apply auth to all routes in this router
 router.use(ghlAuthMiddleware, loadAppUser);
@@ -116,7 +117,15 @@ router.get('/', async (req, res) => {
       [...params, parseInt(limit), offset]
     );
 
-    res.json({ contracts, page: parseInt(page), limit: parseInt(limit) });
+    const normalizedContracts = (contracts || []).map(ci => ({
+      ...ci,
+      created_at:       toIsoUtcString(ci.created_at),
+      updated_at:       toIsoUtcString(ci.updated_at),
+      token_expires_at: toIsoUtcString(ci.token_expires_at),
+      signed_at:        toIsoUtcString(ci.signed_at),
+    }));
+
+    res.json({ contracts: normalizedContracts, page: parseInt(page), limit: parseInt(limit) });
   } catch (err) {
     console.error('[Contracts] List error:', err.message);
     res.status(500).json({ error: 'Failed to list contracts.' });
@@ -248,14 +257,31 @@ router.get('/:id', async (req, res) => {
       contract.snapshot_json = snapshot;
     }
 
+    // Normalize all contract timestamps to strict UTC ISO strings
+    contract.created_at       = toIsoUtcString(contract.created_at);
+    contract.updated_at       = toIsoUtcString(contract.updated_at);
+    contract.token_expires_at = toIsoUtcString(contract.token_expires_at);
+    contract.signed_at        = toIsoUtcString(contract.signed_at);
+    contract.completed_at     = toIsoUtcString(contract.completed_at);
+
+    const normalizedEvents = (events || []).map(e => ({
+      ...e,
+      created_at: toIsoUtcString(e.created_at),
+    }));
+
+    const normalizedSignatures = (signatures || []).map(s => ({
+      ...s,
+      signed_at: toIsoUtcString(s.signed_at),
+    }));
+
     res.json({
       contract,
       ghlContact,
       ghlOpportunity,
       companySignature,
       companyStamp,
-      events: events || [],
-      signatures: signatures || [],
+      events: normalizedEvents,
+      signatures: normalizedSignatures,
     });
   } catch (err) {
     console.error('[Contracts] Get error:', err.message);
@@ -1193,7 +1219,12 @@ router.get('/:id/audit', async (req, res) => {
       [contract.id]
     );
 
-    res.json({ auditLogs: logs });
+    const normalizedLogs = (logs || []).map(l => ({
+      ...l,
+      created_at: toIsoUtcString(l.created_at),
+    }));
+
+    res.json({ auditLogs: normalizedLogs });
   } catch (err) {
     console.error('[Contracts] Audit error:', err.message);
     res.status(500).json({ error: 'Failed to get audit trail.' });
@@ -1258,7 +1289,7 @@ router.get('/:id/events', async (req, res) => {
         actorName: e.actor_name,
         ipAddress: e.ip_address,
         metadata:  e.metadata_json ? (typeof e.metadata_json === 'string' ? JSON.parse(e.metadata_json) : e.metadata_json) : {},
-        createdAt: e.created_at,
+        createdAt: toIsoUtcString(e.created_at),
       })),
       ...auditLogs.map(a => ({
         source:    a.source,
@@ -1266,7 +1297,7 @@ router.get('/:id/events', async (req, res) => {
         actorName: a.actor_name,
         ipAddress: a.ip_address,
         metadata:  a.metadata_json ? (typeof a.metadata_json === 'string' ? JSON.parse(a.metadata_json) : a.metadata_json) : {},
-        createdAt: a.created_at,
+        createdAt: toIsoUtcString(a.created_at),
       })),
     ];
 
@@ -1280,7 +1311,7 @@ router.get('/:id/events', async (req, res) => {
         actorName: summary.completed_by_name || summary.completed_by_user_id || 'Staff User',
         ipAddress: null,
         metadata: { status: summary.status, summaryId: summary.id },
-        createdAt: isCompleted ? (summary.completed_at || summary.updated_at || summary.created_at) : (summary.updated_at || summary.created_at),
+        createdAt: toIsoUtcString(isCompleted ? (summary.completed_at || summary.updated_at || summary.created_at) : (summary.updated_at || summary.created_at)),
       });
     } else if (['COMPLETED', 'SIGNED', 'SIGNED_PENDING_STORAGE'].includes(contract.state)) {
       // Contract completed but client summary not yet filled
@@ -1290,7 +1321,7 @@ router.get('/:id/events', async (req, res) => {
         actorName: 'Awaiting Staff Review',
         ipAddress: null,
         metadata: { status: 'PENDING', contractId: contract.id },
-        createdAt: contract.completed_at || contract.signed_at || new Date().toISOString(),
+        createdAt: toIsoUtcString(contract.completed_at || contract.signed_at || new Date().toISOString()),
       });
     }
 

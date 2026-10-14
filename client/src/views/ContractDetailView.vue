@@ -1602,9 +1602,29 @@ function formatAuditAction(action) {
   return map[action] || action
 }
 
+function parseSafeDate(d) {
+  if (!d) return null
+  if (d instanceof Date) return isNaN(d.getTime()) ? null : d
+  if (typeof d === 'string') {
+    let s = d.trim()
+    if (!s) return null
+    // If it's a bare SQL string like "2026-10-14 21:15:27" or "2026-10-14T21:15:27" without timezone indicator
+    if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(\.\d+)?$/.test(s)) {
+      s = s.replace(' ', 'T') + (s.includes('Z') ? '' : 'Z')
+    }
+    const parsed = new Date(s)
+    if (!isNaN(parsed.getTime())) return parsed
+  }
+  const fallback = new Date(d)
+  return isNaN(fallback.getTime()) ? null : fallback
+}
+
 function formatDate(d) {
   if (!d) return ''
-  return new Date(d).toLocaleDateString('en-US', {
+  const date = parseSafeDate(d)
+  if (!date) return ''
+  return date.toLocaleDateString('en-US', {
+    timeZone: UAE_TIMEZONE,
     month: 'short',
     day: 'numeric',
     year: 'numeric',
@@ -1613,7 +1633,9 @@ function formatDate(d) {
 
 function formatRelativeDate(d) {
   if (!d) return ''
-  const diff = Date.now() - new Date(d).getTime()
+  const date = parseSafeDate(d)
+  if (!date) return ''
+  const diff = Date.now() - date.getTime()
   const days = Math.floor(diff / (1000 * 60 * 60 * 24))
   if (days === 0) return 'Today'
   if (days === 1) return 'Yesterday'
@@ -1688,8 +1710,8 @@ const isUaeTimeSameAsClient = computed(() => {
 function formatUaeDateTime(d) {
   if (!d) return ''
   try {
-    const date = new Date(d)
-    if (isNaN(date.getTime())) return String(d)
+    const date = parseSafeDate(d)
+    if (!date) return String(d)
     return date.toLocaleString('en-US', {
       timeZone: UAE_TIMEZONE,
       month: 'short',
@@ -1707,8 +1729,8 @@ function formatUaeDateTime(d) {
 function formatClientDateTime(d) {
   if (!d) return ''
   try {
-    const date = new Date(d)
-    if (isNaN(date.getTime())) return String(d)
+    const date = parseSafeDate(d)
+    if (!date) return String(d)
     return date.toLocaleString('en-US', {
       timeZone: activeClientTz.value,
       month: 'short',
@@ -1726,8 +1748,8 @@ function formatClientDateTime(d) {
 function formatGmtDateTime(d) {
   if (!d) return ''
   try {
-    const date = new Date(d)
-    if (isNaN(date.getTime())) return ''
+    const date = parseSafeDate(d)
+    if (!date) return ''
     return date.toLocaleString('en-US', {
       timeZone: 'UTC',
       month: 'short',
@@ -1744,7 +1766,7 @@ function formatGmtDateTime(d) {
 
 function clientTzAbbr(d) {
   try {
-    const date = d ? new Date(d) : new Date()
+    const date = d ? (parseSafeDate(d) || new Date()) : new Date()
     const parts = new Intl.DateTimeFormat('en-US', { timeZone: activeClientTz.value, timeZoneName: 'short' }).formatToParts(date)
     return parts.find(p => p.type === 'timeZoneName')?.value || activeClientTz.value
   } catch {

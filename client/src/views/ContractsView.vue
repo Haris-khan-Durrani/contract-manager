@@ -615,10 +615,28 @@ function clearAllFilters() {
   sortBy.value = 'NEWEST'
 }
 
+const UAE_TIMEZONE = 'Asia/Dubai'
+
+function parseSafeDate(d) {
+  if (!d) return null
+  if (d instanceof Date) return isNaN(d.getTime()) ? null : d
+  if (typeof d === 'string') {
+    let s = d.trim()
+    if (!s) return null
+    if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(\.\d+)?$/.test(s)) {
+      s = s.replace(' ', 'T') + (s.includes('Z') ? '' : 'Z')
+    }
+    const parsed = new Date(s)
+    if (!isNaN(parsed.getTime())) return parsed
+  }
+  const fallback = new Date(d)
+  return isNaN(fallback.getTime()) ? null : fallback
+}
+
 function isInDateRange(dateStr) {
   if (!dateStr || filterDateRange.value === 'ALL') return true
-  const d = new Date(dateStr)
-  if (isNaN(d.getTime())) return true
+  const d = parseSafeDate(dateStr)
+  if (!d) return true
 
   const now = new Date()
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
@@ -677,7 +695,7 @@ const filteredContracts = computed(() => {
 
   list = [...list].sort((a, b) => {
     if (sortBy.value === 'OLDEST') {
-      return new Date(a.created_at || 0) - new Date(b.created_at || 0)
+      return (parseSafeDate(a.created_at)?.getTime() || 0) - (parseSafeDate(b.created_at)?.getTime() || 0)
     }
     if (sortBy.value === 'ID_DESC') {
       return Number(b.id) - Number(a.id)
@@ -688,7 +706,7 @@ const filteredContracts = computed(() => {
     if (sortBy.value === 'NAME_ASC') {
       return (a.recipient_name || '').localeCompare(b.recipient_name || '')
     }
-    return new Date(b.updated_at || b.created_at || 0) - new Date(a.updated_at || a.created_at || 0)
+    return (parseSafeDate(b.updated_at || b.created_at)?.getTime() || 0) - (parseSafeDate(a.updated_at || a.created_at)?.getTime() || 0)
   })
 
   return list
@@ -790,7 +808,10 @@ function getAvatarColor(name) {
 
 function formatDate(d) {
   if (!d) return ''
-  return new Date(d).toLocaleDateString('en-US', {
+  const date = parseSafeDate(d)
+  if (!date) return ''
+  return date.toLocaleDateString('en-US', {
+    timeZone: UAE_TIMEZONE,
     month: 'short',
     day: 'numeric',
     year: 'numeric',
@@ -799,7 +820,9 @@ function formatDate(d) {
 
 function formatRelativeDate(d) {
   if (!d) return ''
-  const diff = Date.now() - new Date(d).getTime()
+  const date = parseSafeDate(d)
+  if (!date) return ''
+  const diff = Date.now() - date.getTime()
   const days = Math.floor(diff / (1000 * 60 * 60 * 24))
   if (days === 0) return 'Today'
   if (days === 1) return 'Yesterday'

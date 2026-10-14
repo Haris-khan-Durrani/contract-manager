@@ -10,6 +10,7 @@
 const express = require('express');
 const router  = express.Router();
 const db      = require('../config/db');
+const { toIsoUtcString } = require('../utils/dateHelper');
 
 // Helper to mask email for privacy
 function maskEmail(email) {
@@ -80,8 +81,8 @@ router.get('/:identifier', async (req, res) => {
       statusLabel: isCompleted ? 'Cryptographically Sealed & Executed' : c.state === 'OPENED' ? 'Under Review by Client' : 'Pending Signature',
       signerName: clientName,
       signerEmailMasked: maskEmail(clientEmail),
-      createdAt: c.created_at,
-      signedAt: c.signed_at,
+      createdAt: toIsoUtcString(c.created_at),
+      signedAt: toIsoUtcString(c.signed_at),
       sha256,
       securityRecordId: `360-AUDIT-${c.id}-${sha256.slice(0, 8).toUpperCase()}`,
       issuingAuthority: '360 Global Digital Trust Authority',
@@ -94,7 +95,7 @@ router.get('/:identifier', async (req, res) => {
       auditTimeline: (auditRows || []).map(a => ({
         action: a.action,
         actor: a.actor_name || a.actor_type,
-        timestamp: a.created_at,
+        timestamp: toIsoUtcString(a.created_at),
       })),
     });
   } catch (err) {

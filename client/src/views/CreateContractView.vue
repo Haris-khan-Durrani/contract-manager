@@ -1290,9 +1290,28 @@ function getHeaders() {
   }
 }
 
+function parseSafeDate(d) {
+  if (!d) return null
+  if (d instanceof Date) return isNaN(d.getTime()) ? null : d
+  if (typeof d === 'string') {
+    let s = d.trim()
+    if (!s) return null
+    if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(\.\d+)?$/.test(s)) {
+      s = s.replace(' ', 'T') + (s.includes('Z') ? '' : 'Z')
+    }
+    const parsed = new Date(s)
+    if (!isNaN(parsed.getTime())) return parsed
+  }
+  const fallback = new Date(d)
+  return isNaN(fallback.getTime()) ? null : fallback
+}
+
 function formatDate(d) {
   if (!d) return '—'
-  return new Date(d).toLocaleString('en-GB', {
+  const date = parseSafeDate(d)
+  if (!date) return '—'
+  return date.toLocaleString('en-GB', {
+    timeZone: 'Asia/Dubai',
     day: 'numeric', month: 'short', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
   })
