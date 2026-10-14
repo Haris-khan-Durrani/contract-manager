@@ -538,6 +538,9 @@ router.post('/:contractId', async (req, res) => {
       connection.release();
     }
 
+    // Try delivery immediately after commit; the durable worker retries failures.
+    if (operationsHandoffQueued) operationsHandoff.processQueue().catch(error => console.warn('[Operations handoff]', error.message));
+
     // Audit log & auto-sync client summary event to GHL Conversation InternalComment
     const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || '';
     const actionName = validStatus === 'COMPLETED' ? 'CLIENT_SUMMARY_COMPLETED' : 'CLIENT_SUMMARY_SAVED';
