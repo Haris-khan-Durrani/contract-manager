@@ -53,8 +53,9 @@ class SQLiteAdapter {
    */
   translateSql(sql) {
     let s = sql;
-    // Replace NOW() with CURRENT_TIMESTAMP
+    // Replace NOW() and UTC_TIMESTAMP() with CURRENT_TIMESTAMP / datetime('now')
     s = s.replace(/NOW\(\)/gi, "datetime('now')");
+    s = s.replace(/UTC_TIMESTAMP\(\)/gi, "datetime('now')");
 
     // Replace INSERT IGNORE INTO with SQLite compatible INSERT OR IGNORE INTO
     s = s.replace(/INSERT IGNORE INTO/gi, 'INSERT OR IGNORE INTO');
@@ -589,6 +590,13 @@ try {
     charset:            'utf8mb4',
     connectTimeout:     1500,
   });
+
+  // Ensure every pooled MySQL connection operates in strict UTC (+00:00) session timezone
+  if (mysqlPool.pool) {
+    mysqlPool.pool.on('connection', (conn) => {
+      conn.query("SET time_zone = '+00:00'");
+    });
+  }
 } catch (e) {
   mysqlPool = null;
 }
@@ -631,9 +639,10 @@ const dbWrapper = {
   async init() {
     if (mysqlPool && process.env.DB_HOST) {
       try {
+        await mysqlPool.execute("SET time_zone = '+00:00'");
         const [res] = await mysqlPool.execute('SELECT 1 as test');
         dbWrapper.driver = 'MYSQL';
-        console.log('✅ [DB] Connected to MySQL Database.');
+        console.log('✅ [DB] Connected to MySQL Database (Strict UTC Session Timezone).');
         await initMysqlTables(mysqlPool);
         return;
       } catch (err) {

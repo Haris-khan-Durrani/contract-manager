@@ -432,8 +432,8 @@ router.post('/manual', requirePermission('contract:create'), async (req, res) =>
          (location_id, template_id, template_version, ghl_contact_id, ghl_opportunity_id,
           assigned_user_id, created_by_user_id, assigned_user_name, creation_mode, form_mode, state, public_state,
           recipient_name, recipient_email, recipient_phone, signing_config_json,
-          signing_token, token_expires_at, form_response_json, form_data_json, snapshot_json, validity_days)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'MANUAL', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          signing_token, token_expires_at, form_response_json, form_data_json, snapshot_json, validity_days, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'MANUAL', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP())`,
       [
         locationId, templateId, template.current_version, ghlContactId, ghlOpportunityId || null,
         targetAssignedUserId, userId,

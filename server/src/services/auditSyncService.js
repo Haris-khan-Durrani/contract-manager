@@ -46,8 +46,8 @@ async function logContractAuditAndSync(contractId, {
   try {
     await db.execute(
       `INSERT INTO contract_audit_logs
-         (contract_instance_id, actor_type, actor_id, actor_name, action, from_state, to_state, ip_address, user_agent, metadata_json)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (contract_instance_id, actor_type, actor_id, actor_name, action, from_state, to_state, ip_address, user_agent, metadata_json, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP())`,
       [contractId, actorType, actorId, actorName, action, fromState, toState, ipAddress, userAgent, metadataJson]
     );
   } catch (err) {
@@ -58,8 +58,8 @@ async function logContractAuditAndSync(contractId, {
   try {
     await db.execute(
       `INSERT INTO contract_events
-         (contract_instance_id, event_type, event_data_json, actor_type, actor_label, ip_address)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+         (contract_instance_id, event_type, event_data_json, actor_type, actor_label, ip_address, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, UTC_TIMESTAMP())`,
       [contractId, action, metadataJson || '{}', actorType, actorName || actorId || 'System', ipAddress]
     );
   } catch (err) {

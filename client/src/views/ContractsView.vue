@@ -823,8 +823,10 @@ function formatRelativeDate(d) {
   const date = parseSafeDate(d)
   if (!date) return ''
   const diff = Date.now() - date.getTime()
+  // Guard against minor clock skew or same-day timestamps
+  if (diff < 86400000 && diff >= -86400000) return 'Today'
   const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-  if (days === 0) return 'Today'
+  if (days <= 0) return 'Today'
   if (days === 1) return 'Yesterday'
   if (days < 30) return `${days}d ago`
   return ''
