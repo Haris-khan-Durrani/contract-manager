@@ -20,96 +20,122 @@
     <!-- Top Workspace Header -->
     <header class="workspace-header">
       <div class="header-left">
-        <router-link to="/contracts" class="btn-back">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M19 12H5M12 19l-7-7 7-7"/>
+        <router-link to="/contracts" class="btn-hdr-back" title="Back to All Contracts">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="15 18 9 12 15 6"/>
           </svg>
-          Contracts
+          <span>Contracts</span>
         </router-link>
 
+        <div class="header-v-divider"></div>
+
         <div class="contract-id-tag">
-          <h2 class="contract-heading">Contract #{{ contract.id }}</h2>
-          <span class="badge" :class="getStatusBadgeClass(contract.state)">
-            {{ formatStatusLabel(contract.state) }}
+          <h1 class="contract-heading">Contract #{{ contract.id }}</h1>
+          <span class="status-indicator-chip" :class="getStatusBadgeClass(contract.state)">
+            <span class="status-pulse-dot"></span>
+            <span>{{ formatStatusLabel(contract.state) }}</span>
           </span>
-          <span class="badge badge-neutral">{{ contract.template_name }}</span>
+          <span class="template-name-chip" :title="contract.template_name">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+            </svg>
+            <span>{{ contract.template_name || 'Standard Agreement' }}</span>
+          </span>
         </div>
       </div>
 
       <div class="header-actions">
-        <!-- Copy Signing Link (available whenever token exists) -->
+        <!-- Copy Signing Link -->
         <button
           v-if="signingUrl"
-          class="btn btn-secondary"
+          type="button"
+          class="btn-hdr-action btn-hdr-secondary"
+          :class="{ 'btn-hdr-copied': linkCopied }"
           @click="copySigningLink"
+          title="Copy Public Client Signing Link"
         >
-          {{ linkCopied ? '✓ Copied!' : '📋 Copy Link' }}
+          <svg v-if="!linkCopied" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          <span>{{ linkCopied ? 'Copied!' : 'Copy Link' }}</span>
         </button>
 
         <!-- Extend Expiry -->
         <button
           v-if="canExtend"
-          class="btn btn-secondary"
+          type="button"
+          class="btn-hdr-action btn-hdr-secondary"
           @click="openExtendModal"
+          title="Extend contract validity and signing link expiry"
         >
-          ⏱️ Extend Expiry
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
+          <span>Extend Expiry</span>
         </button>
 
         <!-- Revoke -->
         <button
           v-if="canRevoke"
-          class="btn btn-danger"
+          type="button"
+          class="btn-hdr-action btn-hdr-warning"
           @click="revokeContract"
           :disabled="revoking"
+          title="Revoke and void this agreement"
         >
-          {{ revoking ? 'Revoking…' : '🚫 Revoke' }}
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+          <span>{{ revoking ? 'Revoking…' : 'Revoke' }}</span>
         </button>
 
         <!-- Delete Contract -->
         <button
-          class="btn btn-outline-danger"
+          type="button"
+          class="btn-hdr-action btn-hdr-danger"
           @click="deleteContract"
           :disabled="deleting"
           title="Permanently delete this contract"
         >
-          {{ deleting ? 'Deleting…' : '🗑️ Delete' }}
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6"/></svg>
+          <span>{{ deleting ? 'Deleting…' : 'Delete' }}</span>
         </button>
 
-        <!-- If COMPLETED: Download Signed PDF (Agent only) -->
+        <!-- If COMPLETED: Download Signed PDF -->
         <button
           v-if="contract.state === 'COMPLETED' || contract.ghl_file_url"
-          class="btn btn-secondary"
+          type="button"
+          class="btn-hdr-action btn-hdr-secondary"
           @click="downloadPdf"
           :disabled="downloadingPdf"
+          title="Download official sealed PDF"
         >
-          {{ downloadingPdf ? '⏳ Downloading…' : '⬇️ Download PDF' }}
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          <span>{{ downloadingPdf ? 'Downloading…' : 'Download PDF' }}</span>
         </button>
 
         <!-- If COMPLETED: Client Summary Form -->
         <button
           v-if="(contract.state === 'COMPLETED' || contract.signed_at) && auth.hasClientSummaryAccess"
-          class="btn btn-primary"
-          style="display: inline-flex; align-items: center; gap: 6px; background: #0f172a; border-color: #0f172a;"
+          type="button"
+          class="btn-hdr-action btn-hdr-dark"
           @click="router.push(`/client-summary?contractId=${contract.id}`)"
+          title="Open Post-Contract Client Summary"
         >
-          📋 Client Summary
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <span>Client Summary</span>
         </button>
 
         <!-- Primary Action: SEND CONTRACT VIA GOHIGHLEVEL -->
         <button
           v-if="['READY', 'DRAFT', 'AWAITING_FORM'].includes(contract.state)"
-          class="btn btn-primary"
+          type="button"
+          class="btn-hdr-action btn-hdr-primary"
           @click="openSendModal"
           :disabled="sending"
-          :title="contract.state === 'DRAFT' ? 'Dispatch this draft contract to client via GoHighLevel' : 'Send via GHL'"
+          title="Dispatch invitation via GoHighLevel"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
             <line x1="22" y1="2" x2="11" y2="13"/>
             <polygon points="22 2 15 22 11 13 2 9 22 2"/>
           </svg>
-          <span v-if="sending">Sending…</span>
-          <span v-else-if="contract.state === 'DRAFT'">📤 Send via GHL</span>
-          <span v-else>Send via GHL Conversation</span>
+          <span>{{ sending ? 'Sending…' : 'Send via GHL' }}</span>
         </button>
       </div>
     </header>
@@ -250,35 +276,69 @@
       </div>
     </div>
 
-    <!-- Workspace Sub-Header Info -->
+    <!-- Workspace Sub-Header Info Banner -->
     <div class="workspace-subbar">
       <div class="subbar-content">
-        <div class="info-pill">
-          <span class="info-k">Contact:</span>
-          <span class="info-v">{{ ghlContact?.name || contract.ghl_contact_id }}</span>
-          <span class="info-email" v-if="ghlContact?.email">({{ ghlContact.email }})</span>
+        <!-- Client Recipient -->
+        <div class="subbar-card-item">
+          <div class="subbar-avatar" :style="{ backgroundColor: getAvatarColor(ghlContact?.name || contract.recipient_name || contract.ghl_contact_id) }">
+            {{ getInitials(ghlContact?.name || contract.recipient_name || contract.ghl_contact_id) }}
+          </div>
+          <div class="subbar-text-group">
+            <span class="subbar-label">Client Recipient</span>
+            <span class="subbar-value" :title="ghlContact?.name || contract.recipient_name || contract.ghl_contact_id">
+              {{ ghlContact?.name || contract.recipient_name || contract.ghl_contact_id || 'Client' }}
+            </span>
+            <span v-if="ghlContact?.email || contract.recipient_email" class="subbar-sub" :title="ghlContact?.email || contract.recipient_email">
+              {{ ghlContact?.email || contract.recipient_email }}
+            </span>
+          </div>
         </div>
 
-        <div class="info-pill" v-if="contract.ghl_opportunity_id">
-          <span class="info-k">Opportunity:</span>
-          <span class="info-v">{{ ghlOpportunity?.name || contract.ghl_opportunity_id }}</span>
+        <!-- Opportunity / Location -->
+        <div class="subbar-card-item" v-if="contract.ghl_opportunity_id || contract.ghl_contact_id">
+          <div class="subbar-icon-box">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+          </div>
+          <div class="subbar-text-group">
+            <span class="subbar-label">GHL Opportunity</span>
+            <span class="subbar-value">{{ ghlOpportunity?.name || contract.ghl_opportunity_id || 'Direct Pipeline' }}</span>
+            <span class="subbar-sub" v-if="contract.ghl_contact_id">Contact: {{ contract.ghl_contact_id }}</span>
+          </div>
         </div>
 
-        <div class="info-pill" :title="contract.created_at ? 'UAE: ' + formatUaeDateTime(contract.created_at) + ' | Client: ' + formatClientDateTime(contract.created_at) + ' | GMT: ' + formatGmtDateTime(contract.created_at) : ''">
-          <span class="info-k">Created:</span>
-          <span class="info-v">{{ formatDate(contract.created_at) }}</span>
+        <!-- Created Date -->
+        <div class="subbar-card-item" :title="contract.created_at ? 'UAE: ' + formatUaeDateTime(contract.created_at) + ' | GMT: ' + formatGmtDateTime(contract.created_at) : ''">
+          <div class="subbar-icon-box">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          </div>
+          <div class="subbar-text-group">
+            <span class="subbar-label">Created On</span>
+            <span class="subbar-value">{{ formatDate(contract.created_at) }}</span>
+            <span class="subbar-sub">{{ formatRelativeDate(contract.created_at) }}</span>
+          </div>
         </div>
 
-        <div class="info-pill" v-if="contract.token_expires_at && ['SENT', 'VIEWED'].includes(contract.state)"
-             :title="contract.token_expires_at ? 'UAE: ' + formatUaeDateTime(contract.token_expires_at) + ' | Client: ' + formatClientDateTime(contract.token_expires_at) + ' | GMT: ' + formatGmtDateTime(contract.token_expires_at) : ''">
-          <span class="info-k">Expires:</span>
-          <span class="info-v text-warning">{{ formatDate(contract.token_expires_at) }}</span>
+        <!-- Expiry or Signed Date -->
+        <div class="subbar-card-item" v-if="contract.signed_at">
+          <div class="subbar-icon-box subbar-icon-success">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div class="subbar-text-group">
+            <span class="subbar-label">Signed On</span>
+            <span class="subbar-value text-success">{{ formatDate(contract.signed_at) }}</span>
+            <span class="subbar-sub text-success">Verified &amp; Sealed</span>
+          </div>
         </div>
-
-        <div class="info-pill" v-if="contract.signed_at"
-             :title="contract.signed_at ? 'UAE: ' + formatUaeDateTime(contract.signed_at) + ' | Client: ' + formatClientDateTime(contract.signed_at) + ' | GMT: ' + formatGmtDateTime(contract.signed_at) : ''">
-          <span class="info-k">Signed:</span>
-          <span class="info-v text-success">{{ formatDate(contract.signed_at) }}</span>
+        <div class="subbar-card-item" v-else-if="contract.token_expires_at">
+          <div class="subbar-icon-box subbar-icon-warning">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
+          </div>
+          <div class="subbar-text-group">
+            <span class="subbar-label">Signing Expiry</span>
+            <span class="subbar-value text-warning">{{ formatDate(contract.token_expires_at) }}</span>
+            <span class="subbar-sub">Active signing token</span>
+          </div>
         </div>
       </div>
     </div>
@@ -286,126 +346,235 @@
     <!-- Workspace Body with Tabs -->
     <div class="workspace-body">
       <!-- Nav Tabs -->
-      <div class="workspace-tabs">
-        <button type="button" class="ws-tab" :class="{ active: activeTab === 'form' }" @click="activeTab = 'form'">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-            <line x1="9" y1="3" x2="9" y2="21"/>
-          </svg>
-          Intake Form
-        </button>
+      <div class="workspace-tabs-row">
+        <div class="workspace-tabs-bar">
+          <button type="button" class="ws-tab" :class="{ active: activeTab === 'form' }" @click="activeTab = 'form'">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+            <span>Intake Form</span>
+          </button>
 
-        <button type="button" class="ws-tab" :class="{ active: activeTab === 'preview' }" @click="activeTab = 'preview'">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-            <polyline points="14 2 14 8 20 8"/>
-          </svg>
-          Document Preview
-        </button>
+          <button type="button" class="ws-tab" :class="{ active: activeTab === 'preview' }" @click="activeTab = 'preview'">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>
+            </svg>
+            <span>Document Preview</span>
+          </button>
 
-        <button type="button" class="ws-tab" :class="{ active: activeTab === 'timeline' }" @click="activeTab = 'timeline'; fetchTimeline()">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="8" y1="6" x2="21" y2="6"/>
-            <line x1="8" y1="12" x2="21" y2="12"/>
-            <line x1="8" y1="18" x2="21" y2="18"/>
-            <line x1="3" y1="6" x2="3.01" y2="6"/>
-            <line x1="3" y1="12" x2="3.01" y2="12"/>
-            <line x1="3" y1="18" x2="3.01" y2="18"/>
-          </svg>
-          Activity ({{ timeline.length }})
-        </button>
+          <button type="button" class="ws-tab" :class="{ active: activeTab === 'timeline' }" @click="activeTab = 'timeline'; fetchTimeline()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/>
+            </svg>
+            <span>Activity</span>
+            <span class="ws-tab-count">{{ timeline.length }}</span>
+          </button>
 
-        <button type="button" class="ws-tab" :class="{ active: activeTab === 'audit' }" @click="activeTab = 'audit'; fetchAuditLogs()">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"/>
-            <polyline points="12 6 12 12 14 14"/>
-          </svg>
-          Audit Trail ({{ auditLogs.length }})
-        </button>
+          <button type="button" class="ws-tab" :class="{ active: activeTab === 'audit' }" @click="activeTab = 'audit'; fetchAuditLogs()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+            <span>Audit Trail</span>
+            <span class="ws-tab-count">{{ auditLogs.length }}</span>
+          </button>
+        </div>
       </div>
 
       <!-- ─── TAB 1: INTAKE FORM ───────────────────────────────────────────── -->
       <div v-show="activeTab === 'form'" class="tab-content animate-fade-in">
-        <div class="glass-card form-container-card">
-          <div class="form-header-box">
-            <div>
-              <h3>Contract Intake & Custom Fields</h3>
-              <p class="text-muted">
-                {{ isReadOnly ? 'This contract has been frozen for signature or completed. Form inputs are locked.' : 'Fill or edit fields below. Changes are debounced and synced automatically with HighLevel.' }}
-              </p>
+        <div class="intake-tab-layout">
+          <!-- Left: Main Form Card -->
+          <div class="glass-card form-container-card">
+            <div class="form-header-box">
+              <div>
+                <div class="form-header-title-row">
+                  <h3 class="form-main-heading">Contract Intake &amp; Custom Fields</h3>
+                  <span v-if="saveStatus === 'saved'" class="status-saved-pill">
+                    <span class="saved-dot"></span> Synced with HighLevel
+                  </span>
+                  <span v-else-if="saveStatus === 'saving'" class="status-saving-pill">
+                    <span class="saving-spinner"></span> Saving…
+                  </span>
+                </div>
+                <p class="form-sub-text">
+                  {{ isReadOnly ? 'This contract has been frozen for signature or completed. Form inputs are locked.' : 'Fill or edit fields below. Changes are debounced and synced automatically with HighLevel.' }}
+                </p>
+              </div>
             </div>
-            <div v-if="saveStatus === 'saved'" class="text-success small-text">
-              ✓ Saved to contract & HighLevel
+
+            <div v-if="!formFields.length" class="empty-form-notice">
+              <div class="empty-notice-icon">📄</div>
+              <h4>No Intake Form Attached</h4>
+              <p>This contract template generates directly from standard agreement clauses without custom questionnaire fields.</p>
             </div>
-          </div>
 
-          <div v-if="!formFields.length" class="empty-form-notice">
-            <p>This contract template does not have an associated intake form.</p>
-          </div>
-
-          <form v-else class="intake-form-grid" @submit.prevent>
-            <div
-              v-for="f in formFields"
-              :key="f.id"
-              class="form-group"
-              :class="{ full: f.type === 'textarea' || f.type === 'file' }"
-            >
-              <label class="form-label">
-                {{ f.label }}
-                <span v-if="f.required" class="req">*</span>
-                <span v-if="f.ghlFieldId" class="badge badge-info badge-sm">GHL</span>
-              </label>
-
-              <!-- Text / Number / Currency / Date -->
-              <input
-                v-if="['text', 'number', 'currency', 'date'].includes(f.type)"
-                :type="f.type === 'number' || f.type === 'currency' ? 'number' : f.type === 'date' ? 'date' : 'text'"
-                v-model="formResponses[f.key]"
-                class="form-control"
-                :disabled="isReadOnly"
-                :placeholder="f.placeholder"
-                @input="onFormInput"
-              />
-
-              <!-- Textarea -->
-              <textarea
-                v-else-if="f.type === 'textarea'"
-                v-model="formResponses[f.key]"
-                class="form-control"
-                rows="3"
-                :disabled="isReadOnly"
-                :placeholder="f.placeholder"
-                @input="onFormInput"
-              ></textarea>
-
-              <!-- Dropdown -->
-              <select
-                v-else-if="f.type === 'dropdown'"
-                v-model="formResponses[f.key]"
-                class="form-control"
-                :disabled="isReadOnly"
-                @change="onFormInput"
+            <form v-else class="intake-form-grid" @submit.prevent>
+              <div
+                v-for="f in formFields"
+                :key="f.id"
+                class="form-field-item"
+                :class="{ full: f.type === 'textarea' || f.type === 'file' }"
               >
-                <option value="">{{ f.placeholder || '-- Select --' }}</option>
-                <option v-for="(opt, oi) in (f.options || [])" :key="oi" :value="opt.value || opt">
-                  {{ opt.label || opt }}
-                </option>
-              </select>
+                <label class="form-field-label">
+                  <span>{{ f.label }}</span>
+                  <span v-if="f.required" class="req-star">*</span>
+                  <span v-if="f.ghlFieldId" class="ghl-tag-badge" title="Mapped to GoHighLevel Custom Field">GHL</span>
+                </label>
 
-              <!-- Checkbox -->
-              <label v-else-if="f.type === 'checkbox'" class="check-label">
+                <!-- Text / Number / Currency / Date -->
                 <input
-                  type="checkbox"
+                  v-if="['text', 'number', 'currency', 'date'].includes(f.type)"
+                  :type="f.type === 'number' || f.type === 'currency' ? 'number' : f.type === 'date' ? 'date' : 'text'"
                   v-model="formResponses[f.key]"
+                  class="field-input-box"
                   :disabled="isReadOnly"
-                  @change="onFormInput"
+                  :placeholder="f.placeholder || `Enter ${f.label.toLowerCase()}…`"
+                  @input="onFormInput"
                 />
-                <span>{{ f.placeholder || f.label }}</span>
-              </label>
 
-              <small v-if="f.helpText" class="text-muted">{{ f.helpText }}</small>
+                <!-- Textarea -->
+                <textarea
+                  v-else-if="f.type === 'textarea'"
+                  v-model="formResponses[f.key]"
+                  class="field-input-box field-textarea"
+                  rows="3"
+                  :disabled="isReadOnly"
+                  :placeholder="f.placeholder"
+                  @input="onFormInput"
+                ></textarea>
+
+                <!-- Dropdown -->
+                <div v-else-if="f.type === 'dropdown'" class="select-field-wrapper">
+                  <select
+                    v-model="formResponses[f.key]"
+                    class="field-input-box field-select"
+                    :disabled="isReadOnly"
+                    @change="onFormInput"
+                  >
+                    <option value="">{{ f.placeholder || '-- Select an option --' }}</option>
+                    <option v-for="(opt, oi) in (f.options || [])" :key="oi" :value="opt.value || opt">
+                      {{ opt.label || opt }}
+                    </option>
+                  </select>
+                </div>
+
+                <!-- Checkbox -->
+                <label v-else-if="f.type === 'checkbox'" class="field-check-label">
+                  <input
+                    type="checkbox"
+                    v-model="formResponses[f.key]"
+                    :disabled="isReadOnly"
+                    @change="onFormInput"
+                  />
+                  <span>{{ f.placeholder || f.label }}</span>
+                </label>
+
+                <small v-if="f.helpText" class="field-help-text">{{ f.helpText }}</small>
+              </div>
+            </form>
+          </div>
+
+          <!-- Right: Sidebar Workspace Cards -->
+          <div class="intake-sidebar">
+            <!-- Sidebar Card 1: Public Signing Link -->
+            <div class="glass-card sidebar-panel-card" v-if="signingUrl">
+              <div class="panel-card-header">
+                <div class="panel-header-title">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                  <span>Client Signing Portal</span>
+                </div>
+                <span class="badge-mini-live">Live</span>
+              </div>
+              <p class="panel-card-desc">
+                Public signing portal link generated for the client to review and sign digitally.
+              </p>
+              <div class="signing-url-box">
+                <input type="text" :value="signingUrl" readonly class="signing-url-input" />
+                <button
+                  type="button"
+                  class="btn-copy-url"
+                  :class="{ copied: linkCopied }"
+                  @click="copySigningLink"
+                  :title="linkCopied ? 'Copied!' : 'Copy to Clipboard'"
+                >
+                  <svg v-if="!linkCopied" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                  <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                  <span>{{ linkCopied ? 'Copied' : 'Copy' }}</span>
+                </button>
+              </div>
+              <div class="panel-actions-sub">
+                <a :href="signingUrl" target="_blank" class="link-open-portal">
+                  <span>Open Client Portal</span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
+                </a>
+              </div>
             </div>
-          </form>
+
+            <!-- Sidebar Card 2: Quick GHL Dispatch Card -->
+            <div class="glass-card sidebar-panel-card" v-if="['READY', 'DRAFT', 'AWAITING_FORM'].includes(contract.state)">
+              <div class="panel-card-header">
+                <div class="panel-header-title">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                  <span>Dispatch via HighLevel</span>
+                </div>
+              </div>
+              <p class="panel-card-desc">
+                Send signing invitation directly to client's phone and email via GoHighLevel automations.
+              </p>
+              <div class="panel-dispatch-channels">
+                <span class="channel-tag" :class="{ inactive: !(contract.recipient_phone || ghlContact?.phone) }">
+                  📱 SMS {{ contract.recipient_phone || ghlContact?.phone ? 'Ready' : 'No Phone' }}
+                </span>
+                <span class="channel-tag" :class="{ inactive: !(contract.recipient_email || ghlContact?.email) }">
+                  ✉️ Email {{ contract.recipient_email || ghlContact?.email ? 'Ready' : 'No Email' }}
+                </span>
+                <span class="channel-tag">
+                  📝 Conversation Note
+                </span>
+              </div>
+              <button
+                type="button"
+                class="btn-sidebar-dispatch"
+                @click="openSendModal"
+                :disabled="sending"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                <span>{{ sending ? 'Sending…' : 'Send via GoHighLevel' }}</span>
+              </button>
+            </div>
+
+            <!-- Sidebar Card 3: Summary Details -->
+            <div class="glass-card sidebar-panel-card">
+              <div class="panel-card-header">
+                <div class="panel-header-title">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                  <span>Contract Snapshot</span>
+                </div>
+              </div>
+              <div class="snapshot-list">
+                <div class="snapshot-row">
+                  <span class="snapshot-key">Reference #</span>
+                  <span class="snapshot-val font-mono">#{{ contract.id }}</span>
+                </div>
+                <div class="snapshot-row">
+                  <span class="snapshot-key">Lifecycle State</span>
+                  <span class="snapshot-val">{{ formatStatusLabel(contract.state) }}</span>
+                </div>
+                <div class="snapshot-row">
+                  <span class="snapshot-key">Template</span>
+                  <span class="snapshot-val" :title="contract.template_name">{{ contract.template_name || 'Standard' }}</span>
+                </div>
+                <div class="snapshot-row" v-if="contract.assigned_user_name">
+                  <span class="snapshot-key">Assigned Agent</span>
+                  <span class="snapshot-val">{{ contract.assigned_user_name }}</span>
+                </div>
+                <div class="snapshot-row">
+                  <span class="snapshot-key">Application</span>
+                  <span class="snapshot-val">{{ contract.form_mode === 'TEAM' ? 'Team / Family' : 'Individual' }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1331,40 +1500,40 @@ const renderedContractHtml = computed(() => {
 
 function getStatusBadgeClass(state) {
   const map = {
-    AWAITING_FORM:  'badge-warning',
-    DRAFT:          'badge-neutral',
-    READY:          'badge-info',
-    SENT:           'badge-primary',
-    OPENED:         'badge-primary',
-    IN_PROGRESS:    'badge-primary',
-    READY_TO_SIGN:  'badge-primary',
-    VIEWED:         'badge-primary',
-    SIGNED:         'badge-success',
-    COMPLETED:      'badge-success',
-    EXPIRED:        'badge-neutral',
-    CANCELLED:      'badge-danger',
-    REVOKED:        'badge-danger',
-    DECLINED:       'badge-danger',
+    DRAFT:                  'status-draft',
+    AWAITING_FORM:          'status-draft',
+    READY:                  'status-ready',
+    SENT:                   'status-sent',
+    VIEWED:                 'status-opened',
+    OPENED:                 'status-opened',
+    IN_PROGRESS:            'status-progress',
+    SIGNED:                 'status-completed',
+    SIGNED_PENDING_STORAGE: 'status-ready',
+    COMPLETED:              'status-completed',
+    EXPIRED:                'status-expired',
+    CANCELLED:              'status-cancelled',
+    REVOKED:                'status-cancelled',
+    DECLINED:               'status-cancelled',
   }
-  return map[state] || 'badge-neutral'
+  return map[state] || 'status-neutral'
 }
 
 function formatStatusLabel(state) {
   const map = {
-    AWAITING_FORM:  'Awaiting Form',
-    DRAFT:          'Draft',
-    READY:          'Ready',
-    SENT:           'Sent to Client',
-    OPENED:         'Opened by Client',
-    IN_PROGRESS:    'In Progress',
-    READY_TO_SIGN:  'Ready to Sign',
-    VIEWED:         'Viewed by Client',
-    SIGNED:         'Signed',
-    COMPLETED:      'Completed & Sealed',
-    EXPIRED:        'Expired',
-    CANCELLED:      'Cancelled',
-    REVOKED:        'Revoked',
-    DECLINED:       'Declined',
+    DRAFT:                  'Draft',
+    AWAITING_FORM:          'Awaiting Form',
+    READY:                  'Ready to Send',
+    SENT:                   'Sent to Client',
+    VIEWED:                 'Opened by Client',
+    OPENED:                 'Opened by Client',
+    IN_PROGRESS:            'In Progress',
+    SIGNED:                 'Signed',
+    SIGNED_PENDING_STORAGE: 'Syncing GHL',
+    COMPLETED:              'Completed & Sealed',
+    EXPIRED:                'Expired',
+    CANCELLED:              'Cancelled',
+    REVOKED:                'Revoked',
+    DECLINED:               'Declined',
   }
   return map[state] || state
 }
@@ -1440,6 +1609,32 @@ function formatDate(d) {
     day: 'numeric',
     year: 'numeric',
   })
+}
+
+function formatRelativeDate(d) {
+  if (!d) return ''
+  const diff = Date.now() - new Date(d).getTime()
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+  if (days === 0) return 'Today'
+  if (days === 1) return 'Yesterday'
+  if (days < 30) return `${days}d ago`
+  return ''
+}
+
+function getInitials(name) {
+  if (!name) return 'CL'
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+}
+
+function getAvatarColor(name) {
+  const colors = ['#2563eb', '#059669', '#d97706', '#7c3aed', '#0284c7', '#dc2626', '#475569']
+  let hash = 0
+  for (let i = 0; i < (name || '').length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash)
+  }
+  return colors[Math.abs(hash) % colors.length]
 }
 
 const UAE_TIMEZONE = 'Asia/Dubai'
@@ -1685,6 +1880,23 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* ─── TYPOGRAPHY LOCK & APP ROOT ─────────────────────────────────────── */
+.contract-workspace,
+.contract-workspace * {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  box-sizing: border-box;
+}
+
+.contract-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 16px 20px 80px;
+  color: #0f172a;
+}
+
 .loading-full-page {
   min-height: 60vh;
   display: flex;
@@ -1692,147 +1904,736 @@ onMounted(() => {
   justify-content: center;
 }
 
-.contract-workspace {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
+/* ─── TOP WORKSPACE HEADER ───────────────────────────────────────────── */
 .workspace-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-bottom: var(--space-4);
-  border-bottom: 1px solid var(--color-border);
+  flex-wrap: wrap;
+  gap: 14px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px 18px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
 }
 
 .header-left {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
-.btn-back {
+.btn-hdr-back {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: var(--color-text-muted);
-  font-size: 0.85rem;
-  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 7px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 600;
   text-decoration: none;
+  transition: all 0.15s ease;
+}
+.btn-hdr-back:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.header-v-divider {
+  width: 1px;
+  height: 22px;
+  background: #e2e8f0;
 }
 
 .contract-id-tag {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .contract-heading {
-  font-family: var(--font-heading);
-  font-size: 1.5rem;
+  font-size: 1.35rem;
   font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  letter-spacing: -0.015em;
 }
+
+.template-name-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  max-width: 320px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Status Indicators */
+.status-indicator-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.status-pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.status-draft { background: #fef3c7; color: #b45309; }
+.status-ready { background: #e0f2fe; color: #0369a1; }
+.status-sent { background: #ede9fe; color: #6d28d9; }
+.status-opened { background: #eff6ff; color: #1d4ed8; }
+.status-progress { background: #eff6ff; color: #2563eb; }
+.status-completed { background: #dcfce7; color: #15803d; }
+.status-expired { background: #f1f5f9; color: #64748b; }
+.status-cancelled { background: #fee2e2; color: #b91c1c; }
+.status-neutral { background: #f1f5f9; color: #475569; }
 
 .header-actions {
   display: flex;
-  gap: var(--space-3);
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-/* Sub-header */
+.btn-hdr-action {
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+  white-space: nowrap !important;
+  box-sizing: border-box;
+}
+
+.btn-hdr-secondary {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #334155;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+.btn-hdr-secondary:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+  transform: translateY(-1px);
+}
+
+.btn-hdr-copied {
+  background: #ecfdf5 !important;
+  border-color: #34d399 !important;
+  color: #059669 !important;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15) !important;
+}
+
+.btn-hdr-warning {
+  background: #fffbeb;
+  border-color: #fde68a;
+  color: #b45309;
+}
+.btn-hdr-warning:hover:not(:disabled) {
+  background: #fef3c7;
+  border-color: #f59e0b;
+}
+
+.btn-hdr-danger {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #64748b;
+}
+.btn-hdr-danger:hover:not(:disabled) {
+  background: #fef2f2;
+  border-color: #fca5a5;
+  color: #dc2626;
+  box-shadow: 0 1px 3px rgba(239, 68, 68, 0.15);
+}
+
+.btn-hdr-dark {
+  background: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+}
+.btn-hdr-dark:hover:not(:disabled) {
+  background: #1e293b;
+}
+
+.btn-hdr-primary {
+  background: #2563eb;
+  border-color: #1d4ed8;
+  color: #ffffff;
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.25);
+}
+.btn-hdr-primary:hover:not(:disabled) {
+  background: #1d4ed8;
+  box-shadow: 0 2px 5px rgba(37, 99, 235, 0.35);
+  transform: translateY(-1px);
+}
+
+/* ─── WORKSPACE SUB-BAR ──────────────────────────────────────────────── */
 .workspace-subbar {
-  background: var(--color-bg-card);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: var(--space-3) var(--space-4);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px 18px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 }
 
 .subbar-content {
   display: flex;
-  gap: var(--space-6);
+  align-items: center;
+  gap: 24px;
   flex-wrap: wrap;
 }
 
-.info-pill {
+.subbar-card-item {
   display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.subbar-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.subbar-icon-box {
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  background: #f1f5f9;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.subbar-icon-success { background: #dcfce7; color: #16a34a; }
+.subbar-icon-warning { background: #fef3c7; color: #d97706; }
+
+.subbar-text-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.subbar-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.subbar-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.subbar-sub {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+/* ─── WORKSPACE TABS ─────────────────────────────────────────────────── */
+.workspace-tabs-row {
+  margin-top: 2px;
+}
+
+.workspace-tabs-bar {
+  display: inline-flex;
   gap: 6px;
-  font-size: 0.85rem;
-}
-
-.info-k {
-  color: var(--color-text-muted);
-}
-
-.info-v {
-  font-weight: 600;
-}
-
-.info-email {
-  color: var(--color-text-muted);
-}
-
-/* Nav Tabs */
-.workspace-tabs {
-  display: flex;
-  gap: var(--space-2);
-  margin-top: var(--space-2);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 4px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
 .ws-tab {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 16px;
-  background: var(--color-bg-card);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  color: var(--color-text-muted);
-  font-size: 0.85rem;
-  font-weight: 500;
+  padding: 7px 14px;
+  background: transparent;
+  border: none;
+  border-radius: 7px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: all 0.15s ease;
 }
 
 .ws-tab:hover {
-  color: var(--color-text-base);
+  color: #0f172a;
+  background: #f8fafc;
 }
 
 .ws-tab.active {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
+  background: #2563eb;
   color: #ffffff;
-  font-weight: 600;
 }
 
-/* Form Tab */
+.ws-tab-count {
+  font-size: 10px;
+  font-weight: 700;
+  background: #f1f5f9;
+  color: #475569;
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+.ws-tab.active .ws-tab-count {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+/* ─── INTAKE TAB 2-COLUMN LAYOUT & FORM ──────────────────────────────── */
+.intake-tab-layout {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 1080px) {
+  .intake-tab-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
 .form-container-card {
-  padding: var(--space-8);
-  max-width: 900px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 22px 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 }
 
 .form-header-box {
+  margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.form-header-title-row {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: var(--space-6);
-  padding-bottom: var(--space-4);
-  border-bottom: 1px solid var(--color-border);
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.form-main-heading {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.status-saved-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #15803d;
+  background: #dcfce7;
+  border: 1px solid #bbf7d0;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.saved-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #16a34a;
+}
+
+.status-saving-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #0369a1;
+  background: #e0f2fe;
+  border: 1px solid #bae6fd;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.form-sub-text {
+  font-size: 12px;
+  color: #64748b;
+  margin: 4px 0 0;
+  line-height: 1.45;
+}
+
+.empty-form-notice {
+  text-align: center;
+  padding: 40px 20px;
+}
+.empty-notice-icon {
+  font-size: 32px;
+  margin-bottom: 10px;
+}
+.empty-form-notice h4 {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 6px;
+}
+.empty-form-notice p {
+  font-size: 12px;
+  color: #64748b;
+  max-width: 440px;
+  margin: 0 auto;
 }
 
 .intake-form-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: var(--space-4);
+  gap: 16px;
 }
 
-.form-group.full {
+@media (max-width: 640px) {
+  .intake-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.form-field-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.form-field-item.full {
   grid-column: span 2;
 }
+@media (max-width: 640px) {
+  .form-field-item.full {
+    grid-column: span 1;
+  }
+}
 
-.badge-sm {
-  font-size: 0.65rem;
-  padding: 1px 4px;
-  margin-left: 4px;
+.form-field-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.req-star {
+  color: #ef4444;
+  font-weight: 700;
+}
+
+.ghl-tag-badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+  padding: 0 5px;
+  border-radius: 4px;
+}
+
+.field-input-box {
+  width: 100%;
+  height: 38px;
+  padding: 0 12px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  font-size: 13px;
+  color: #0f172a;
+  outline: none;
+  transition: all 0.15s ease;
+}
+.field-input-box:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+.field-input-box:disabled {
+  background: #f8fafc;
+  color: #64748b;
+  cursor: not-allowed;
+}
+
+.field-textarea {
+  height: auto;
+  padding: 10px 12px;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.select-field-wrapper {
+  position: relative;
+}
+
+.field-select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 14px;
+  padding-right: 32px;
+}
+
+.field-check-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #334155;
+  cursor: pointer;
+}
+.field-check-label input {
+  width: 16px;
+  height: 16px;
+  accent-color: #2563eb;
+  cursor: pointer;
+}
+
+.field-help-text {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+/* ─── SIDEBAR PANELS ─────────────────────────────────────────────────── */
+.intake-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.sidebar-panel-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.panel-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.panel-header-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+}
+.panel-header-title svg {
+  color: #2563eb;
+}
+
+.badge-mini-live {
+  font-size: 9.5px;
+  font-weight: 700;
+  background: #dcfce7;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
+.panel-card-desc {
+  font-size: 11.5px;
+  color: #64748b;
+  margin: 0 0 12px;
+  line-height: 1.4;
+}
+
+.signing-url-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  padding: 4px;
+}
+
+.signing-url-input {
+  flex: 1;
+  height: 28px;
+  border: none;
+  background: transparent;
+  font-size: 11.5px;
+  color: #475569;
+  padding: 0 8px;
+  outline: none;
+  font-family: ui-monospace, SFMono-Regular, monospace !important;
+}
+
+.btn-copy-url {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 10px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-copy-url:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+.btn-copy-url.copied {
+  background: #ecfdf5;
+  border-color: #34d399;
+  color: #059669;
+}
+
+.panel-actions-sub {
+  margin-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.link-open-portal {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #2563eb;
+  text-decoration: none;
+}
+.link-open-portal:hover {
+  text-decoration: underline;
+}
+
+.panel-dispatch-channels {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.channel-tag {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #334155;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 5px 8px;
+  border-radius: 6px;
+}
+.channel-tag.inactive {
+  opacity: 0.5;
+  color: #94a3b8;
+}
+
+.btn-sidebar-dispatch {
+  width: 100%;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #2563eb;
+  border: 1px solid #1d4ed8;
+  color: #ffffff;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.25);
+  transition: all 0.15s;
+}
+.btn-sidebar-dispatch:hover:not(:disabled) {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.35);
+}
+
+.snapshot-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.snapshot-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed #f1f5f9;
+}
+.snapshot-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.snapshot-key {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.snapshot-val {
+  color: #0f172a;
+  font-weight: 600;
+  text-align: right;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Document Paper Tab */
