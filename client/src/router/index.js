@@ -29,6 +29,7 @@ const routes = [
       { path: 'client-summary',         name: 'ClientSummary',     component: () => import('../views/ClientSummaryView.vue') },
       { path: 'admin/users',            name: 'UsersAccess',       component: () => import('../views/UsersAccessView.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN'] } },
       { path: 'admin/settings',         name: 'Settings',          component: () => import('../views/SettingsView.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN'] } },
+      { path: 'settings',               redirect: '/admin/settings' },
     ],
   },
   // Public signing portal — no auth required

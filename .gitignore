@@ -11,9 +11,9 @@ client/.env
 server/.env
 
 # Production Build outputs
-dist/
-client/dist/
-build/
+/dist/
+# client/dist/ is tracked so git pull on production server immediately deploys pre-compiled Vite assets
+/build/
 
 # Local databases and storage
 *.sqlite
