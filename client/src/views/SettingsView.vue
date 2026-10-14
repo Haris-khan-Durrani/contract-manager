@@ -1,1165 +1,1068 @@
 <template>
-  <div class="settings-view">
+  <div class="settings-root">
     <!-- ─── FLOATING TOAST NOTIFICATIONS ──────────────────────────────── -->
-    <transition name="toast-slide">
-      <div v-if="successMsg" class="floating-toast toast-success">
-        <div class="toast-icon">✅</div>
-        <div class="toast-body">
-          <div class="toast-title">Settings Saved</div>
-          <div class="toast-msg">{{ successMsg }}</div>
+    <transition name="toast-fade">
+      <div v-if="successMsg" class="toast-card toast-card-success">
+        <svg class="toast-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        <div class="toast-content">
+          <div class="toast-head">Settings Saved</div>
+          <div class="toast-text">{{ successMsg }}</div>
         </div>
-        <button type="button" class="toast-close" @click="successMsg = ''">✕</button>
+        <button type="button" class="toast-dismiss" @click="successMsg = ''">✕</button>
       </div>
     </transition>
 
-    <transition name="toast-slide">
-      <div v-if="errorMsg" class="floating-toast toast-error">
-        <div class="toast-icon">⚠️</div>
-        <div class="toast-body">
-          <div class="toast-title">Configuration Notice</div>
-          <div class="toast-msg">{{ errorMsg }}</div>
+    <transition name="toast-fade">
+      <div v-if="errorMsg" class="toast-card toast-card-error">
+        <svg class="toast-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <div class="toast-content">
+          <div class="toast-head">Configuration Alert</div>
+          <div class="toast-text">{{ errorMsg }}</div>
         </div>
-        <button type="button" class="toast-close" @click="errorMsg = ''">✕</button>
+        <button type="button" class="toast-dismiss" @click="errorMsg = ''">✕</button>
       </div>
     </transition>
 
-    <transition name="toast-slide">
-      <div v-if="copyToast" class="floating-toast toast-info">
-        <div class="toast-icon">📋</div>
-        <div class="toast-body">
-          <div class="toast-title">Copied to Clipboard</div>
-          <div class="toast-msg">{{ copyToast }}</div>
+    <transition name="toast-fade">
+      <div v-if="copyToast" class="toast-card toast-card-info">
+        <svg class="toast-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+        <div class="toast-content">
+          <div class="toast-head">Copied</div>
+          <div class="toast-text">{{ copyToast }}</div>
         </div>
-        <button type="button" class="toast-close" @click="copyToast = ''">✕</button>
+        <button type="button" class="toast-dismiss" @click="copyToast = ''">✕</button>
       </div>
     </transition>
 
-    <!-- ─── EXECUTIVE HEADER BANNER ──────────────────────────────────── -->
-    <div class="settings-header-card">
-      <div class="header-main-col">
-        <div class="header-icon-box">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="3" />
-            <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
+    <!-- ─── TOP HEADER BAR ───────────────────────────────────────────── -->
+    <header class="settings-top-header">
+      <div class="header-left-cluster">
+        <div class="header-icon-square">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
           </svg>
         </div>
         <div>
-          <div class="header-badge-row">
-            <h1 class="header-heading">System &amp; Integration Settings</h1>
-            <div class="status-pill-badge live-sync" title="Real-time live persistence in MySQL">
-              <span class="live-dot"></span>
-              <span>Live MySQL Sync</span>
-            </div>
-            <span class="version-tag">ContractOS v2.5</span>
+          <div class="header-title-flex">
+            <h1 class="header-main-title">System &amp; Integration Settings</h1>
+            <span class="mysql-sync-pill">
+              <span class="pulse-beacon"></span>
+              <span>MySQL 8+ Live Sync</span>
+            </span>
           </div>
-          <p class="header-caption">
-            Manage GoHighLevel CRM integration, automated outbound webhooks, official document branding, and enterprise security policies.
+          <p class="header-sub-text">
+            Configure GoHighLevel CRM integration, automated outbound webhooks, official legal branding, and security access.
           </p>
         </div>
       </div>
 
-      <div class="header-actions-col">
-        <div class="dirty-state-badge" :class="{ 'is-unsaved': isFormDirty }">
-          <span class="state-bullet">{{ isFormDirty ? '●' : '✓' }}</span>
-          <span>{{ isFormDirty ? 'Unsaved changes pending' : 'All settings synchronized' }}</span>
+      <div class="header-right-cluster">
+        <div class="dirty-status-tag" :class="{ 'dirty': isFormDirty }">
+          <span class="status-dot"></span>
+          <span>{{ isFormDirty ? 'Unsaved changes' : 'Synchronized' }}</span>
         </div>
 
-        <div class="header-button-group">
-          <button 
-            type="button" 
-            class="btn-header btn-header-secondary" 
-            :disabled="loading || saving" 
-            @click="reloadAll"
-            title="Reload settings from MySQL database"
-          >
-            <svg class="icon-refresh" :class="{ 'spin-infinite': loading }" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 11-.57-8.38l5.67-5.19" />
-            </svg>
-            <span>Refresh</span>
-          </button>
-
-          <button 
-            type="button" 
-            class="btn-header btn-header-primary" 
-            :disabled="saving || loading" 
-            @click="saveSettings"
-          >
-            <span v-if="saving" class="spin-infinite">⏳</span>
-            <svg v-else width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
-              <polyline points="17 21 17 13 7 13 7 21" />
-              <polyline points="7 3 7 8 15 8" />
-            </svg>
-            <span>{{ saving ? 'Saving Changes…' : 'Save Settings' }}</span>
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ─── CATEGORY NAVIGATION TABS & FILTER ────────────────────────── -->
-    <div class="settings-nav-bar">
-      <div class="category-tabs-scroll">
         <button 
-          v-for="cat in categories" 
-          :key="cat.id" 
-          type="button"
-          class="category-nav-tab" 
-          :class="{ active: activeCategory === cat.id }"
-          @click="activeCategory = cat.id"
+          type="button" 
+          class="btn-hdr btn-hdr-ghost" 
+          :disabled="loading || saving" 
+          @click="reloadAll"
+          title="Reload configuration from MySQL"
         >
-          <span class="cat-icon">{{ cat.icon }}</span>
-          <span class="cat-label">{{ cat.label }}</span>
-          <span v-if="cat.badge" class="cat-pill">{{ cat.badge }}</span>
+          <svg class="btn-svg" :class="{ 'spin-active': loading }" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 11-.57-8.38l5.67-5.19"/>
+          </svg>
+          <span>Refresh</span>
+        </button>
+
+        <button 
+          type="button" 
+          class="btn-hdr btn-hdr-primary" 
+          :disabled="saving || loading" 
+          @click="saveSettings"
+        >
+          <svg v-if="!saving" class="btn-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+            <polyline points="17 21 17 13 7 13 7 21"/>
+            <polyline points="7 3 7 8 15 8"/>
+          </svg>
+          <span v-else class="spin-active">⏳</span>
+          <span>{{ saving ? 'Saving…' : 'Save Changes' }}</span>
         </button>
       </div>
+    </header>
 
-      <div class="search-filter-box">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <circle cx="11" cy="11" r="8" />
-          <line x1="21" y1="21" x2="16.65" y2="16.65" />
-        </svg>
-        <input 
-          v-model="searchFilter" 
-          type="text" 
-          placeholder="Filter settings…" 
-          class="search-filter-input"
-        />
-        <button v-if="searchFilter" type="button" class="btn-clear-search" @click="searchFilter = ''">✕</button>
-      </div>
-    </div>
+    <!-- ─── TWO-COLUMN WORKSPACE ─────────────────────────────────────── -->
+    <div class="settings-workspace-layout">
+      <!-- ─── LEFT SIDEBAR NAVIGATION ──────────────────────────────── -->
+      <aside class="settings-sidebar-nav">
+        <div class="sidebar-nav-title">Configuration Modules</div>
+        <nav class="sidebar-nav-list">
+          <button 
+            type="button" 
+            class="nav-tab-item" 
+            :class="{ active: activeTab === 'ghl' }"
+            @click="activeTab = 'ghl'"
+          >
+            <div class="tab-icon-box icon-ghl">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            </div>
+            <div class="tab-label-group">
+              <span class="tab-name">GoHighLevel CRM</span>
+              <span class="tab-desc">API keys, tokens &amp; endpoints</span>
+            </div>
+            <span class="tab-micro-badge">Core</span>
+          </button>
 
-    <!-- ─── LOADING STATE SKELETON ───────────────────────────────────── -->
-    <div v-if="loading" class="settings-loading-card">
-      <div class="loading-spinner"></div>
-      <div style="font-weight: 600; font-size: 15px; color: #1e293b; margin-top: 14px;">Loading System Configuration…</div>
-      <div style="font-size: 12px; color: #64748b; margin-top: 4px;">Fetching encrypted settings and schema definitions from MySQL database</div>
-    </div>
+          <button 
+            type="button" 
+            class="nav-tab-item" 
+            :class="{ active: activeTab === 'webhooks' }"
+            @click="activeTab = 'webhooks'"
+          >
+            <div class="tab-icon-box icon-webhooks">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            </div>
+            <div class="tab-label-group">
+              <span class="tab-name">Webhooks &amp; Operations</span>
+              <span class="tab-desc">Outbound handoff &amp; triggers</span>
+            </div>
+            <span class="tab-micro-badge badge-purple">Hub</span>
+          </button>
 
-    <!-- ─── SETTINGS CONTENT CARDS ───────────────────────────────────── -->
-    <div v-else class="settings-content-stack">
-      
-      <!-- ═══════════════════════════════════════════════════════════════ -->
-      <!-- 1. GOHIGHLEVEL CREDENTIALS CARD                                 -->
-      <!-- ═══════════════════════════════════════════════════════════════ -->
-      <section 
-        v-show="isCategoryVisible('ghl')" 
-        class="executive-card" 
-        :class="{ 'card-highlight': matchesSearch('ghl leadconnector private token secret marketplace api') }"
-      >
-        <div class="card-header-row">
-          <div class="card-title-group">
-            <div class="card-icon-pill icon-amber">⚡</div>
-            <div>
-              <div class="card-title-with-badge">
-                <h2 class="card-title">GoHighLevel API &amp; Webhook Credentials</h2>
-                <span class="badge-chip chip-amber">LeadConnector v2</span>
+          <button 
+            type="button" 
+            class="nav-tab-item" 
+            :class="{ active: activeTab === 'signing' }"
+            @click="activeTab = 'signing'"
+          >
+            <div class="tab-icon-box icon-signing">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+            </div>
+            <div class="tab-label-group">
+              <span class="tab-name">Signing URLs &amp; Portal</span>
+              <span class="tab-desc">Public signing base domain</span>
+            </div>
+          </button>
+
+          <button 
+            type="button" 
+            class="nav-tab-item" 
+            :class="{ active: activeTab === 'branding' }"
+            @click="activeTab = 'branding'"
+          >
+            <div class="tab-icon-box icon-branding">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+            </div>
+            <div class="tab-label-group">
+              <span class="tab-name">Company Branding</span>
+              <span class="tab-desc">Official seal &amp; officer signature</span>
+            </div>
+          </button>
+
+          <button 
+            type="button" 
+            class="nav-tab-item" 
+            :class="{ active: activeTab === 'schema' }"
+            @click="activeTab = 'schema'"
+          >
+            <div class="tab-icon-box icon-schema">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            </div>
+            <div class="tab-label-group">
+              <span class="tab-name">Client Summary Schema</span>
+              <span class="tab-desc">Custom fields &amp; 9-page dossier</span>
+            </div>
+            <span class="tab-micro-badge badge-blue">{{ customSchema.fields?.length || 0 }}</span>
+          </button>
+
+          <button 
+            type="button" 
+            class="nav-tab-item" 
+            :class="{ active: activeTab === 'access' }"
+            @click="activeTab = 'access'"
+          >
+            <div class="tab-icon-box icon-access">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <div class="tab-label-group">
+              <span class="tab-name">Access &amp; Security</span>
+              <span class="tab-desc">Sales privacy &amp; lead isolation</span>
+            </div>
+          </button>
+
+          <button 
+            type="button" 
+            class="nav-tab-item" 
+            :class="{ active: activeTab === 'workers' }"
+            @click="activeTab = 'workers'"
+          >
+            <div class="tab-icon-box icon-workers">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>
+            </div>
+            <div class="tab-label-group">
+              <span class="tab-name">Background Workers</span>
+              <span class="tab-desc">Cron schedules &amp; rate limits</span>
+            </div>
+          </button>
+        </nav>
+      </aside>
+
+      <!-- ─── RIGHT CONTENT WORKSPACE ──────────────────────────────── -->
+      <main class="settings-content-pane">
+        
+        <!-- Loading State -->
+        <div v-if="loading" class="pane-loading-box">
+          <div class="pane-spinner"></div>
+          <div class="pane-loading-text">Loading Configuration from MySQL…</div>
+        </div>
+
+        <div v-else>
+          <!-- ═══════════════════════════════════════════════════════════ -->
+          <!-- TAB 1: GOHIGHLEVEL CREDENTIALS                             -->
+          <!-- ═══════════════════════════════════════════════════════════ -->
+          <div v-show="activeTab === 'ghl'" class="module-card">
+            <div class="module-header">
+              <div>
+                <h2 class="module-title">GoHighLevel API &amp; Marketplace Credentials</h2>
+                <p class="module-desc">Configure your GoHighLevel credentials for bi-directional contact synchronization, custom fields, and PDF storage.</p>
               </div>
-              <p class="card-subtitle">
-                Configure your GHL marketplace shared secret, sub-account Private Integration Token (PIT), and webhook auth headers.
-              </p>
+              <span class="module-tag tag-blue">LeadConnector v2</span>
             </div>
-          </div>
-          <span class="card-status-badge badge-active">CRM Backbone</span>
-        </div>
 
-        <div class="card-form-grid grid-2">
-          <!-- GHL Shared Secret -->
-          <div class="form-field-group">
-            <label class="modern-label">
-              <span class="label-text">GHL Marketplace Shared Secret</span>
-              <span class="meta-tag tag-blue">Context JWT</span>
-            </label>
-            <div class="modern-input-box">
-              <span class="input-prefix-icon">🔑</span>
-              <input 
-                v-model="form.GHL_SHARED_SECRET" 
-                :type="showSecret.GHL_SHARED_SECRET ? 'text' : 'password'" 
-                class="modern-text-input with-prefix with-suffix" 
-                placeholder="Enter GHL Marketplace Shared Secret" 
-              />
-              <button 
-                type="button" 
-                class="input-suffix-action" 
-                @click="toggleShow('GHL_SHARED_SECRET')"
-                :title="showSecret.GHL_SHARED_SECRET ? 'Hide Secret' : 'Reveal Secret'"
-              >
-                {{ showSecret.GHL_SHARED_SECRET ? '👁️‍🗨️' : '👁️' }}
-              </button>
-            </div>
-            <div class="field-meta-row">
-              <span class="field-hint">Configured in GHL Marketplace Developer Portal &rarr; App Credentials</span>
-              <button type="button" class="btn-micro-copy" @click="copyToClipboard(form.GHL_SHARED_SECRET, 'Shared Secret')">Copy</button>
-            </div>
-          </div>
-
-          <!-- GHL Private Integration Token -->
-          <div class="form-field-group">
-            <label class="modern-label">
-              <span class="label-text">GHL Private Integration Token (PIT)</span>
-              <span class="meta-tag tag-emerald">Backend REST API</span>
-            </label>
-            <div class="modern-input-box">
-              <span class="input-prefix-icon">🔒</span>
-              <input 
-                v-model="form.GHL_PRIVATE_INTEGRATION_TOKEN" 
-                :type="showSecret.GHL_PRIVATE_INTEGRATION_TOKEN ? 'text' : 'password'" 
-                class="modern-text-input with-prefix with-suffix" 
-                placeholder="pit-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" 
-              />
-              <button 
-                type="button" 
-                class="input-suffix-action" 
-                @click="toggleShow('GHL_PRIVATE_INTEGRATION_TOKEN')"
-                :title="showSecret.GHL_PRIVATE_INTEGRATION_TOKEN ? 'Hide Token' : 'Reveal Token'"
-              >
-                {{ showSecret.GHL_PRIVATE_INTEGRATION_TOKEN ? '👁️‍🗨️' : '👁️' }}
-              </button>
-            </div>
-            <div class="field-meta-row">
-              <span class="field-hint">Found in Sub-Account Settings &rarr; Developers &rarr; Private Integrations</span>
-              <button type="button" class="btn-micro-copy" @click="copyToClipboard(form.GHL_PRIVATE_INTEGRATION_TOKEN, 'Private Token')">Copy</button>
-            </div>
-          </div>
-
-          <!-- Webhook Ingestion Secret -->
-          <div class="form-field-group">
-            <label class="modern-label">
-              <span class="label-text">Inbound Webhook Authentication Secret</span>
-              <span class="meta-tag tag-purple">Bearer Header</span>
-            </label>
-            <div class="modern-input-box">
-              <span class="input-prefix-icon">🛡️</span>
-              <input 
-                v-model="form.GHL_WEBHOOK_SECRET" 
-                :type="showSecret.GHL_WEBHOOK_SECRET ? 'text' : 'password'" 
-                class="modern-text-input with-prefix with-suffix" 
-                placeholder="Enter Webhook Auth Secret" 
-              />
-              <button 
-                type="button" 
-                class="input-suffix-action" 
-                @click="toggleShow('GHL_WEBHOOK_SECRET')"
-                :title="showSecret.GHL_WEBHOOK_SECRET ? 'Hide Secret' : 'Reveal Secret'"
-              >
-                {{ showSecret.GHL_WEBHOOK_SECRET ? '👁️‍🗨️' : '👁️' }}
-              </button>
-            </div>
-            <div class="field-meta-row">
-              <span class="field-hint">Send in GHL Workflow header: <code>Authorization: Bearer &lt;secret&gt;</code></span>
-              <button type="button" class="btn-micro-copy" @click="copyToClipboard(form.GHL_WEBHOOK_SECRET, 'Webhook Secret')">Copy</button>
-            </div>
-          </div>
-
-          <!-- GHL API Version -->
-          <div class="form-field-group">
-            <label class="modern-label">
-              <span class="label-text">GoHighLevel API Version</span>
-              <span class="meta-tag tag-slate">Header: Version</span>
-            </label>
-            <div class="modern-input-box">
-              <span class="input-prefix-icon">📅</span>
-              <input 
-                v-model="form.GHL_API_VERSION" 
-                type="text" 
-                class="modern-text-input with-prefix" 
-                placeholder="2021-07-28" 
-              />
-            </div>
-            <div class="field-meta-row">
-              <span class="field-hint">Standard LeadConnector API Version (Default: <code>2021-07-28</code>)</span>
-            </div>
-          </div>
-
-          <!-- GHL API Base URL -->
-          <div class="form-field-group grid-span-2">
-            <label class="modern-label">
-              <span class="label-text">GoHighLevel API Base Endpoint</span>
-              <span class="meta-tag tag-blue">LeadConnector Gateway</span>
-            </label>
-            <div class="modern-input-box">
-              <span class="input-prefix-icon">🌐</span>
-              <input 
-                v-model="form.GHL_API_BASE_URL" 
-                type="text" 
-                class="modern-text-input with-prefix" 
-                placeholder="https://services.leadconnectorhq.com" 
-              />
-            </div>
-            <div class="field-meta-row">
-              <span class="field-hint">Primary API endpoint for Contacts, Opportunities, Custom Fields, Conversations, and Media Uploads</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ═══════════════════════════════════════════════════════════════ -->
-      <!-- 2. APPLICATION & SIGNING URL CARD                               -->
-      <!-- ═══════════════════════════════════════════════════════════════ -->
-      <section 
-        v-show="isCategoryVisible('signing')" 
-        class="executive-card"
-        :class="{ 'card-highlight': matchesSearch('signing base url domain public sign verify portal') }"
-      >
-        <div class="card-header-row">
-          <div class="card-title-group">
-            <div class="card-icon-pill icon-blue">🌐</div>
-            <div>
-              <div class="card-title-with-badge">
-                <h2 class="card-title">Public Signing &amp; Verification URLs</h2>
-                <span class="badge-chip chip-blue">Signer Portal</span>
-              </div>
-              <p class="card-subtitle">
-                Controls the external domain and protocol embedded into SMS invitations, email dispatches, and QR code stamps.
-              </p>
-            </div>
-          </div>
-          <span class="card-status-badge badge-active">Live Domain</span>
-        </div>
-
-        <div class="card-form-grid">
-          <div class="form-field-group">
-            <label class="modern-label">
-              <span class="label-text">Public Signing Base URL</span>
-              <span class="meta-tag tag-emerald">External FQDN</span>
-            </label>
-            <div class="modern-input-box">
-              <span class="input-prefix-icon">🔗</span>
-              <input 
-                v-model="form.SIGNING_BASE_URL" 
-                type="text" 
-                class="modern-text-input with-prefix" 
-                placeholder="https://contract.onesol.ae" 
-              />
-              <button 
-                type="button" 
-                class="input-suffix-action btn-copy-inline" 
-                @click="copyToClipboard(form.SIGNING_BASE_URL, 'Signing Base URL')"
-                title="Copy Signing URL"
-              >
-                📋 Copy
-              </button>
-            </div>
-            <div class="url-preview-pill">
-              <span class="preview-icon">👁️</span>
-              <span class="preview-text">
-                Live link format sent to signers: <code>{{ form.SIGNING_BASE_URL || 'https://contract.onesol.ae' }}/sign/&lt;secure_token&gt;</code>
-              </span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ═══════════════════════════════════════════════════════════════ -->
-      <!-- 3. WEBHOOKS & INTEGRATION HUB CARD                              -->
-      <!-- ═══════════════════════════════════════════════════════════════ -->
-      <section 
-        v-show="isCategoryVisible('webhooks')" 
-        class="executive-card webhook-card-accent"
-        :class="{ 'card-highlight': matchesSearch('webhook operations make zapier n8n inbound outbound signature hmac') }"
-      >
-        <div class="card-header-row">
-          <div class="card-title-group">
-            <div class="card-icon-pill icon-purple">🔌</div>
-            <div>
-              <div class="card-title-with-badge">
-                <h2 class="card-title">Webhooks &amp; Integration Hub</h2>
-                <span class="badge-chip chip-purple">Operations &amp; Automation</span>
-              </div>
-              <p class="card-subtitle">
-                Connect inbound GHL deal triggers and automated outbound handoffs to Make.com, Zapier, n8n, Slack, or internal Operations ERP.
-              </p>
-            </div>
-          </div>
-
-          <!-- Webhook Sub-Tabs -->
-          <div class="webhook-segmented-control">
-            <button 
-              type="button" 
-              class="segment-btn" 
-              :class="{ active: webhookTab === 'operations' }"
-              @click="webhookTab = 'operations'"
-            >
-              🚀 Outbound (Operations)
-            </button>
-            <button 
-              type="button" 
-              class="segment-btn" 
-              :class="{ active: webhookTab === 'inbound' }"
-              @click="webhookTab = 'inbound'"
-            >
-              📥 Inbound (GHL Trigger)
-            </button>
-            <button 
-              type="button" 
-              class="segment-btn" 
-              :class="{ active: webhookTab === 'docs' }"
-              @click="webhookTab = 'docs'"
-            >
-              📖 Docs &amp; Setup Guide
-            </button>
-          </div>
-        </div>
-
-        <!-- 3.1 SUBTAB: OUTBOUND OPERATIONS WEBHOOK -->
-        <div v-if="webhookTab === 'operations'" class="webhook-panel-body">
-          <div class="webhook-config-banner">
-            <div class="form-field-group">
-              <label class="modern-label">
-                <span class="label-text">Operations Webhook Destination URL</span>
-                <span class="meta-tag tag-blue">HTTP POST</span>
-              </label>
-              <div class="webhook-input-action-row">
-                <div class="modern-input-box" style="flex: 1;">
-                  <span class="input-prefix-icon">🎯</span>
+            <div class="form-layout-grid">
+              <!-- Shared Secret -->
+              <div class="form-item">
+                <label class="form-label-row">
+                  <span class="label-name">GHL Marketplace Shared Secret</span>
+                  <span class="label-pill">Context JWT</span>
+                </label>
+                <div class="input-icon-group">
+                  <span class="input-leading-icon">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="7.5" cy="15.5" r="5.5"/><path d="M21 2l-9.6 9.6"/><path d="M15.5 7.5l3 3L22 7l-3-3"/></svg>
+                  </span>
                   <input 
-                    v-model="form.OPERATIONS_WEBHOOK_URL" 
-                    type="text" 
-                    class="modern-text-input with-prefix" 
-                    placeholder="https://hook.eu1.make.com/... or https://hooks.zapier.com/... or https://n8n.onesol.ae/webhook/ops" 
+                    v-model="form.GHL_SHARED_SECRET" 
+                    :type="showSecret.GHL_SHARED_SECRET ? 'text' : 'password'" 
+                    class="clean-input with-lead with-trail" 
+                    placeholder="Enter GHL Marketplace Shared Secret" 
                   />
+                  <button 
+                    type="button" 
+                    class="input-trailing-btn" 
+                    @click="toggleShow('GHL_SHARED_SECRET')"
+                    title="Toggle Visibility"
+                  >
+                    <svg v-if="!showSecret.GHL_SHARED_SECRET" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <svg v-else width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                  </button>
                 </div>
-                <button 
-                  type="button" 
-                  class="btn-ping-action" 
-                  :disabled="testingWebhook || !form.OPERATIONS_WEBHOOK_URL"
-                  @click="testOperationsWebhook"
-                >
-                  <span v-if="testingWebhook" class="spin-infinite">⏳</span>
-                  <span v-else>⚡</span>
-                  <span>{{ testingWebhook ? 'Pinging Webhook…' : 'Test Webhook Ping' }}</span>
-                </button>
+                <div class="field-sub-row">
+                  <span class="field-explanation">Found in Marketplace Developer Portal &rarr; App Credentials</span>
+                  <button type="button" class="btn-copy-link" @click="copyToClipboard(form.GHL_SHARED_SECRET, 'Shared Secret')">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                    <span>Copy</span>
+                  </button>
+                </div>
               </div>
-              <span class="field-hint" style="margin-top: 6px;">
-                When staff marks a Client Summary as completed or clicks <strong>"Share with Operations"</strong>, the complete dossier, signed legal agreement, 9-page summary PDF, and all attachments will be delivered here.
-              </span>
+
+              <!-- Private Integration Token -->
+              <div class="form-item">
+                <label class="form-label-row">
+                  <span class="label-name">Private Integration Token (PIT)</span>
+                  <span class="label-pill">REST API Bearer</span>
+                </label>
+                <div class="input-icon-group">
+                  <span class="input-leading-icon">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                  </span>
+                  <input 
+                    v-model="form.GHL_PRIVATE_INTEGRATION_TOKEN" 
+                    :type="showSecret.GHL_PRIVATE_INTEGRATION_TOKEN ? 'text' : 'password'" 
+                    class="clean-input with-lead with-trail" 
+                    placeholder="pit-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" 
+                  />
+                  <button 
+                    type="button" 
+                    class="input-trailing-btn" 
+                    @click="toggleShow('GHL_PRIVATE_INTEGRATION_TOKEN')"
+                    title="Toggle Visibility"
+                  >
+                    <svg v-if="!showSecret.GHL_PRIVATE_INTEGRATION_TOKEN" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <svg v-else width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                  </button>
+                </div>
+                <div class="field-sub-row">
+                  <span class="field-explanation">Sub-Account Settings &rarr; Developers &rarr; Private Integrations</span>
+                  <button type="button" class="btn-copy-link" @click="copyToClipboard(form.GHL_PRIVATE_INTEGRATION_TOKEN, 'Private Token')">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                    <span>Copy</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Webhook Ingestion Secret -->
+              <div class="form-item">
+                <label class="form-label-row">
+                  <span class="label-name">Inbound Webhook Secret</span>
+                  <span class="label-pill">Authorization Header</span>
+                </label>
+                <div class="input-icon-group">
+                  <span class="input-leading-icon">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                  </span>
+                  <input 
+                    v-model="form.GHL_WEBHOOK_SECRET" 
+                    :type="showSecret.GHL_WEBHOOK_SECRET ? 'text' : 'password'" 
+                    class="clean-input with-lead with-trail" 
+                    placeholder="Enter Webhook Auth Secret" 
+                  />
+                  <button 
+                    type="button" 
+                    class="input-trailing-btn" 
+                    @click="toggleShow('GHL_WEBHOOK_SECRET')"
+                  >
+                    <svg v-if="!showSecret.GHL_WEBHOOK_SECRET" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <svg v-else width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                  </button>
+                </div>
+                <div class="field-sub-row">
+                  <span class="field-explanation">Sent in header: <code>Authorization: Bearer &lt;secret&gt;</code></span>
+                  <button type="button" class="btn-copy-link" @click="copyToClipboard(form.GHL_WEBHOOK_SECRET, 'Webhook Secret')">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                    <span>Copy</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- GHL API Version -->
+              <div class="form-item">
+                <label class="form-label-row">
+                  <span class="label-name">GoHighLevel API Version</span>
+                  <span class="label-pill">Header: Version</span>
+                </label>
+                <div class="input-icon-group">
+                  <span class="input-leading-icon">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  </span>
+                  <input v-model="form.GHL_API_VERSION" type="text" class="clean-input with-lead" placeholder="2021-07-28" />
+                </div>
+                <div class="field-sub-row">
+                  <span class="field-explanation">Default: <code>2021-07-28</code></span>
+                </div>
+              </div>
+
+              <!-- GHL API Base URL -->
+              <div class="form-item span-full">
+                <label class="form-label-row">
+                  <span class="label-name">GHL API Base Endpoint</span>
+                  <span class="label-pill">Production Gateway</span>
+                </label>
+                <div class="input-icon-group">
+                  <span class="input-leading-icon">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+                  </span>
+                  <input v-model="form.GHL_API_BASE_URL" type="text" class="clean-input with-lead" placeholder="https://services.leadconnectorhq.com" />
+                </div>
+              </div>
             </div>
 
-            <!-- Ping Result Box -->
-            <transition name="fade">
-              <div v-if="testWebhookResult" class="ping-result-card" :class="testWebhookResult.success ? 'ping-success' : 'ping-failed'">
-                <div class="ping-status-header">
-                  <div class="ping-title">
-                    <span class="ping-icon">{{ testWebhookResult.success ? '✅' : '⚠️' }}</span>
-                    <span>{{ testWebhookResult.success ? 'Webhook Delivered Successfully' : 'Webhook Delivery Failed' }}</span>
-                  </div>
-                  <div class="ping-metrics">
-                    <span v-if="testWebhookResult.status" class="status-code-tag">HTTP {{ testWebhookResult.status }}</span>
-                    <span v-if="testWebhookResult.durationMs" class="latency-tag">{{ testWebhookResult.durationMs }}ms</span>
-                  </div>
-                </div>
-                <div class="ping-message-detail">
-                  {{ testWebhookResult.message || testWebhookResult.error }}
-                </div>
-              </div>
-            </transition>
-
-            <!-- HMAC Signing Secret -->
-            <div class="form-field-group" style="margin-top: 14px;">
-              <label class="modern-label">
-                <span class="label-text">HMAC-SHA256 Signing Secret Key</span>
-                <span class="meta-tag tag-emerald">Header: X-Webhook-Signature</span>
-              </label>
-              <div class="modern-input-box">
-                <span class="input-prefix-icon">🔐</span>
-                <input 
-                  v-model="form.OPERATIONS_WEBHOOK_SECRET" 
-                  :type="showSecret.OPERATIONS_WEBHOOK_SECRET ? 'text' : 'password'" 
-                  class="modern-text-input with-prefix with-suffix" 
-                  placeholder="Enter secret key for HMAC signature verification" 
-                />
-                <button 
-                  type="button" 
-                  class="input-suffix-action" 
-                  @click="toggleShow('OPERATIONS_WEBHOOK_SECRET')"
-                >
-                  {{ showSecret.OPERATIONS_WEBHOOK_SECRET ? '👁️‍🗨️' : '👁️' }}
-                </button>
-              </div>
-              <div class="field-meta-row">
-                <span class="field-hint">Sent in <code>X-Webhook-Signature</code> header. Your receiver can verify this hash to guarantee payload authenticity.</span>
-                <button type="button" class="btn-micro-copy" @click="copyToClipboard(form.OPERATIONS_WEBHOOK_SECRET, 'Secret Key')">Copy</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Outbound Schema Code Box -->
-          <div class="modern-code-terminal">
-            <div class="terminal-topbar">
-              <div class="terminal-dots">
-                <span class="dot red"></span>
-                <span class="dot yellow"></span>
-                <span class="dot green"></span>
-                <span class="terminal-label">OUTBOUND PAYLOAD SCHEMA (JSON)</span>
-              </div>
-              <button type="button" class="btn-copy-terminal" @click="copyToClipboard(sampleOutboundJson, 'Payload Schema')">
-                📋 Copy Schema JSON
+            <div class="module-footer">
+              <button type="button" class="btn-save-inline" :disabled="saving" @click="saveSettings">
+                <span>{{ saving ? 'Saving…' : 'Save GoHighLevel Settings' }}</span>
               </button>
             </div>
-            <pre class="terminal-code"><code>{{ sampleOutboundJson }}</code></pre>
           </div>
-        </div>
 
-        <!-- 3.2 SUBTAB: INBOUND GHL TRIGGER WEBHOOK -->
-        <div v-else-if="webhookTab === 'inbound'" class="webhook-panel-body">
-          <div class="webhook-config-banner">
-            <div class="form-field-group">
-              <label class="modern-label">
-                <span class="label-text">Inbound Webhook Trigger URL</span>
-                <span class="meta-tag tag-blue">GHL Workflow Action</span>
-              </label>
-              <div class="webhook-input-action-row">
-                <div class="modern-input-box" style="flex: 1;">
-                  <span class="input-prefix-icon">📥</span>
+          <!-- ═══════════════════════════════════════════════════════════ -->
+          <!-- TAB 2: WEBHOOKS & OPERATIONS                               -->
+          <!-- ═══════════════════════════════════════════════════════════ -->
+          <div v-show="activeTab === 'webhooks'" class="module-card">
+            <div class="module-header">
+              <div>
+                <h2 class="module-title">Webhooks &amp; Operations Integration Hub</h2>
+                <p class="module-desc">Connect automated case handoffs to your Operations team (Make.com, Zapier, n8n, Slack, or internal ERP).</p>
+              </div>
+              <div class="sub-tab-pill-group">
+                <button 
+                  type="button" 
+                  class="sub-pill" 
+                  :class="{ active: webhookTab === 'operations' }"
+                  @click="webhookTab = 'operations'"
+                >
+                  Outbound (Operations)
+                </button>
+                <button 
+                  type="button" 
+                  class="sub-pill" 
+                  :class="{ active: webhookTab === 'inbound' }"
+                  @click="webhookTab = 'inbound'"
+                >
+                  Inbound (GHL Trigger)
+                </button>
+                <button 
+                  type="button" 
+                  class="sub-pill" 
+                  :class="{ active: webhookTab === 'docs' }"
+                  @click="webhookTab = 'docs'"
+                >
+                  Documentation
+                </button>
+              </div>
+            </div>
+
+            <!-- Subtab 2.1: Outbound Operations -->
+            <div v-if="webhookTab === 'operations'" class="subtab-pane">
+              <div class="form-item span-full">
+                <label class="form-label-row">
+                  <span class="label-name">Operations Webhook Destination URL</span>
+                  <span class="label-pill">POST Request</span>
+                </label>
+                <div class="inline-action-input">
+                  <div class="input-icon-group" style="flex: 1;">
+                    <span class="input-leading-icon">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                    </span>
+                    <input 
+                      v-model="form.OPERATIONS_WEBHOOK_URL" 
+                      type="text" 
+                      class="clean-input with-lead" 
+                      placeholder="https://hook.eu1.make.com/... or https://hooks.zapier.com/... or https://n8n.yourorg.com/webhook/ops" 
+                    />
+                  </div>
+                  <button 
+                    type="button" 
+                    class="btn-trigger-ping" 
+                    :disabled="testingWebhook || !form.OPERATIONS_WEBHOOK_URL"
+                    @click="testOperationsWebhook"
+                  >
+                    <span v-if="testingWebhook" class="spin-active">⏳</span>
+                    <span v-else>⚡</span>
+                    <span>{{ testingWebhook ? 'Pinging…' : 'Test Ping' }}</span>
+                  </button>
+                </div>
+                <div class="field-sub-row">
+                  <span class="field-explanation">Delivered automatically when sales clicks <strong>"Share with Operations"</strong> on a completed dossier.</span>
+                </div>
+              </div>
+
+              <!-- Ping Result -->
+              <div v-if="testWebhookResult" class="ping-banner" :class="testWebhookResult.success ? 'ping-success' : 'ping-error'">
+                <div class="ping-banner-header">
+                  <span class="ping-badge-status">{{ testWebhookResult.success ? '✓ Delivered' : '✕ Delivery Notice' }}</span>
+                  <span v-if="testWebhookResult.status" class="ping-http-code">HTTP {{ testWebhookResult.status }}</span>
+                  <span v-if="testWebhookResult.durationMs" class="ping-ms">{{ testWebhookResult.durationMs }}ms</span>
+                </div>
+                <div class="ping-detail-text">{{ testWebhookResult.message || testWebhookResult.error }}</div>
+              </div>
+
+              <div class="form-item span-full" style="margin-top: 14px;">
+                <label class="form-label-row">
+                  <span class="label-name">HMAC-SHA256 Signing Secret</span>
+                  <span class="label-pill">X-Webhook-Signature</span>
+                </label>
+                <div class="input-icon-group">
+                  <span class="input-leading-icon">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                  </span>
+                  <input 
+                    v-model="form.OPERATIONS_WEBHOOK_SECRET" 
+                    :type="showSecret.OPERATIONS_WEBHOOK_SECRET ? 'text' : 'password'" 
+                    class="clean-input with-lead with-trail" 
+                    placeholder="Enter HMAC signing secret" 
+                  />
+                  <button 
+                    type="button" 
+                    class="input-trailing-btn" 
+                    @click="toggleShow('OPERATIONS_WEBHOOK_SECRET')"
+                  >
+                    <svg v-if="!showSecret.OPERATIONS_WEBHOOK_SECRET" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <svg v-else width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Terminal Code Box -->
+              <div class="code-terminal-card">
+                <div class="terminal-bar">
+                  <span class="terminal-title">OUTBOUND PAYLOAD SCHEMA (JSON)</span>
+                  <button type="button" class="btn-terminal-copy" @click="copyToClipboard(sampleOutboundJson, 'Schema JSON')">
+                    Copy JSON
+                  </button>
+                </div>
+                <pre class="terminal-body"><code>{{ sampleOutboundJson }}</code></pre>
+              </div>
+            </div>
+
+            <!-- Subtab 2.2: Inbound GHL Trigger -->
+            <div v-else-if="webhookTab === 'inbound'" class="subtab-pane">
+              <div class="form-item span-full">
+                <label class="form-label-row">
+                  <span class="label-name">Inbound Webhook Trigger URL</span>
+                  <span class="label-pill">GHL Workflow Action</span>
+                </label>
+                <div class="inline-action-input">
                   <input 
                     :value="inboundWebhookUrl" 
                     type="text" 
                     readonly 
-                    class="modern-text-input with-prefix mono-text" 
+                    class="clean-input code-font" 
+                  />
+                  <button 
+                    type="button" 
+                    class="btn-trigger-ping btn-blue-action" 
+                    @click="copyToClipboard(inboundWebhookUrl, 'Inbound Trigger URL')"
+                  >
+                    Copy URL
+                  </button>
+                </div>
+                <div class="field-sub-row">
+                  <span class="field-explanation">Paste into GoHighLevel Workflow (Add Action &rarr; Custom Webhook &rarr; POST).</span>
+                </div>
+              </div>
+
+              <div class="code-terminal-card">
+                <div class="terminal-bar">
+                  <span class="terminal-title">INBOUND PAYLOAD REQUEST BODY</span>
+                  <button type="button" class="btn-terminal-copy" @click="copyToClipboard(sampleInboundJson, 'Inbound JSON')">
+                    Copy JSON
+                  </button>
+                </div>
+                <pre class="terminal-body"><code>{{ sampleInboundJson }}</code></pre>
+              </div>
+            </div>
+
+            <!-- Subtab 2.3: Docs -->
+            <div v-else-if="webhookTab === 'docs'" class="subtab-pane">
+              <div class="docs-dual-column">
+                <div class="doc-box">
+                  <div class="doc-header-pill">AUTOMATION</div>
+                  <h4 class="doc-title">1. Trigger Contract Generation from GHL Workflows</h4>
+                  <p class="doc-p">Trigger automatic contract drafts whenever an Opportunity moves to Won.</p>
+                  <ol class="doc-steps">
+                    <li>Open <strong>GHL &rarr; Automations &rarr; Workflows</strong>.</li>
+                    <li>Add Trigger: <strong>Opportunity Status Changed</strong> (Won).</li>
+                    <li>Add Action: <strong>Custom Webhook (POST)</strong>.</li>
+                    <li>URL: <code>{{ inboundWebhookUrl }}</code></li>
+                    <li>Header: <code>Authorization: Bearer {{ form.GHL_WEBHOOK_SECRET }}</code></li>
+                  </ol>
+                </div>
+
+                <div class="doc-box">
+                  <div class="doc-header-pill">OPERATIONS HANDOFF</div>
+                  <h4 class="doc-title">2. Receiving Dossiers in Make / Zapier / ERP</h4>
+                  <p class="doc-p">Directly ingest client attachments and legal PDFs into cloud drives and processing pipelines.</p>
+                  <ol class="doc-steps">
+                    <li>Create Catch Hook in Make.com or Zapier.</li>
+                    <li>Paste destination URL into Outbound tab and click <strong>Test Ping</strong>.</li>
+                    <li>Map <code>documents.packageZipUrl</code> to download the complete case archive.</li>
+                    <li>Map <code>documents.signedContractPdfUrl</code> for executed contract.</li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+
+            <div class="module-footer">
+              <button type="button" class="btn-save-inline" :disabled="saving" @click="saveSettings">
+                <span>{{ saving ? 'Saving…' : 'Save Webhook Configuration' }}</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- ═══════════════════════════════════════════════════════════ -->
+          <!-- TAB 3: SIGNING URLS & DOMAINS                              -->
+          <!-- ═══════════════════════════════════════════════════════════ -->
+          <div v-show="activeTab === 'signing'" class="module-card">
+            <div class="module-header">
+              <div>
+                <h2 class="module-title">Public Signing &amp; Verification URLs</h2>
+                <p class="module-desc">Controls the external domain and protocol embedded into SMS invitations, emails, and QR verification stamps.</p>
+              </div>
+              <span class="module-tag tag-emerald">Live Signer Gateway</span>
+            </div>
+
+            <div class="form-layout-grid">
+              <div class="form-item span-full">
+                <label class="form-label-row">
+                  <span class="label-name">Signing Base URL</span>
+                  <span class="label-pill">External FQDN</span>
+                </label>
+                <div class="input-icon-group">
+                  <span class="input-leading-icon">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+                  </span>
+                  <input 
+                    v-model="form.SIGNING_BASE_URL" 
+                    type="text" 
+                    class="clean-input with-lead" 
+                    placeholder="https://contract.onesol.ae" 
                   />
                 </div>
-                <button 
-                  type="button" 
-                  class="btn-ping-action btn-copy-action" 
-                  @click="copyToClipboard(inboundWebhookUrl, 'Inbound Webhook URL')"
-                >
-                  📋 Copy Trigger URL
-                </button>
-              </div>
-              <span class="field-hint" style="margin-top: 6px;">
-                Paste into GoHighLevel Workflows (<strong>Add Action &rarr; Custom Webhook &rarr; POST</strong>) to automatically generate contracts upon deal stages or tags.
-              </span>
-            </div>
-
-            <!-- Inbound Secret -->
-            <div class="form-field-group" style="margin-top: 14px;">
-              <label class="modern-label">
-                <span class="label-text">Webhook Authentication Header Secret</span>
-                <span class="meta-tag tag-purple">Authorization: Bearer</span>
-              </label>
-              <div class="modern-input-box">
-                <span class="input-prefix-icon">🛡️</span>
-                <input 
-                  v-model="form.GHL_WEBHOOK_SECRET" 
-                  :type="showSecret.GHL_WEBHOOK_SECRET ? 'text' : 'password'" 
-                  class="modern-text-input with-prefix with-suffix" 
-                  placeholder="Enter secret" 
-                />
-                <button 
-                  type="button" 
-                  class="input-suffix-action" 
-                  @click="toggleShow('GHL_WEBHOOK_SECRET')"
-                >
-                  {{ showSecret.GHL_WEBHOOK_SECRET ? '👁️‍🗨️' : '👁️' }}
-                </button>
-              </div>
-              <div class="field-meta-row">
-                <span class="field-hint">Required Header: <code>Authorization: Bearer {{ form.GHL_WEBHOOK_SECRET || 'secret' }}</code></span>
-                <button type="button" class="btn-micro-copy" @click="copyToClipboard(form.GHL_WEBHOOK_SECRET, 'Webhook Secret')">Copy</button>
-              </div>
-            </div>
-          </div>
-
-          <div class="modern-code-terminal">
-            <div class="terminal-topbar">
-              <div class="terminal-dots">
-                <span class="dot red"></span>
-                <span class="dot yellow"></span>
-                <span class="dot green"></span>
-                <span class="terminal-label">INBOUND WORKFLOW REQUEST BODY (JSON)</span>
-              </div>
-              <button type="button" class="btn-copy-terminal" @click="copyToClipboard(sampleInboundJson, 'Inbound Payload')">
-                📋 Copy Sample JSON
-              </button>
-            </div>
-            <pre class="terminal-code"><code>{{ sampleInboundJson }}</code></pre>
-          </div>
-        </div>
-
-        <!-- 3.3 SUBTAB: INTEGRATION DOCUMENTATION -->
-        <div v-else-if="webhookTab === 'docs'" class="webhook-panel-body">
-          <div class="docs-feature-grid">
-            <div class="doc-card">
-              <div class="doc-badge badge-ghl">GHL WORKFLOW AUTOMATION</div>
-              <h3 class="doc-card-title">1. Automatic Contract Creation via GoHighLevel</h3>
-              <p class="doc-card-text">Trigger contract generation whenever a lead moves to a specific pipeline stage or an Opportunity is Won.</p>
-              <ol class="doc-numbered-list">
-                <li>Go to <strong>GoHighLevel &rarr; Automation &rarr; Workflows</strong>.</li>
-                <li>Add Trigger: <strong>Opportunity Status Changed</strong> (<code>Won</code>) or <strong>Pipeline Stage Changed</strong>.</li>
-                <li>Add Action: <strong>Custom Webhook</strong>.</li>
-                <li>Method: <code>POST</code> &bull; URL: <code>{{ inboundWebhookUrl }}</code></li>
-                <li>Header: <code>Authorization</code> &bull; Value: <code>Bearer {{ form.GHL_WEBHOOK_SECRET }}</code></li>
-                <li>JSON Body: Send <code>locationId</code>, <code>contactId</code>, <code>opportunityId</code>, and <code>trigger</code>.</li>
-              </ol>
-            </div>
-
-            <div class="doc-card">
-              <div class="doc-badge badge-ops">OPERATIONS &amp; CASE HANDOFF</div>
-              <h3 class="doc-card-title">2. Receiving Completed Dossiers in Make / Zapier</h3>
-              <p class="doc-card-text">Upload client files to Google Drive, notify processing teams on Slack, or create tickets in ClickUp / Jira.</p>
-              <ol class="doc-numbered-list">
-                <li>Create a <strong>Custom Webhook</strong> in Make.com or <strong>Catch Hook</strong> in Zapier.</li>
-                <li>Paste the webhook URL into the <strong>Operations Webhook Destination</strong> tab above.</li>
-                <li>Click <strong>"Test Webhook Ping"</strong> to capture and map all client &amp; contract data.</li>
-                <li>Extract <code>documents.packageZipUrl</code> to download the compiled case dossier in 1 step.</li>
-                <li>Extract <code>documents.attachments</code> array for individual passports, Emirates IDs, and bank statements.</li>
-              </ol>
-            </div>
-
-            <div class="doc-card">
-              <div class="doc-badge badge-sec">HMAC SECURITY</div>
-              <h3 class="doc-card-title">3. Verifying HMAC-SHA256 Webhook Signatures</h3>
-              <p class="doc-card-text">Verify that incoming handoff payloads originate genuinely from your Contract &amp; Summary platform.</p>
-              <div class="modern-code-terminal" style="margin-top: 8px;">
-                <div class="terminal-topbar">
-                  <span class="terminal-label" style="font-size: 11px;">Node.js Verification Snippet</span>
-                  <button type="button" class="btn-copy-terminal" @click="copyToClipboard(nodeVerifySnippet, 'Node.js Snippet')">📋 Copy</button>
-                </div>
-                <pre class="terminal-code" style="max-height: 120px;"><code>{{ nodeVerifySnippet }}</code></pre>
-              </div>
-            </div>
-
-            <div class="doc-card">
-              <div class="doc-badge badge-ghl">GHL MEDIA STORAGE</div>
-              <h3 class="doc-card-title">4. GoHighLevel Media &amp; Custom Fields Access</h3>
-              <p class="doc-card-text">All finalized documents are permanently stored in GoHighLevel for instant access across your team.</p>
-              <ul class="doc-bullet-list">
-                <li><strong>Signed Legal Agreement:</strong> Stored in <code>contract.ghl_file_url</code> and contact custom field <code>contract_pdf_url</code>.</li>
-                <li><strong>9-Page Client Summary PDF:</strong> Uploaded to GHL Media Library and synced to custom field <code>client_summary_pdf_url</code>.</li>
-                <li><strong>Case Package ZIP:</strong> Uploaded to GHL Media Library and synced to custom field <code>case_package_zip_url</code>.</li>
-                <li><strong>Conversation Thread:</strong> Automatic Internal Comments are posted in GoHighLevel conversations whenever a contract is signed or shared with Operations.</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ═══════════════════════════════════════════════════════════════ -->
-      <!-- 4. OFFICIAL COMPANY BRANDING (STAMP & SIGNATURE)               -->
-      <!-- ═══════════════════════════════════════════════════════════════ -->
-      <section 
-        v-show="isCategoryVisible('branding')" 
-        class="executive-card"
-        :class="{ 'card-highlight': matchesSearch('branding stamp signature seal seal authorized officer logo') }"
-      >
-        <div class="card-header-row">
-          <div class="card-title-group">
-            <div class="card-icon-pill icon-emerald">🎨</div>
-            <div>
-              <div class="card-title-with-badge">
-                <h2 class="card-title">Company Seal &amp; Authorized Signature</h2>
-                <span class="badge-chip chip-emerald">Legal Assets</span>
-              </div>
-              <p class="card-subtitle">
-                Official company seal and authorized officer signature stamped onto completed agreements and QR-verified certificates.
-              </p>
-            </div>
-          </div>
-          <span class="card-status-badge badge-active">Auto Stamping</span>
-        </div>
-
-        <div class="branding-dual-grid">
-          <!-- 4.1 Company Stamp -->
-          <div class="asset-editor-box">
-            <div class="asset-box-header">
-              <div class="asset-title-row">
-                <span class="asset-badge-icon">🔴</span>
-                <div>
-                  <h3 class="asset-heading">Official Company Stamp / Seal</h3>
-                  <p class="asset-sub">Overlaid alongside authorized signature on contract execution</p>
+                <div class="field-sub-row">
+                  <span class="field-explanation">
+                    Signer invitation format: <code>{{ form.SIGNING_BASE_URL || 'https://contract.onesol.ae' }}/sign/&lt;secure_token&gt;</code>
+                  </span>
+                  <button type="button" class="btn-copy-link" @click="copyToClipboard(form.SIGNING_BASE_URL, 'Signing Base URL')">
+                    Copy URL
+                  </button>
                 </div>
               </div>
             </div>
 
-            <div class="asset-input-row">
-              <div class="modern-input-box" style="flex: 1;">
-                <span class="input-prefix-icon">🖼️</span>
-                <input 
-                  v-model="form.COMPANY_STAMP_URL" 
-                  type="text" 
-                  class="modern-text-input with-prefix" 
-                  placeholder="https://... or upload PNG file" 
-                />
-              </div>
-              <button 
-                type="button" 
-                class="btn-asset-upload" 
-                :disabled="uploadingStampMedia" 
-                @click="triggerStampUpload"
-              >
-                {{ uploadingStampMedia ? '⏳ Uploading…' : '📁 Upload PNG' }}
+            <div class="module-footer">
+              <button type="button" class="btn-save-inline" :disabled="saving" @click="saveSettings">
+                <span>{{ saving ? 'Saving…' : 'Save Signing URL' }}</span>
               </button>
-              <input 
-                ref="stampFileInput" 
-                type="file" 
-                accept="image/png,image/jpeg,image/webp" 
-                style="display: none;" 
-                @change="onStampFileSelected" 
-              />
+            </div>
+          </div>
+
+          <!-- ═══════════════════════════════════════════════════════════ -->
+          <!-- TAB 4: COMPANY BRANDING (SEAL & SIGNATURE)                 -->
+          <!-- ═══════════════════════════════════════════════════════════ -->
+          <div v-show="activeTab === 'branding'" class="module-card">
+            <div class="module-header">
+              <div>
+                <h2 class="module-title">Official Company Seal &amp; Authorized Signature</h2>
+                <p class="module-desc">Uploaded assets are automatically stamped and embedded into finalized legal contracts and certificates.</p>
+              </div>
+              <span class="module-tag tag-purple">Legal Stamping</span>
             </div>
 
-            <!-- Preview Canvas -->
-            <div class="asset-preview-canvas">
-              <div class="paper-texture">
-                <div v-if="form.COMPANY_STAMP_URL" class="stamp-preview-wrapper">
-                  <img :src="form.COMPANY_STAMP_URL" alt="Company Stamp" class="stamp-image-preview" />
-                  <div class="preview-tag-badge">
-                    <span class="dot-green"></span>
-                    <span>Live Seal Preview</span>
+            <div class="branding-side-by-side">
+              <!-- Stamp Box -->
+              <div class="asset-card-unit">
+                <div class="asset-card-top">
+                  <div class="asset-title-group">
+                    <span class="asset-svg-icon">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+                    </span>
+                    <div>
+                      <h4 class="asset-unit-title">Company Seal / Stamp</h4>
+                      <p class="asset-unit-sub">Overlaid alongside authorized signature on execution</p>
+                    </div>
                   </div>
                 </div>
-                <div v-else class="preview-empty-state">
-                  <span class="empty-icon">🔴</span>
-                  <span>No company seal uploaded yet</span>
-                  <span class="empty-hint">Transparent PNG recommended (max 5MB)</span>
+
+                <div class="asset-upload-row">
+                  <input 
+                    v-model="form.COMPANY_STAMP_URL" 
+                    type="text" 
+                    class="clean-input" 
+                    placeholder="https://... or upload PNG" 
+                  />
+                  <button 
+                    type="button" 
+                    class="btn-file-pick" 
+                    :disabled="uploadingStampMedia" 
+                    @click="triggerStampUpload"
+                  >
+                    {{ uploadingStampMedia ? 'Uploading…' : 'Upload PNG' }}
+                  </button>
+                  <input 
+                    ref="stampFileInput" 
+                    type="file" 
+                    accept="image/png,image/jpeg,image/webp" 
+                    style="display: none;" 
+                    @change="onStampFileSelected" 
+                  />
                 </div>
-              </div>
-              <div v-if="form.COMPANY_STAMP_URL" class="preview-footer-action">
-                <button type="button" class="btn-remove-asset" @click="clearStamp">
-                  🗑️ Remove Stamp
-                </button>
-              </div>
-            </div>
-          </div>
 
-          <!-- 4.2 Authorized Signature -->
-          <div class="asset-editor-box">
-            <div class="asset-box-header">
-              <div class="asset-title-row">
-                <span class="asset-badge-icon">✍️</span>
-                <div>
-                  <h3 class="asset-heading">Authorized Officer Signature</h3>
-                  <p class="asset-sub">Embedded as official party signature on executed agreements</p>
-                </div>
-              </div>
-            </div>
-
-            <div class="asset-input-row">
-              <div class="modern-input-box" style="flex: 1;">
-                <span class="input-prefix-icon">🖋️</span>
-                <input 
-                  v-model="form.COMPANY_SIGNATURE_URL" 
-                  type="text" 
-                  class="modern-text-input with-prefix" 
-                  placeholder="https://... or upload PNG signature" 
-                />
-              </div>
-              <button 
-                type="button" 
-                class="btn-asset-upload" 
-                :disabled="uploadingSigMedia" 
-                @click="triggerSigUpload"
-              >
-                {{ uploadingSigMedia ? '⏳ Uploading…' : '📁 Upload PNG' }}
-              </button>
-              <input 
-                ref="sigFileInput" 
-                type="file" 
-                accept="image/png,image/jpeg,image/webp" 
-                style="display: none;" 
-                @change="onSigFileSelected" 
-              />
-            </div>
-
-            <!-- Preview Canvas -->
-            <div class="asset-preview-canvas">
-              <div class="paper-texture">
-                <div v-if="form.COMPANY_SIGNATURE_URL" class="sig-preview-wrapper">
-                  <img :src="form.COMPANY_SIGNATURE_URL" alt="Company Signature" class="sig-image-preview" />
-                  <div class="preview-tag-badge">
-                    <span class="dot-green"></span>
-                    <span>Live Signature Preview</span>
+                <!-- Paper Canvas Preview -->
+                <div class="paper-preview-box">
+                  <div v-if="form.COMPANY_STAMP_URL" class="preview-active-wrap">
+                    <img :src="form.COMPANY_STAMP_URL" alt="Company Stamp" class="stamp-preview-img" />
+                    <div class="preview-status-pill">
+                      <span class="dot-live"></span>
+                      <span>Active Stamp</span>
+                    </div>
+                  </div>
+                  <div v-else class="preview-blank-wrap">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                    <span>No company seal uploaded</span>
                   </div>
                 </div>
-                <div v-else class="preview-empty-state">
-                  <span class="empty-icon">✍️</span>
-                  <span>No authorized signature uploaded yet</span>
-                  <span class="empty-hint">Transparent PNG with clean ink recommended</span>
+
+                <div v-if="form.COMPANY_STAMP_URL" class="asset-remove-row">
+                  <button type="button" class="btn-asset-delete" @click="clearStamp">Remove Stamp</button>
                 </div>
               </div>
-              <div v-if="form.COMPANY_SIGNATURE_URL" class="preview-footer-action">
-                <button type="button" class="btn-remove-asset" @click="clearSignature">
-                  🗑️ Remove Signature
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
-      <!-- ═══════════════════════════════════════════════════════════════ -->
-      <!-- 5. CLIENT SUMMARY DOSSIER SCHEMA BUILDER                        -->
-      <!-- ═══════════════════════════════════════════════════════════════ -->
-      <section 
-        v-show="isCategoryVisible('schema')" 
-        class="executive-card"
-        :class="{ 'card-highlight': matchesSearch('client summary schema custom fields sections dossier pages') }"
-      >
-        <div class="card-header-row">
-          <div class="card-title-group">
-            <div class="card-icon-pill icon-indigo">📋</div>
-            <div>
-              <div class="card-title-with-badge">
-                <h2 class="card-title">Client Summary Dossier Customization</h2>
-                <span class="badge-chip chip-indigo">Schema Builder</span>
-              </div>
-              <p class="card-subtitle">
-                Add custom sections and fields to the official 9-page Client Summary Form. Captured by counsellors and rendered into the official dossier PDF and ZIP package.
-              </p>
-            </div>
-          </div>
-
-          <div class="schema-action-toolbar">
-            <!-- Preset Menu -->
-            <div class="preset-dropdown-container">
-              <button type="button" class="btn-schema-preset" @click="showPresetMenu = !showPresetMenu">
-                <span>⚡ Quick Presets</span>
-                <span>▾</span>
-              </button>
-              <div v-if="showPresetMenu" class="preset-dropdown-menu">
-                <button type="button" class="preset-item" @click="applyPreset('medical')">
-                  🏥 Medical &amp; Health Clearance (New Section + 4 Fields)
-                </button>
-                <button type="button" class="preset-item" @click="applyPreset('guarantor')">
-                  🤝 Secondary Sponsor &amp; Guarantor (New Section + 4 Fields)
-                </button>
-                <button type="button" class="preset-item" @click="applyPreset('identity')">
-                  🪪 Emirates ID &amp; Tax Verification (Added to Page 1 &amp; 7)
-                </button>
-              </div>
-            </div>
-
-            <button type="button" class="btn-schema-action btn-add-section" @click="openAddSectionModal">
-              ➕ Add Section
-            </button>
-            <button type="button" class="btn-schema-action btn-add-field" @click="openAddFieldModal">
-              ➕ Add Field
-            </button>
-          </div>
-        </div>
-
-        <!-- Schema Sub-Tabs -->
-        <div class="schema-tabs-row">
-          <button 
-            type="button" 
-            class="schema-tab-pill" 
-            :class="{ active: schemaActiveTab === 'fields' }"
-            @click="schemaActiveTab = 'fields'"
-          >
-            <span>Custom Fields</span>
-            <span class="tab-counter">{{ customSchema.fields?.length || 0 }}</span>
-          </button>
-          <button 
-            type="button" 
-            class="schema-tab-pill" 
-            :class="{ active: schemaActiveTab === 'sections' }"
-            @click="schemaActiveTab = 'sections'"
-          >
-            <span>Custom Sections / Pages</span>
-            <span class="tab-counter">{{ customSchema.sections?.length || 0 }}</span>
-          </button>
-        </div>
-
-        <!-- Schema Tab 1: Fields Table -->
-        <div v-if="schemaActiveTab === 'fields'">
-          <div v-if="!customSchema.fields?.length" class="empty-schema-state">
-            <div class="empty-schema-icon">📝</div>
-            <div class="empty-schema-title">No Custom Fields Configured</div>
-            <p class="empty-schema-desc">
-              Add custom fields to existing standard pages (General Info, Immigration History, Financials) or attach them to newly created custom sections.
-            </p>
-            <div class="empty-schema-actions">
-              <button type="button" class="btn btn-primary btn-sm" @click="openAddFieldModal">
-                ➕ Add First Field
-              </button>
-              <button type="button" class="btn btn-secondary btn-sm" @click="applyPreset('identity')">
-                ⚡ Load Sample Fields
-              </button>
-            </div>
-          </div>
-
-          <div v-else class="schema-table-container">
-            <table class="modern-schema-table">
-              <thead>
-                <tr>
-                  <th style="width: 25%;">Field Label</th>
-                  <th style="width: 20%;">Variable Key</th>
-                  <th style="width: 15%;">Field Type</th>
-                  <th style="width: 22%;">Target Section / Page</th>
-                  <th style="width: 8%; text-align: center;">Required</th>
-                  <th style="width: 10%; text-align: right;">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(fld, idx) in customSchema.fields" :key="fld.id || idx">
-                  <td>
-                    <div class="field-title-bold">{{ fld.label }}</div>
-                    <div v-if="fld.placeholder" class="field-placeholder-text">Placeholder: "{{ fld.placeholder }}"</div>
-                  </td>
-                  <td>
-                    <code class="mono-key-badge">{{ fld.key }}</code>
-                  </td>
-                  <td>
-                    <span class="field-type-chip">{{ formatFieldType(fld.type) }}</span>
-                    <span v-if="fld.options?.length" class="options-tag" :title="fld.options.join(', ')">
-                      {{ fld.options.length }} options
+              <!-- Signature Box -->
+              <div class="asset-card-unit">
+                <div class="asset-card-top">
+                  <div class="asset-title-group">
+                    <span class="asset-svg-icon">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg>
                     </span>
-                  </td>
-                  <td>
-                    <span class="section-tag-pill">
-                      {{ getSectionDisplayLabel(fld.section) }}
-                    </span>
-                  </td>
-                  <td style="text-align: center;">
-                    <span v-if="fld.required" class="badge-req">Required</span>
-                    <span v-else class="badge-opt">Optional</span>
-                  </td>
-                  <td style="text-align: right;">
-                    <div class="table-action-group">
-                      <button type="button" class="btn-table-icon" :disabled="idx === 0" title="Move Up" @click="moveField(idx, -1)">▲</button>
-                      <button type="button" class="btn-table-icon" :disabled="idx === customSchema.fields.length - 1" title="Move Down" @click="moveField(idx, 1)">▼</button>
-                      <button type="button" class="btn-table-icon" title="Edit Field" @click="openEditFieldModal(fld, idx)">✎</button>
-                      <button type="button" class="btn-table-icon btn-table-delete" title="Delete Field" @click="deleteField(idx)">✕</button>
+                    <div>
+                      <h4 class="asset-unit-title">Authorized Officer Signature</h4>
+                      <p class="asset-unit-sub">Embedded as primary signing authority on contracts</p>
                     </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
+                  </div>
+                </div>
 
-        <!-- Schema Tab 2: Sections Table -->
-        <div v-else-if="schemaActiveTab === 'sections'">
-          <div v-if="!customSchema.sections?.length" class="empty-schema-state">
-            <div class="empty-schema-icon">📑</div>
-            <div class="empty-schema-title">No Custom Sections Configured</div>
-            <p class="empty-schema-desc">
-              Create dedicated custom sections (such as "Medical Clearance" or "Guarantor Credentials") that appear as separate pages in the dossier and PDF.
-            </p>
-            <div class="empty-schema-actions">
-              <button type="button" class="btn btn-primary btn-sm" @click="openAddSectionModal">
-                ➕ Add First Section
+                <div class="asset-upload-row">
+                  <input 
+                    v-model="form.COMPANY_SIGNATURE_URL" 
+                    type="text" 
+                    class="clean-input" 
+                    placeholder="https://... or upload PNG" 
+                  />
+                  <button 
+                    type="button" 
+                    class="btn-file-pick" 
+                    :disabled="uploadingSigMedia" 
+                    @click="triggerSigUpload"
+                  >
+                    {{ uploadingSigMedia ? 'Uploading…' : 'Upload PNG' }}
+                  </button>
+                  <input 
+                    ref="sigFileInput" 
+                    type="file" 
+                    accept="image/png,image/jpeg,image/webp" 
+                    style="display: none;" 
+                    @change="onSigFileSelected" 
+                  />
+                </div>
+
+                <!-- Paper Canvas Preview -->
+                <div class="paper-preview-box">
+                  <div v-if="form.COMPANY_SIGNATURE_URL" class="preview-active-wrap">
+                    <img :src="form.COMPANY_SIGNATURE_URL" alt="Company Signature" class="sig-preview-img" />
+                    <div class="preview-status-pill">
+                      <span class="dot-live"></span>
+                      <span>Active Signature</span>
+                    </div>
+                  </div>
+                  <div v-else class="preview-blank-wrap">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                    <span>No signature uploaded</span>
+                  </div>
+                </div>
+
+                <div v-if="form.COMPANY_SIGNATURE_URL" class="asset-remove-row">
+                  <button type="button" class="btn-asset-delete" @click="clearSignature">Remove Signature</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="module-footer">
+              <button type="button" class="btn-save-inline" :disabled="saving" @click="saveSettings">
+                <span>{{ saving ? 'Saving…' : 'Save Branding Assets' }}</span>
               </button>
-              <button type="button" class="btn btn-secondary btn-sm" @click="applyPreset('medical')">
-                ⚡ Load Medical Clearance Section
+            </div>
+          </div>
+
+          <!-- ═══════════════════════════════════════════════════════════ -->
+          <!-- TAB 5: CLIENT SUMMARY SCHEMA BUILDER                       -->
+          <!-- ═══════════════════════════════════════════════════════════ -->
+          <div v-show="activeTab === 'schema'" class="module-card">
+            <div class="module-header">
+              <div>
+                <h2 class="module-title">Client Summary Dossier Customization</h2>
+                <p class="module-desc">Configure custom fields and custom sections for the official 9-page Client Summary dossier and PDF reports.</p>
+              </div>
+              <div class="schema-btn-toolbar">
+                <div class="preset-menu-wrap">
+                  <button type="button" class="btn-tool btn-tool-ghost" @click="showPresetMenu = !showPresetMenu">
+                    <span>Quick Presets ▾</span>
+                  </button>
+                  <div v-if="showPresetMenu" class="preset-popover">
+                    <button type="button" class="preset-choice" @click="applyPreset('medical')">
+                      Medical &amp; Health Clearance (New Section + 4 Fields)
+                    </button>
+                    <button type="button" class="preset-choice" @click="applyPreset('guarantor')">
+                      Secondary Sponsor &amp; Guarantor (New Section + 4 Fields)
+                    </button>
+                    <button type="button" class="preset-choice" @click="applyPreset('identity')">
+                      Emirates ID &amp; Tax Verification (Added to Page 1 &amp; 7)
+                    </button>
+                  </div>
+                </div>
+
+                <button type="button" class="btn-tool btn-tool-ghost" @click="openAddSectionModal">
+                  + Add Section
+                </button>
+                <button type="button" class="btn-tool btn-tool-solid" @click="openAddFieldModal">
+                  + Add Field
+                </button>
+              </div>
+            </div>
+
+            <div class="schema-sub-tabs">
+              <button 
+                type="button" 
+                class="schema-tab-btn" 
+                :class="{ active: schemaActiveTab === 'fields' }"
+                @click="schemaActiveTab = 'fields'"
+              >
+                <span>Custom Fields</span>
+                <span class="count-tag">{{ customSchema.fields?.length || 0 }}</span>
+              </button>
+              <button 
+                type="button" 
+                class="schema-tab-btn" 
+                :class="{ active: schemaActiveTab === 'sections' }"
+                @click="schemaActiveTab = 'sections'"
+              >
+                <span>Custom Sections / Pages</span>
+                <span class="count-tag">{{ customSchema.sections?.length || 0 }}</span>
+              </button>
+            </div>
+
+            <!-- Fields Table -->
+            <div v-if="schemaActiveTab === 'fields'">
+              <div v-if="!customSchema.fields?.length" class="empty-table-note">
+                <p>No custom fields configured yet. Add fields to existing standard pages or custom sections.</p>
+                <button type="button" class="btn-tool btn-tool-solid" @click="openAddFieldModal">+ Add First Field</button>
+              </div>
+
+              <div v-else class="table-border-wrap">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th style="width: 25%;">Field Label</th>
+                      <th style="width: 20%;">Variable Key</th>
+                      <th style="width: 15%;">Type</th>
+                      <th style="width: 22%;">Target Section</th>
+                      <th style="width: 8%; text-align: center;">Required</th>
+                      <th style="width: 10%; text-align: right;">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(fld, idx) in customSchema.fields" :key="fld.id || idx">
+                      <td>
+                        <div class="row-main-text">{{ fld.label }}</div>
+                        <div v-if="fld.placeholder" class="row-sub-text">{{ fld.placeholder }}</div>
+                      </td>
+                      <td>
+                        <code class="code-badge">{{ fld.key }}</code>
+                      </td>
+                      <td>
+                        <span class="type-pill">{{ formatFieldType(fld.type) }}</span>
+                      </td>
+                      <td>
+                        <span class="section-label-text">{{ getSectionDisplayLabel(fld.section) }}</span>
+                      </td>
+                      <td style="text-align: center;">
+                        <span class="req-tag" :class="fld.required ? 'tag-req' : 'tag-opt'">
+                          {{ fld.required ? 'Yes' : 'No' }}
+                        </span>
+                      </td>
+                      <td style="text-align: right;">
+                        <div class="row-actions">
+                          <button type="button" class="btn-act" :disabled="idx === 0" @click="moveField(idx, -1)" title="Move Up">▲</button>
+                          <button type="button" class="btn-act" :disabled="idx === customSchema.fields.length - 1" @click="moveField(idx, 1)" title="Move Down">▼</button>
+                          <button type="button" class="btn-act" @click="openEditFieldModal(fld, idx)" title="Edit">✎</button>
+                          <button type="button" class="btn-act btn-act-del" @click="deleteField(idx)" title="Delete">✕</button>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Sections Table -->
+            <div v-else-if="schemaActiveTab === 'sections'">
+              <div v-if="!customSchema.sections?.length" class="empty-table-note">
+                <p>No custom sections configured yet. Add custom sections to create standalone pages in the dossier.</p>
+                <button type="button" class="btn-tool btn-tool-solid" @click="openAddSectionModal">+ Add First Section</button>
+              </div>
+
+              <div v-else class="table-border-wrap">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th style="width: 14%; text-align: center;">Order</th>
+                      <th style="width: 30%;">Section Title</th>
+                      <th style="width: 38%;">Description</th>
+                      <th style="width: 8%; text-align: center;">Fields</th>
+                      <th style="width: 10%; text-align: right;">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(sec, idx) in customSchema.sections" :key="sec.id || idx">
+                      <td style="text-align: center;">
+                        <div class="order-reorder-flex">
+                          <button type="button" class="btn-act" :disabled="idx === 0" @click="moveSection(idx, -1)">▲</button>
+                          <span class="order-num">#{{ sec.order || idx + 1 }}</span>
+                          <button type="button" class="btn-act" :disabled="idx === customSchema.sections.length - 1" @click="moveSection(idx, 1)">▼</button>
+                        </div>
+                      </td>
+                      <td>
+                        <div class="row-main-text">{{ sec.title }}</div>
+                        <div class="row-sub-text">ID: {{ sec.id }}</div>
+                      </td>
+                      <td class="row-desc-cell">
+                        {{ sec.description || '—' }}
+                      </td>
+                      <td style="text-align: center;">
+                        <span class="count-pill-gray">{{ getFieldsCountForSection(sec.id) }}</span>
+                      </td>
+                      <td style="text-align: right;">
+                        <div class="row-actions">
+                          <button type="button" class="btn-act" @click="openEditSectionModal(sec, idx)" title="Edit">✎</button>
+                          <button type="button" class="btn-act btn-act-del" @click="deleteSection(idx)" title="Delete">✕</button>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="module-footer">
+              <button type="button" class="btn-save-inline" :disabled="savingSchema" @click="saveCustomSchemaManual">
+                <span>{{ savingSchema ? 'Saving Schema…' : 'Save Dossier Schema' }}</span>
               </button>
             </div>
           </div>
 
-          <div v-else class="schema-table-container">
-            <div class="sections-sorting-toolbar">
-              <div class="sort-hint">
-                <span>⇅ Arrange order of custom pages rendered in dossier tabs and PDF</span>
+          <!-- ═══════════════════════════════════════════════════════════ -->
+          <!-- TAB 6: ACCESS CONTROL & SALES PRIVACY                      -->
+          <!-- ═══════════════════════════════════════════════════════════ -->
+          <div v-show="activeTab === 'access'" class="module-card">
+            <div class="module-header">
+              <div>
+                <h2 class="module-title">Access Control &amp; Sales Lead Privacy</h2>
+                <p class="module-desc">Control whether sales representatives can only view and generate contracts for leads assigned directly to them.</p>
               </div>
-              <div class="sort-buttons-row">
-                <span class="sort-title">Sort:</span>
-                <button type="button" class="btn-sort-chip" @click="sortSectionsBy('title-asc')">A &rarr; Z</button>
-                <button type="button" class="btn-sort-chip" @click="sortSectionsBy('fields-count')">Most Fields</button>
-                <button type="button" class="btn-sort-chip" @click="sortSectionsBy('order')">Re-index</button>
+              <span class="module-tag tag-blue">Data Privacy</span>
+            </div>
+
+            <div class="form-layout-grid">
+              <div class="form-item span-full">
+                <label class="form-label-row">
+                  <span class="label-name">Restrict Sales Agents to Assigned Data</span>
+                  <span class="label-pill">{{ form.RESTRICT_CONTACTS_TO_ASSIGNED === 'true' ? 'Enforced' : 'Open' }}</span>
+                </label>
+                <select v-model="form.RESTRICT_CONTACTS_TO_ASSIGNED" class="clean-select">
+                  <option value="true">Enabled (Restricted) — Sales users only see their own assigned contacts &amp; opportunities</option>
+                  <option value="false">Disabled (Open) — Sales users can search and view all contacts &amp; opportunities across the location</option>
+                </select>
+                <div class="field-sub-row">
+                  <span class="field-explanation">
+                    When enabled, representatives (e.g. Akram Mammeri) will strictly view leads assigned to their GHL account. Admins always view all records.
+                  </span>
+                </div>
+              </div>
+
+              <div class="form-item">
+                <label class="form-label-row">
+                  <span class="label-name">App Session Duration (JWT)</span>
+                  <span class="label-pill">Auto-Logout</span>
+                </label>
+                <input v-model="form.JWT_EXPIRES_IN" type="text" class="clean-input" placeholder="8h" />
+                <div class="field-sub-row">
+                  <span class="field-explanation">Default: <code>8h</code></span>
+                </div>
               </div>
             </div>
 
-            <table class="modern-schema-table">
-              <thead>
-                <tr>
-                  <th style="width: 14%; text-align: center;">Position</th>
-                  <th style="width: 30%;">Section Title</th>
-                  <th style="width: 38%;">Description</th>
-                  <th style="width: 8%; text-align: center;">Fields</th>
-                  <th style="width: 10%; text-align: right;">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(sec, idx) in customSchema.sections" :key="sec.id || idx">
-                  <td style="text-align: center;">
-                    <div class="order-cell-row">
-                      <button type="button" class="btn-table-icon" :disabled="idx === 0" @click="moveSection(idx, -1)">▲</button>
-                      <span class="order-pill">#{{ sec.order || idx + 1 }}</span>
-                      <button type="button" class="btn-table-icon" :disabled="idx === customSchema.sections.length - 1" @click="moveSection(idx, 1)">▼</button>
-                    </div>
-                  </td>
-                  <td>
-                    <div class="field-title-bold">{{ sec.title }}</div>
-                    <div class="field-meta-id">ID: {{ sec.id }}</div>
-                  </td>
-                  <td class="sec-description-text">
-                    {{ sec.description || '—' }}
-                  </td>
-                  <td style="text-align: center;">
-                    <span class="fields-count-badge">{{ getFieldsCountForSection(sec.id) }}</span>
-                  </td>
-                  <td style="text-align: right;">
-                    <div class="table-action-group">
-                      <button type="button" class="btn-table-icon" title="Edit Section" @click="openEditSectionModal(sec, idx)">✎</button>
-                      <button type="button" class="btn-table-icon btn-table-delete" title="Delete Section" @click="deleteSection(idx)">✕</button>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+            <div class="module-footer">
+              <button type="button" class="btn-save-inline" :disabled="saving" @click="saveSettings">
+                <span>{{ saving ? 'Saving…' : 'Save Access Configuration' }}</span>
+              </button>
+            </div>
           </div>
-        </div>
 
-        <div class="schema-footer-bar">
-          <span class="footer-meta-text">
-            Changes to schema are synchronized with <strong>Client Summary Form</strong> and official A4 PDF exports.
-          </span>
-          <button 
-            type="button" 
-            class="btn btn-secondary btn-sm" 
-            :disabled="savingSchema" 
-            @click="saveCustomSchemaManual"
-          >
-            {{ savingSchema ? 'Saving Schema…' : '💾 Save Custom Schema' }}
-          </button>
-        </div>
-      </section>
-
-      <!-- ═══════════════════════════════════════════════════════════════ -->
-      <!-- 6. ACCESS, SALES PRIVACY & BACKGROUND WORKERS                  -->
-      <!-- ═══════════════════════════════════════════════════════════════ -->
-      <section 
-        v-show="isCategoryVisible('access')" 
-        class="executive-card"
-        :class="{ 'card-highlight': matchesSearch('sales access privacy restrict assigned cron workers cache session') }"
-      >
-        <div class="card-header-row">
-          <div class="card-title-group">
-            <div class="card-icon-pill icon-slate">🛡️</div>
-            <div>
-              <div class="card-title-with-badge">
-                <h2 class="card-title">Access Control, Sales Privacy &amp; Workers</h2>
-                <span class="badge-chip chip-slate">Security &amp; Performance</span>
+          <!-- ═══════════════════════════════════════════════════════════ -->
+          <!-- TAB 7: BACKGROUND WORKERS & PERFORMANCE                    -->
+          <!-- ═══════════════════════════════════════════════════════════ -->
+          <div v-show="activeTab === 'workers'" class="module-card">
+            <div class="module-header">
+              <div>
+                <h2 class="module-title">Background Workers &amp; Concurrency</h2>
+                <p class="module-desc">Tune rate limits for GoHighLevel API and configure automated background cron scanner intervals.</p>
               </div>
-              <p class="card-subtitle">
-                Configure whether sales representatives can only access contacts assigned to them, and tune background workers.
-              </p>
+              <span class="module-tag tag-purple">Performance</span>
+            </div>
+
+            <div class="form-layout-grid">
+              <div class="form-item">
+                <label class="form-label-row">
+                  <span class="label-name">GHL Concurrency Limit</span>
+                  <span class="label-pill">Rate Limit</span>
+                </label>
+                <input v-model="form.GHL_CONCURRENCY_LIMIT" type="number" class="clean-input" placeholder="4" />
+                <div class="field-sub-row">
+                  <span class="field-explanation">Max concurrent parallel API calls</span>
+                </div>
+              </div>
+
+              <div class="form-item">
+                <label class="form-label-row">
+                  <span class="label-name">Field Cache TTL (ms)</span>
+                  <span class="label-pill">In-Memory</span>
+                </label>
+                <input v-model="form.GHL_FIELD_CACHE_TTL_MS" type="number" class="clean-input" placeholder="900000" />
+                <div class="field-sub-row">
+                  <span class="field-explanation">Default: <code>900000</code> ms (15 min)</span>
+                </div>
+              </div>
+
+              <div class="form-item">
+                <label class="form-label-row">
+                  <span class="label-name">Max PDF Upload Retries</span>
+                  <span class="label-pill">Dead-letter</span>
+                </label>
+                <input v-model="form.MAX_UPLOAD_RETRIES" type="number" class="clean-input" placeholder="5" />
+                <div class="field-sub-row">
+                  <span class="field-explanation">Retries before escalation</span>
+                </div>
+              </div>
+
+              <div class="form-item">
+                <label class="form-label-row">
+                  <span class="label-name">Expiry Worker Cron</span>
+                  <span class="label-pill">Scanner</span>
+                </label>
+                <input v-model="form.EXPIRY_WORKER_CRON" type="text" class="clean-input" placeholder="*/5 * * * *" />
+                <div class="field-sub-row">
+                  <span class="field-explanation">Overdue contract scanner frequency</span>
+                </div>
+              </div>
+
+              <div class="form-item">
+                <label class="form-label-row">
+                  <span class="label-name">Retry Worker Cron</span>
+                  <span class="label-pill">Sync</span>
+                </label>
+                <input v-model="form.RETRY_WORKER_CRON" type="text" class="clean-input" placeholder="*/2 * * * *" />
+                <div class="field-sub-row">
+                  <span class="field-explanation">Failed upload retry scanner</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="module-footer">
+              <button type="button" class="btn-save-inline" :disabled="saving" @click="saveSettings">
+                <span>{{ saving ? 'Saving…' : 'Save Worker Settings' }}</span>
+              </button>
             </div>
           </div>
-          <span class="card-status-badge badge-active">Protected</span>
+
         </div>
-
-        <div class="card-form-grid grid-2">
-          <!-- Sales Lead Isolation -->
-          <div class="form-field-group grid-span-2">
-            <label class="modern-label">
-              <span class="label-text">Sales Representative Data Isolation</span>
-              <span class="meta-tag" :class="form.RESTRICT_CONTACTS_TO_ASSIGNED === 'true' ? 'tag-emerald' : 'tag-slate'">
-                {{ form.RESTRICT_CONTACTS_TO_ASSIGNED === 'true' ? 'Enforced' : 'Unrestricted' }}
-              </span>
-            </label>
-            <div class="modern-input-box">
-              <span class="input-prefix-icon">👥</span>
-              <select v-model="form.RESTRICT_CONTACTS_TO_ASSIGNED" class="modern-text-input with-prefix modern-select">
-                <option value="true">Enabled (Restricted) — Sales users only see their own assigned contacts &amp; opportunities</option>
-                <option value="false">Disabled (Open) — Sales users can search and view all contacts &amp; opportunities across the location</option>
-              </select>
-            </div>
-            <span class="field-hint">
-              When enabled, representatives (e.g. Akram Mammeri) will only see leads assigned to their GHL account. Admins and Super Admins always have access to all records.
-            </span>
-          </div>
-
-          <!-- Session Token Duration -->
-          <div class="form-field-group">
-            <label class="modern-label">
-              <span class="label-text">App Session JWT Duration</span>
-              <span class="meta-tag tag-blue">Auto-Logout</span>
-            </label>
-            <div class="modern-input-box">
-              <span class="input-prefix-icon">⏱️</span>
-              <input v-model="form.JWT_EXPIRES_IN" type="text" class="modern-text-input with-prefix" placeholder="8h" />
-            </div>
-            <span class="field-hint">Time before session expires and user must re-authenticate (Default: <code>8h</code>)</span>
-          </div>
-
-          <!-- GHL Concurrency Limit -->
-          <div class="form-field-group">
-            <label class="modern-label">
-              <span class="label-text">GHL API Concurrency Limit</span>
-              <span class="meta-tag tag-slate">Rate-Limiting</span>
-            </label>
-            <div class="modern-input-box">
-              <span class="input-prefix-icon">⚡</span>
-              <input v-model="form.GHL_CONCURRENCY_LIMIT" type="number" class="modern-text-input with-prefix" placeholder="4" />
-            </div>
-            <span class="field-hint">Maximum concurrent parallel requests to GoHighLevel API</span>
-          </div>
-
-          <!-- Field Cache TTL -->
-          <div class="form-field-group">
-            <label class="modern-label">
-              <span class="label-text">Custom Field Cache TTL (ms)</span>
-              <span class="meta-tag tag-slate">In-Memory Cache</span>
-            </label>
-            <div class="modern-input-box">
-              <span class="input-prefix-icon">💾</span>
-              <input v-model="form.GHL_FIELD_CACHE_TTL_MS" type="number" class="modern-text-input with-prefix" placeholder="900000" />
-            </div>
-            <span class="field-hint">Default: <code>900000</code> ms (15 minutes)</span>
-          </div>
-
-          <!-- Max PDF Upload Retries -->
-          <div class="form-field-group">
-            <label class="modern-label">
-              <span class="label-text">Max PDF Upload Retries</span>
-              <span class="meta-tag tag-slate">Exponential Backoff</span>
-            </label>
-            <div class="modern-input-box">
-              <span class="input-prefix-icon">🔁</span>
-              <input v-model="form.MAX_UPLOAD_RETRIES" type="number" class="modern-text-input with-prefix" placeholder="5" />
-            </div>
-            <span class="field-hint">Retries before escalating failed PDF sync</span>
-          </div>
-
-          <!-- Expiry Worker Cron -->
-          <div class="form-field-group">
-            <label class="modern-label">
-              <span class="label-text">Contract Expiry Worker Cron</span>
-              <span class="meta-tag tag-slate">Cron Schedule</span>
-            </label>
-            <div class="modern-input-box">
-              <span class="input-prefix-icon">⏰</span>
-              <input v-model="form.EXPIRY_WORKER_CRON" type="text" class="modern-text-input with-prefix" placeholder="*/5 * * * *" />
-            </div>
-            <span class="field-hint">Overdue contract scanner frequency (Default: <code>*/5 * * * *</code>)</span>
-          </div>
-
-          <!-- Retry Worker Cron -->
-          <div class="form-field-group">
-            <label class="modern-label">
-              <span class="label-text">Dead-letter Retry Worker Cron</span>
-              <span class="meta-tag tag-slate">Cron Schedule</span>
-            </label>
-            <div class="modern-input-box">
-              <span class="input-prefix-icon">⏰</span>
-              <input v-model="form.RETRY_WORKER_CRON" type="text" class="modern-text-input with-prefix" placeholder="*/2 * * * *" />
-            </div>
-            <span class="field-hint">Failed PDF upload retrier frequency (Default: <code>*/2 * * * *</code>)</span>
-          </div>
-        </div>
-      </section>
-
+      </main>
     </div>
 
     <!-- ─── FLOATING ACTION BAR FOR UNSAVED CHANGES ────────────────────── -->
-    <transition name="bar-slide">
-      <div v-if="isFormDirty" class="floating-save-bar">
-        <div class="save-bar-content">
-          <div class="save-bar-left">
-            <span class="warning-pulse-icon">⚠️</span>
+    <transition name="toast-fade">
+      <div v-if="isFormDirty" class="sticky-save-dock">
+        <div class="save-dock-inner">
+          <div class="dock-meta">
+            <span class="dock-dot"></span>
             <div>
-              <div class="save-bar-title">Unsaved System Changes</div>
-              <div class="save-bar-desc">You have modified system configurations that have not been persisted to MySQL yet.</div>
+              <span class="dock-title">You have unsaved changes</span>
+              <span class="dock-sub">Configurations have not yet been written to MySQL database.</span>
             </div>
           </div>
-          <div class="save-bar-actions">
-            <button type="button" class="btn-discard" :disabled="saving" @click="discardChanges">
-              Discard
-            </button>
-            <button type="button" class="btn-save-floating" :disabled="saving" @click="saveSettings">
-              <span v-if="saving" class="spin-infinite">⏳</span>
-              <span v-else>💾</span>
-              <span>{{ saving ? 'Saving…' : 'Save Changes' }}</span>
+          <div class="dock-buttons">
+            <button type="button" class="btn-dock-cancel" :disabled="saving" @click="discardChanges">Discard</button>
+            <button type="button" class="btn-dock-commit" :disabled="saving" @click="saveSettings">
+              {{ saving ? 'Saving…' : 'Save Changes' }}
             </button>
           </div>
         </div>
@@ -1167,48 +1070,42 @@
     </transition>
 
     <!-- ─── MODAL: ADD / EDIT CUSTOM FIELD ──────────────────────────── -->
-    <div v-if="showFieldModal" class="modal-backdrop-custom" @click.self="showFieldModal = false">
-      <div class="modal-card-custom animate-scale-up">
-        <div class="modal-header-custom">
-          <div class="modal-title-row">
-            <span class="modal-badge-icon">📝</span>
-            <h3 class="modal-heading-text">
-              {{ editingFieldIndex >= 0 ? 'Edit Custom Field' : 'Add New Custom Field' }}
-            </h3>
-          </div>
-          <button type="button" class="btn-close-custom" @click="showFieldModal = false">✕</button>
+    <div v-if="showFieldModal" class="modal-layer" @click.self="showFieldModal = false">
+      <div class="modal-box">
+        <div class="modal-head">
+          <h3 class="modal-title-text">{{ editingFieldIndex >= 0 ? 'Edit Custom Field' : 'Add New Custom Field' }}</h3>
+          <button type="button" class="modal-x" @click="showFieldModal = false">✕</button>
         </div>
 
-        <form @submit.prevent="submitFieldModal" class="modal-form-body">
-          <div class="modal-grid-2">
+        <form @submit.prevent="submitFieldModal" class="modal-body-form">
+          <div class="modal-2-col">
             <div>
-              <label class="modern-label">Field Label <span class="req">*</span></label>
+              <label class="field-label-text">Field Label <span class="req-star">*</span></label>
               <input
                 type="text"
                 v-model="fieldForm.label"
-                class="modern-text-input"
+                class="clean-input"
                 placeholder="e.g. National ID / Emirates ID"
                 required
                 @input="onFieldLabelInput"
               />
             </div>
             <div>
-              <label class="modern-label">Variable Key <span class="req">*</span></label>
+              <label class="field-label-text">Variable Key <span class="req-star">*</span></label>
               <input
                 type="text"
                 v-model="fieldForm.key"
-                class="modern-text-input mono-text"
+                class="clean-input code-font"
                 placeholder="e.g. national_id_number"
                 required
               />
-              <span class="field-hint">Unique identifier used in dossier JSON</span>
             </div>
           </div>
 
-          <div class="modal-grid-2">
+          <div class="modal-2-col">
             <div>
-              <label class="modern-label">Field Type <span class="req">*</span></label>
-              <select v-model="fieldForm.type" class="modern-text-input modern-select">
+              <label class="field-label-text">Field Type <span class="req-star">*</span></label>
+              <select v-model="fieldForm.type" class="clean-select">
                 <option value="text">Text (Single-line)</option>
                 <option value="textarea">Textarea (Multi-line paragraph)</option>
                 <option value="number">Number / Currency Amount</option>
@@ -1220,8 +1117,8 @@
             </div>
 
             <div>
-              <label class="modern-label">Target Section / Page <span class="req">*</span></label>
-              <select v-model="fieldForm.section" class="modern-text-input modern-select">
+              <label class="field-label-text">Target Section / Page <span class="req-star">*</span></label>
+              <select v-model="fieldForm.section" class="clean-select">
                 <optgroup label="Standard Built-in Dossier Pages">
                   <option v-for="sec in standardSectionOptions" :key="sec.id" :value="sec.id">
                     {{ sec.label }}
@@ -1236,104 +1133,70 @@
             </div>
           </div>
 
-          <!-- Dropdown Options if type is dropdown -->
           <div v-if="fieldForm.type === 'dropdown'">
-            <label class="modern-label">Dropdown Options (Comma separated) <span class="req">*</span></label>
+            <label class="field-label-text">Dropdown Options (Comma-separated) <span class="req-star">*</span></label>
             <input
               type="text"
               v-model="fieldForm.optionsText"
-              class="modern-text-input"
+              class="clean-input"
               placeholder="e.g. Option A, Option B, Option C"
               required
             />
-            <span class="field-hint">Separate each option with a comma.</span>
           </div>
 
-          <div class="modal-grid-2">
+          <div class="modal-2-col">
             <div>
-              <label class="modern-label">Placeholder Text</label>
-              <input
-                type="text"
-                v-model="fieldForm.placeholder"
-                class="modern-text-input"
-                placeholder="e.g. Enter value..."
-              />
+              <label class="field-label-text">Placeholder Text</label>
+              <input type="text" v-model="fieldForm.placeholder" class="clean-input" placeholder="e.g. Enter value..." />
             </div>
-            <div style="display: flex; flex-direction: column; justify-content: center; gap: 8px; padding-top: 16px;">
-              <label class="checkbox-label-row">
+            <div style="display: flex; flex-direction: column; justify-content: center; gap: 8px; padding-top: 14px;">
+              <label class="check-row">
                 <input type="checkbox" v-model="fieldForm.required" />
-                <span>Mark as Required Field</span>
+                <span>Required Field</span>
               </label>
-              <label class="checkbox-label-row">
+              <label class="check-row">
                 <input type="checkbox" v-model="fieldForm.fullWidth" />
-                <span>Span Full Width (2 columns in form)</span>
+                <span>Full Width in PDF</span>
               </label>
             </div>
           </div>
 
-          <div class="modal-footer-actions">
-            <button type="button" class="btn btn-secondary" @click="showFieldModal = false">Cancel</button>
-            <button type="submit" class="btn btn-primary">
-              {{ editingFieldIndex >= 0 ? 'Save Changes' : 'Add Field' }}
-            </button>
+          <div class="modal-foot">
+            <button type="button" class="btn-tool btn-tool-ghost" @click="showFieldModal = false">Cancel</button>
+            <button type="submit" class="btn-tool btn-tool-solid">{{ editingFieldIndex >= 0 ? 'Save Changes' : 'Add Field' }}</button>
           </div>
         </form>
       </div>
     </div>
 
     <!-- ─── MODAL: ADD / EDIT CUSTOM SECTION ────────────────────────── -->
-    <div v-if="showSectionModal" class="modal-backdrop-custom" @click.self="showSectionModal = false">
-      <div class="modal-card-custom animate-scale-up" style="max-width: 480px;">
-        <div class="modal-header-custom">
-          <div class="modal-title-row">
-            <span class="modal-badge-icon">📑</span>
-            <h3 class="modal-heading-text">
-              {{ editingSectionIndex >= 0 ? 'Edit Custom Section' : 'Add New Custom Section' }}
-            </h3>
-          </div>
-          <button type="button" class="btn-close-custom" @click="showSectionModal = false">✕</button>
+    <div v-if="showSectionModal" class="modal-layer" @click.self="showSectionModal = false">
+      <div class="modal-box" style="max-width: 480px;">
+        <div class="modal-head">
+          <h3 class="modal-title-text">{{ editingSectionIndex >= 0 ? 'Edit Custom Section' : 'Add New Custom Section' }}</h3>
+          <button type="button" class="modal-x" @click="showSectionModal = false">✕</button>
         </div>
 
-        <form @submit.prevent="submitSectionModal" class="modal-form-body">
-          <div class="modal-grid-2">
+        <form @submit.prevent="submitSectionModal" class="modal-body-form">
+          <div class="modal-2-col">
             <div>
-              <label class="modern-label">Section Title <span class="req">*</span></label>
-              <input
-                type="text"
-                v-model="sectionForm.title"
-                class="modern-text-input"
-                placeholder="e.g. Medical &amp; Health Clearance"
-                required
-              />
+              <label class="field-label-text">Section Title <span class="req-star">*</span></label>
+              <input type="text" v-model="sectionForm.title" class="clean-input" placeholder="e.g. Medical Clearance" required />
             </div>
             <div>
-              <label class="modern-label">Sort / Order Position</label>
-              <input
-                type="number"
-                v-model.number="sectionForm.order"
-                min="1"
-                class="modern-text-input"
-                placeholder="e.g. 1"
-              />
-              <span class="field-hint">Display position in form tabs &amp; PDF</span>
+              <label class="field-label-text">Order Position</label>
+              <input type="number" v-model.number="sectionForm.order" min="1" class="clean-input" placeholder="1" />
             </div>
           </div>
 
           <div>
-            <label class="modern-label">Section Description (Optional)</label>
-            <textarea
-              v-model="sectionForm.description"
-              class="modern-text-input"
-              rows="3"
-              placeholder="Brief instructions or purpose for counsellors filling this section..."
-            ></textarea>
+            <label class="field-label-text">Description</label>
+            <textarea v-model="sectionForm.description" class="clean-input" rows="3" placeholder="Brief section instructions..."></textarea>
           </div>
 
-          <div class="modal-footer-actions">
-            <button type="button" class="btn btn-secondary" @click="showSectionModal = false">Cancel</button>
-            <button type="submit" class="btn btn-primary">
-              {{ editingSectionIndex >= 0 ? 'Save Section' : 'Create Section' }}
-            </button>
+          <div class="modal-foot">
+            <button type="button" class="btn-tool btn-tool-ghost" @click="showSectionModal = false">Cancel</button>
+            <button type="submit" class="btn-tool btn-tool-solid">{{ editingSectionIndex >= 0 ? 'Save Section' : 'Create Section' }}</button>
           </div>
         </form>
       </div>
@@ -1353,32 +1216,10 @@ const errorMsg = ref('')
 const stampFileInput = ref(null)
 const sigFileInput = ref(null)
 
-// Navigation & Filter
-const activeCategory = ref('all')
-const searchFilter = ref('')
-const categories = [
-  { id: 'all', label: 'All Settings', icon: '🗂️' },
-  { id: 'ghl', label: 'GoHighLevel & API', icon: '⚡', badge: 'Core' },
-  { id: 'webhooks', label: 'Webhooks & Operations', icon: '🔌', badge: 'Hub' },
-  { id: 'signing', label: 'Signing & Domains', icon: '🌐' },
-  { id: 'branding', label: 'Company Branding', icon: '🎨' },
-  { id: 'schema', label: 'Client Summary Schema', icon: '📋', badge: 'Custom' },
-  { id: 'access', label: 'Access & Workers', icon: '🛡️' },
-]
+// Primary Sidebar Navigation
+const activeTab = ref('ghl') // 'ghl', 'webhooks', 'signing', 'branding', 'schema', 'access', 'workers'
 
-function isCategoryVisible(catId) {
-  if (searchFilter.value.trim()) return true
-  if (activeCategory.value === 'all') return true
-  return activeCategory.value === catId
-}
-
-function matchesSearch(keywords) {
-  if (!searchFilter.value.trim()) return false
-  const q = searchFilter.value.toLowerCase().trim()
-  return keywords.toLowerCase().includes(q)
-}
-
-// Webhook Tabs
+// Webhook Subtabs
 const webhookTab = ref('operations') // 'operations', 'inbound', 'docs'
 const testingWebhook = ref(false)
 const testWebhookResult = ref(null)
@@ -1405,7 +1246,7 @@ const form = ref({
   OPERATIONS_WEBHOOK_SECRET: '',
 })
 
-// Initial snapshot to track dirty state
+// Snapshot for dirty state detection
 const initialSnapshot = ref('')
 
 const isFormDirty = computed(() => {
@@ -1453,20 +1294,19 @@ async function onStampFileSelected(e) {
       const finalUrl = res.data?.url || dataBase64
       form.value.COMPANY_STAMP_URL = finalUrl
       
-      // Auto-persist immediately to system_settings so it survives restart
       await api.put('/settings', { settings: { COMPANY_STAMP_URL: finalUrl } })
       initialSnapshot.value = JSON.stringify(form.value)
-      successMsg.value = 'Company stamp uploaded and saved successfully!'
+      successMsg.value = 'Company seal saved successfully!'
       setTimeout(() => { successMsg.value = '' }, 4000)
     } catch (err) {
       console.warn('Stamp upload save fallback:', err)
       try {
         await api.put('/settings', { settings: { COMPANY_STAMP_URL: dataBase64 } })
         initialSnapshot.value = JSON.stringify(form.value)
-        successMsg.value = 'Company stamp saved successfully!'
+        successMsg.value = 'Company seal saved successfully!'
         setTimeout(() => { successMsg.value = '' }, 4000)
       } catch (saveErr) {
-        errorMsg.value = 'Failed to save company stamp.'
+        errorMsg.value = 'Failed to save company seal.'
       }
     } finally {
       uploadingStampMedia.value = false
@@ -1480,7 +1320,7 @@ async function clearStamp() {
   try {
     await api.put('/settings', { settings: { COMPANY_STAMP_URL: '' } })
     initialSnapshot.value = JSON.stringify(form.value)
-    successMsg.value = 'Company stamp removed.'
+    successMsg.value = 'Company seal removed.'
     setTimeout(() => { successMsg.value = '' }, 3000)
   } catch (_) {}
 }
@@ -1506,20 +1346,19 @@ async function onSigFileSelected(e) {
       const finalUrl = res.data?.url || dataBase64
       form.value.COMPANY_SIGNATURE_URL = finalUrl
 
-      // Auto-persist immediately to system_settings so it survives restart
       await api.put('/settings', { settings: { COMPANY_SIGNATURE_URL: finalUrl } })
       initialSnapshot.value = JSON.stringify(form.value)
-      successMsg.value = 'Company signature uploaded and saved successfully!'
+      successMsg.value = 'Authorized signature saved successfully!'
       setTimeout(() => { successMsg.value = '' }, 4000)
     } catch (err) {
       console.warn('Signature upload save fallback:', err)
       try {
         await api.put('/settings', { settings: { COMPANY_SIGNATURE_URL: dataBase64 } })
         initialSnapshot.value = JSON.stringify(form.value)
-        successMsg.value = 'Company signature saved successfully!'
+        successMsg.value = 'Authorized signature saved successfully!'
         setTimeout(() => { successMsg.value = '' }, 4000)
       } catch (saveErr) {
-        errorMsg.value = 'Failed to save company signature.'
+        errorMsg.value = 'Failed to save signature.'
       }
     } finally {
       uploadingSigMedia.value = false
@@ -1612,13 +1451,11 @@ const sampleOutboundJson = computed(() => {
       fullName: "Ahmed Al Mansoor",
       email: "ahmed.mansoor@example.com",
       phone: "+971501234567",
-      nationality: "Emirati",
-      dateOfBirth: "1988-06-14"
+      nationality: "Emirati"
     },
     contract: {
       id: 1042,
       templateName: "Cyprus Permanent Residency Agreement",
-      contractType: "IMMIGRATION_SERVICES",
       state: "COMPLETED",
       signedAt: new Date().toISOString(),
       pdfSha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
@@ -1631,17 +1468,10 @@ const sampleOutboundJson = computed(() => {
         {
           name: "Passport_Copy.pdf",
           url: "https://services.leadconnectorhq.com/.../passport.pdf",
-          mimeType: "application/pdf",
           sizeBytes: 1420500,
           category: "Identity"
         }
       ]
-    },
-    summaryData: {
-      page1_general_info: { reg_number: "REF-1042", country_applying_for: "Cyprus" },
-      page2_immigration_history: { q2_refused_visa: "no" },
-      page3_business_background: { q8_own_business: "yes", q9_business_name: "Apex Trading LLC" },
-      page8_financials: { q48_source_of_funds: "Business retained earnings" }
     }
   }, null, 2)
 })
@@ -1653,10 +1483,6 @@ const sampleInboundJson = computed(() => {
     opportunityId: "{{opportunity.id}}",
     trigger: "OPPORTUNITY_WON"
   }, null, 2)
-})
-
-const nodeVerifySnippet = computed(() => {
-  return `const crypto = require('crypto');\n\nfunction verifyWebhook(rawPayload, headerSignature, secret) {\n  const calculated = crypto.createHmac('sha256', secret).update(rawPayload).digest('hex');\n  return crypto.timingSafeEqual(Buffer.from(calculated), Buffer.from(headerSignature));\n}`
 })
 
 async function loadSettings() {
@@ -1681,7 +1507,7 @@ async function loadSettings() {
 
 async function reloadAll() {
   await Promise.all([loadSettings(), loadCustomSchema()])
-  successMsg.value = 'Settings reloaded from database.'
+  successMsg.value = 'Configuration reloaded from database.'
   setTimeout(() => { successMsg.value = '' }, 2500)
 }
 
@@ -1702,7 +1528,7 @@ async function saveSettings() {
   }
 }
 
-// ─── Client Summary Custom Schema State ──────────────────────────────────────
+// ─── Custom Schema State ──────────────────────────────────────────────────
 const customSchema = ref({ sections: [], fields: [] })
 const loadingSchema = ref(false)
 const savingSchema = ref(false)
@@ -1757,12 +1583,12 @@ function getFieldsCountForSection(sectionId) {
 
 function formatFieldType(t) {
   const map = {
-    text: 'Single-line Text',
-    textarea: 'Multi-line Paragraph',
-    number: 'Number / Currency',
-    date: 'Date (YYYY-MM-DD)',
-    dropdown: 'Dropdown Select',
-    yes_no: 'Yes / No Toggle',
+    text: 'Single Text',
+    textarea: 'Paragraph',
+    number: 'Number',
+    date: 'Date',
+    dropdown: 'Dropdown',
+    yes_no: 'Yes / No',
     checkbox: 'Checkbox',
   }
   return map[t] || t
@@ -1800,12 +1626,11 @@ async function saveCustomSchema(notify = true) {
   try {
     await api.put('/client-summary/schema', { schema: customSchema.value })
     if (notify) {
-      successMsg.value = 'Client Summary custom schema saved successfully!'
+      successMsg.value = 'Dossier schema saved successfully!'
       setTimeout(() => { successMsg.value = '' }, 3500)
     }
   } catch (err) {
     errorMsg.value = err.response?.data?.error || 'Failed to save schema.'
-    setTimeout(() => { errorMsg.value = '' }, 4000)
   } finally {
     savingSchema.value = false
   }
@@ -1921,11 +1746,8 @@ async function submitSectionModal() {
     customSchema.value.sections.push(sectionData)
   }
 
-  // Sort and re-normalize sequential order
   customSchema.value.sections.sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0))
-  customSchema.value.sections.forEach((s, i) => {
-    s.order = i + 1
-  })
+  customSchema.value.sections.forEach((s, i) => { s.order = i + 1 })
 
   showSectionModal.value = false
   schemaActiveTab.value = 'sections'
@@ -1935,50 +1757,25 @@ async function submitSectionModal() {
 async function moveSection(idx, delta) {
   const targetIdx = idx + delta
   if (targetIdx < 0 || targetIdx >= customSchema.value.sections.length) return
-
   const temp = customSchema.value.sections[idx]
   customSchema.value.sections[idx] = customSchema.value.sections[targetIdx]
   customSchema.value.sections[targetIdx] = temp
-
-  customSchema.value.sections.forEach((s, i) => {
-    s.order = i + 1
-  })
-
-  await saveCustomSchema(true)
-}
-
-async function sortSectionsBy(criteria) {
-  if (!customSchema.value.sections?.length) return
-  if (criteria === 'title-asc') {
-    customSchema.value.sections.sort((a, b) => a.title.localeCompare(b.title))
-  } else if (criteria === 'title-desc') {
-    customSchema.value.sections.sort((a, b) => b.title.localeCompare(a.title))
-  } else if (criteria === 'fields-count') {
-    customSchema.value.sections.sort((a, b) => getFieldsCountForSection(b.id) - getFieldsCountForSection(a.id))
-  } else if (criteria === 'order') {
-    customSchema.value.sections.sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0))
-  }
-  customSchema.value.sections.forEach((s, i) => {
-    s.order = i + 1
-  })
+  customSchema.value.sections.forEach((s, i) => { s.order = i + 1 })
   await saveCustomSchema(true)
 }
 
 async function moveField(idx, delta) {
   const targetIdx = idx + delta
   if (targetIdx < 0 || targetIdx >= customSchema.value.fields.length) return
-
   const temp = customSchema.value.fields[idx]
   customSchema.value.fields[idx] = customSchema.value.fields[targetIdx]
   customSchema.value.fields[targetIdx] = temp
-
   await saveCustomSchema(true)
 }
 
 async function deleteSection(idx) {
   const sec = customSchema.value.sections[idx]
   if (!confirm(`Delete section "${sec?.title}"? Fields in this section will be reassigned to Page 1.`)) return
-
   customSchema.value.fields.forEach(f => {
     if (f.section === sec.id) f.section = 'page1'
   })
@@ -1993,14 +1790,12 @@ async function applyPreset(type) {
     customSchema.value.sections.push({
       id: secId,
       title: 'Medical & Health Clearance',
-      description: 'Official clinical screening, chest x-ray, blood test, and vaccination compliance',
+      description: 'Official clinical screening and vaccination compliance',
       order: customSchema.value.sections.length + 1,
     })
     customSchema.value.fields.push(
       { id: `fld_${Date.now()}_1`, key: 'medical_exam_completed', label: 'Medical Exam Completed', type: 'yes_no', section: secId, required: true },
-      { id: `fld_${Date.now()}_2`, key: 'medical_exam_date', label: 'Examination Date', type: 'date', section: secId, required: false },
-      { id: `fld_${Date.now()}_3`, key: 'medical_clinic_name', label: 'Approved Clinical Center', type: 'text', section: secId, placeholder: 'e.g. MedCare Clinic Dubai' },
-      { id: `fld_${Date.now()}_4`, key: 'medical_clearance_notes', label: 'Physician Clearance Notes', type: 'textarea', section: secId, fullWidth: true, placeholder: 'Detailed medical assessment remarks...' }
+      { id: `fld_${Date.now()}_2`, key: 'medical_clinic_name', label: 'Approved Clinical Center', type: 'text', section: secId, placeholder: 'e.g. MedCare Clinic Dubai' }
     )
     schemaActiveTab.value = 'sections'
   } else if (type === 'guarantor') {
@@ -2008,20 +1803,16 @@ async function applyPreset(type) {
     customSchema.value.sections.push({
       id: secId,
       title: 'Secondary Sponsor & Guarantor',
-      description: 'Co-sponsor financial support guarantee, legal identity, and proof of funds verification',
+      description: 'Co-sponsor financial support guarantee',
       order: customSchema.value.sections.length + 1,
     })
     customSchema.value.fields.push(
-      { id: `fld_${Date.now()}_5`, key: 'guarantor_full_name', label: 'Guarantor Full Name', type: 'text', section: secId, required: true },
-      { id: `fld_${Date.now()}_6`, key: 'guarantor_relationship', label: 'Relationship to Applicant', type: 'dropdown', section: secId, options: ['Parent', 'Spouse', 'Sibling', 'Business Partner', 'Employer', 'Other'] },
-      { id: `fld_${Date.now()}_7`, key: 'guarantor_annual_income', label: 'Guarantor Annual Income ($)', type: 'number', section: secId, placeholder: 'e.g. 150000' },
-      { id: `fld_${Date.now()}_8`, key: 'guarantor_address_contact', label: 'Residential Address & Phone', type: 'textarea', section: secId, fullWidth: true }
+      { id: `fld_${Date.now()}_3`, key: 'guarantor_full_name', label: 'Guarantor Full Name', type: 'text', section: secId, required: true }
     )
     schemaActiveTab.value = 'sections'
   } else if (type === 'identity') {
     customSchema.value.fields.push(
-      { id: `fld_${Date.now()}_9`, key: 'national_id_number', label: 'National ID / Emirates ID Number', type: 'text', section: 'page1', placeholder: '784-XXXX-XXXXXXX-X' },
-      { id: `fld_${Date.now()}_10`, key: 'tax_identification_number', label: 'Tax Identification Number (TIN)', type: 'text', section: 'page7', placeholder: 'Tax ID' }
+      { id: `fld_${Date.now()}_4`, key: 'national_id_number', label: 'National ID / Emirates ID Number', type: 'text', section: 'page1', placeholder: '784-XXXX-XXXXXXX-X' }
     )
     schemaActiveTab.value = 'fields'
   }
@@ -2035,1819 +1826,1372 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* ─── MAIN SETTINGS CONTAINER ────────────────────────────────────────── */
-.settings-view {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  max-width: 1360px;
-  margin: 0 auto;
-  padding-bottom: 90px;
-  font-family: var(--font-body, 'Inter', -apple-system, sans-serif);
+/* ─── ENFORCE PURE INTER & OUTFIT TYPOGRAPHY ─────────────────────────── */
+.settings-root,
+.settings-root * {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  box-sizing: border-box;
 }
 
-/* ─── FLOATING TOASTS ────────────────────────────────────────────────── */
-.floating-toast {
+.code-font,
+.code-font * {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+}
+
+/* ─── CONTAINER ──────────────────────────────────────────────────────── */
+.settings-root {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 18px 24px 80px;
+  color: #0f172a;
+}
+
+/* ─── TOAST NOTIFICATIONS ────────────────────────────────────────────── */
+.toast-card {
   position: fixed;
-  top: 24px;
-  right: 24px;
-  z-index: 9999;
+  top: 20px;
+  right: 20px;
+  z-index: 99999;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 18px;
-  border-radius: 12px;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(8px);
-  min-width: 300px;
-  max-width: 440px;
+  gap: 10px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.12), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  font-size: 13px;
+  min-width: 280px;
+  max-width: 420px;
   border: 1px solid;
 }
 
-.toast-success {
-  background: #f0fdf4;
-  border-color: #86efac;
-  color: #166534;
-}
+.toast-card-success { background: #f0fdf4; border-color: #86efac; color: #166534; }
+.toast-card-error { background: #fef2f2; border-color: #fca5a5; color: #991b1b; }
+.toast-card-info { background: #f0f9ff; border-color: #7dd3fc; color: #075985; }
 
-.toast-error {
-  background: #fef2f2;
-  border-color: #fca5a5;
-  color: #991b1b;
-}
+.toast-svg { width: 18px; height: 18px; flex-shrink: 0; }
+.toast-content { flex: 1; }
+.toast-head { font-weight: 700; font-size: 13px; }
+.toast-text { font-size: 11.5px; opacity: 0.9; margin-top: 1px; }
 
-.toast-info {
-  background: #f0f9ff;
-  border-color: #7dd3fc;
-  color: #0369a1;
-}
-
-.toast-icon {
-  font-size: 20px;
-  flex-shrink: 0;
-}
-
-.toast-body {
-  flex: 1;
-}
-
-.toast-title {
-  font-weight: 700;
-  font-size: 13px;
-}
-
-.toast-msg {
-  font-size: 12px;
-  margin-top: 2px;
-  line-height: 1.35;
-  opacity: 0.92;
-}
-
-.toast-close {
+.toast-dismiss {
   background: transparent;
   border: none;
-  font-size: 14px;
+  cursor: pointer;
   color: inherit;
-  cursor: pointer;
+  font-size: 13px;
   opacity: 0.6;
-  transition: opacity 0.15s;
 }
+.toast-dismiss:hover { opacity: 1; }
 
-.toast-close:hover {
-  opacity: 1;
-}
+.toast-fade-enter-active, .toast-fade-leave-active { transition: all 0.25s ease; }
+.toast-fade-enter-from, .toast-fade-leave-to { opacity: 0; transform: translateY(-10px); }
 
-.toast-slide-enter-active,
-.toast-slide-leave-active {
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.toast-slide-enter-from {
-  opacity: 0;
-  transform: translateY(-20px) scale(0.95);
-}
-
-.toast-slide-leave-to {
-  opacity: 0;
-  transform: translateY(-10px) scale(0.98);
-}
-
-/* ─── EXECUTIVE HEADER BANNER ────────────────────────────────────────── */
-.settings-header-card {
+/* ─── TOP HEADER ─────────────────────────────────────────────────────── */
+.settings-top-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
   gap: 16px;
-  padding: 22px 28px;
   background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.04), 0 2px 4px -2px rgba(0, 0, 0, 0.03);
-  position: relative;
-  overflow: hidden;
-}
-
-.settings-header-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, #2563eb, #3b82f6, #06b6d4, #10b981);
-}
-
-.header-main-col {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex: 1;
-  min-width: 320px;
-}
-
-.header-icon-box {
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #eff6ff, #dbeafe);
-  border: 1px solid #bfdbfe;
-  color: #1d4ed8;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(29, 78, 216, 0.12);
-}
-
-.header-badge-row {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.header-heading {
-  font-family: var(--font-heading, 'Inter', sans-serif);
-  font-size: 1.55rem;
-  font-weight: 800;
-  color: #0f172a;
-  margin: 0;
-  letter-spacing: -0.02em;
-}
-
-.status-pill-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 10px;
-  border-radius: 20px;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.live-sync {
-  background: #ecfdf5;
-  color: #065f46;
-  border: 1px solid #a7f3d0;
-}
-
-.live-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #10b981;
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
-  animation: pulse-dot-anim 2s infinite;
-}
-
-@keyframes pulse-dot-anim {
-  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
-  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
-}
-
-.version-tag {
-  background: #f1f5f9;
-  color: #475569;
-  border: 1px solid #cbd5e1;
-  padding: 2px 8px;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 600;
-  font-family: monospace;
-}
-
-.header-caption {
-  margin: 6px 0 0 0;
-  font-size: 13px;
-  color: #64748b;
-  line-height: 1.45;
-}
-
-.header-actions-col {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 8px;
-}
-
-.dirty-state-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  font-weight: 600;
-  color: #10b981;
-}
-
-.dirty-state-badge.is-unsaved {
-  color: #d97706;
-}
-
-.state-bullet {
-  font-size: 10px;
-}
-
-.header-button-group {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.btn-header {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 9px 18px;
-  border-radius: 9px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border: 1px solid transparent;
-}
-
-.btn-header-secondary {
-  background: #f8fafc;
-  color: #334155;
-  border-color: #cbd5e1;
-}
-
-.btn-header-secondary:hover:not(:disabled) {
-  background: #f1f5f9;
-  border-color: #94a3b8;
-  color: #0f172a;
-}
-
-.btn-header-primary {
-  background: linear-gradient(135deg, #1d4ed8, #2563eb);
-  color: #ffffff;
-  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
-}
-
-.btn-header-primary:hover:not(:disabled) {
-  background: linear-gradient(135deg, #1e40af, #1d4ed8);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
-  transform: translateY(-1px);
-}
-
-.btn-header:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.spin-infinite {
-  display: inline-block;
-  animation: spin-anim 1s linear infinite;
-}
-
-@keyframes spin-anim {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-/* ─── CATEGORY NAVIGATION BAR ────────────────────────────────────────── */
-.settings-nav-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  background: #ffffff;
-  padding: 8px 12px;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
+  padding: 16px 22px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
-  flex-wrap: wrap;
 }
 
-.category-tabs-scroll {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  overflow-x: auto;
-  padding: 2px 0;
-}
-
-.category-nav-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 14px;
-  border-radius: 8px;
-  border: none;
-  background: transparent;
-  font-size: 13px;
-  font-weight: 600;
-  color: #64748b;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.18s ease;
-}
-
-.category-nav-tab:hover {
-  background: #f1f5f9;
-  color: #1e293b;
-}
-
-.category-nav-tab.active {
-  background: #eff6ff;
-  color: #1d4ed8;
-  box-shadow: inset 0 0 0 1px #bfdbfe;
-}
-
-.cat-pill {
-  font-size: 10px;
-  background: #dbeafe;
-  color: #1e40af;
-  padding: 1px 6px;
-  border-radius: 10px;
-  font-weight: 700;
-}
-
-.category-nav-tab.active .cat-pill {
-  background: #1d4ed8;
-  color: #ffffff;
-}
-
-.search-filter-box {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: #f8fafc;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  padding: 6px 12px;
-  color: #64748b;
-  min-width: 200px;
-}
-
-.search-filter-input {
-  border: none;
-  background: transparent;
-  font-size: 12px;
-  color: #1e293b;
-  outline: none;
-  width: 100%;
-}
-
-.btn-clear-search {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  color: #94a3b8;
-  font-size: 11px;
-}
-
-/* ─── LOADING STATE ──────────────────────────────────────────────────── */
-.settings-loading-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  padding: 60px 20px;
-  text-align: center;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
-}
-
-.loading-spinner {
-  width: 36px;
-  height: 36px;
-  border: 3px solid #e2e8f0;
-  border-top-color: #2563eb;
-  border-radius: 50%;
-  margin: 0 auto;
-  animation: spin-anim 0.8s linear infinite;
-}
-
-/* ─── CONTENT STACK ──────────────────────────────────────────────────── */
-.settings-content-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
-}
-
-/* ─── EXECUTIVE CARD ─────────────────────────────────────────────────── */
-.executive-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  padding: 26px 28px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.03), 0 2px 4px -2px rgba(0, 0, 0, 0.02);
-  transition: all 0.2s ease;
-}
-
-.executive-card:hover {
-  border-color: #cbd5e1;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.03);
-}
-
-.card-highlight {
-  border-color: #3b82f6 !important;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
-}
-
-.webhook-card-accent {
-  border-color: rgba(147, 51, 234, 0.35);
-  box-shadow: 0 4px 12px rgba(147, 51, 234, 0.06);
-}
-
-.card-header-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  flex-wrap: wrap;
-  gap: 14px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid #f1f5f9;
-  margin-bottom: 22px;
-}
-
-.card-title-group {
+.header-left-cluster {
   display: flex;
   align-items: center;
   gap: 14px;
 }
 
-.card-icon-pill {
+.header-icon-square {
   width: 44px;
   height: 44px;
-  border-radius: 12px;
+  border-radius: 10px;
+  background: #eff6ff;
+  border: 1px solid #dbeafe;
+  color: #1d4ed8;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
   flex-shrink: 0;
 }
 
-.icon-amber {
-  background: #fef3c7;
-  border: 1px solid #fde68a;
-  color: #d97706;
-}
-
-.icon-blue {
-  background: #e0f2fe;
-  border: 1px solid #bae6fd;
-  color: #0284c7;
-}
-
-.icon-purple {
-  background: #ede9fe;
-  border: 1px solid #ddd6fe;
-  color: #7c3aed;
-}
-
-.icon-emerald {
-  background: #dcfce7;
-  border: 1px solid #bbf7d0;
-  color: #16a34a;
-}
-
-.icon-indigo {
-  background: #e0e7ff;
-  border: 1px solid #c7d2fe;
-  color: #4338ca;
-}
-
-.icon-slate {
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
-  color: #475569;
-}
-
-.card-title-with-badge {
+.header-title-flex {
   display: flex;
   align-items: center;
+  gap: 10px;
   flex-wrap: wrap;
-  gap: 8px;
 }
 
-.card-title {
-  font-family: var(--font-heading, 'Inter', sans-serif);
-  font-size: 1.25rem;
+.header-main-title {
+  font-size: 1.35rem;
   font-weight: 700;
   color: #0f172a;
   margin: 0;
   letter-spacing: -0.015em;
 }
 
-.badge-chip {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 6px;
-  letter-spacing: 0.3px;
-}
-
-.chip-amber { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
-.chip-blue { background: #e0f2fe; color: #075985; border: 1px solid #bae6fd; }
-.chip-purple { background: #ede9fe; color: #5b21b6; border: 1px solid #ddd6fe; }
-.chip-emerald { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
-.chip-indigo { background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; }
-.chip-slate { background: #f1f5f9; color: #334155; border: 1px solid #e2e8f0; }
-
-.card-subtitle {
-  margin: 3px 0 0 0;
-  font-size: 13px;
-  color: #64748b;
-  line-height: 1.4;
-}
-
-.card-status-badge {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 20px;
-}
-
-.badge-active {
-  background: #f8fafc;
-  color: #475569;
-  border: 1px solid #e2e8f0;
-}
-
-/* ─── FORM GRID & INPUT FIELDS ───────────────────────────────────────── */
-.card-form-grid {
-  display: grid;
-  gap: 18px;
-}
-
-.grid-2 {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-@media (max-width: 860px) {
-  .grid-2 {
-    grid-template-columns: 1fr;
-  }
-}
-
-.grid-span-2 {
-  grid-column: span 2;
-}
-
-@media (max-width: 860px) {
-  .grid-span-2 {
-    grid-column: span 1;
-  }
-}
-
-.form-field-group {
-  display: flex;
-  flex-direction: column;
-}
-
-.modern-label {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: #334155;
-  margin-bottom: 6px;
-}
-
-.meta-tag {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 7px;
-  border-radius: 5px;
-  font-family: monospace;
-}
-
-.tag-blue { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
-.tag-emerald { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
-.tag-purple { background: #faf5ff; color: #7e22ce; border: 1px solid #e9d5ff; }
-.tag-slate { background: #f8fafc; color: #475569; border: 1px solid #cbd5e1; }
-
-.modern-input-box {
-  position: relative;
-  display: flex;
-  align-items: center;
-  width: 100%;
-}
-
-.input-prefix-icon {
-  position: absolute;
-  left: 12px;
-  font-size: 14px;
-  color: #94a3b8;
-  pointer-events: none;
-  z-index: 2;
-}
-
-.modern-text-input {
-  width: 100%;
-  padding: 9px 12px;
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 9px;
-  font-size: 13.5px;
-  color: #0f172a;
-  transition: all 0.2s ease;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02);
-}
-
-.modern-text-input.with-prefix {
-  padding-left: 36px;
-}
-
-.modern-text-input.with-suffix {
-  padding-right: 42px;
-}
-
-.modern-text-input:focus {
-  outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
-}
-
-.modern-text-input:hover:not(:focus) {
-  border-color: #94a3b8;
-}
-
-.modern-select {
-  cursor: pointer;
-}
-
-.input-suffix-action {
-  position: absolute;
-  right: 8px;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 4px 8px;
-  font-size: 14px;
-  color: #64748b;
-  border-radius: 6px;
-  transition: all 0.15s ease;
-}
-
-.input-suffix-action:hover {
-  color: #1e293b;
-  background: #f1f5f9;
-}
-
-.btn-copy-inline {
-  background: #f1f5f9 !important;
-  border: 1px solid #cbd5e1 !important;
-  font-size: 11px !important;
-  font-weight: 600 !important;
-  padding: 4px 8px !important;
-}
-
-.field-meta-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 5px;
-  gap: 8px;
-}
-
-.field-hint {
-  font-size: 11.5px;
-  color: #64748b;
-  line-height: 1.35;
-}
-
-.field-hint code {
-  background: #f1f5f9;
-  padding: 1px 5px;
-  border-radius: 4px;
-  color: #1e40af;
-  font-size: 11px;
-}
-
-.btn-micro-copy {
-  background: transparent;
-  border: 1px solid #cbd5e1;
-  color: #475569;
-  border-radius: 4px;
-  font-size: 10.5px;
-  font-weight: 600;
-  padding: 2px 7px;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.btn-micro-copy:hover {
-  background: #eff6ff;
-  border-color: #93c5fd;
-  color: #1d4ed8;
-}
-
-.mono-text {
-  font-family: 'Fira Code', Menlo, Monaco, Consolas, monospace !important;
-  font-size: 12.5px !important;
-}
-
-.url-preview-pill {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-  padding: 8px 12px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  font-size: 12px;
-  color: #475569;
-}
-
-.preview-icon {
-  font-size: 14px;
-}
-
-.preview-text code {
-  color: #2563eb;
-  font-weight: 600;
-  font-family: monospace;
-}
-
-/* ─── WEBHOOK SEGMENTED CONTROL ──────────────────────────────────────── */
-.webhook-segmented-control {
-  display: flex;
-  background: #f1f5f9;
-  border-radius: 10px;
-  padding: 4px;
-  gap: 4px;
-  flex-wrap: wrap;
-}
-
-.segment-btn {
-  padding: 6px 14px;
-  font-size: 12.5px;
-  font-weight: 600;
-  border: none;
-  background: transparent;
-  color: #64748b;
-  border-radius: 7px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.segment-btn:hover {
-  color: #0f172a;
-}
-
-.segment-btn.active {
-  background: #ffffff;
-  color: #7c3aed;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.webhook-panel-body {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.webhook-config-banner {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 18px 20px;
-}
-
-.webhook-input-action-row {
-  display: flex;
-  gap: 10px;
-}
-
-@media (max-width: 680px) {
-  .webhook-input-action-row {
-    flex-direction: column;
-  }
-}
-
-.btn-ping-action {
+.mysql-sync-pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 9px 18px;
-  background: #7c3aed;
-  color: #ffffff;
-  border: none;
-  border-radius: 9px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.2s;
-  box-shadow: 0 2px 4px rgba(124, 58, 237, 0.2);
-}
-
-.btn-ping-action:hover:not(:disabled) {
-  background: #6d28d9;
-  transform: translateY(-1px);
-}
-
-.btn-ping-action:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.btn-copy-action {
-  background: #0284c7;
-  box-shadow: 0 2px 4px rgba(2, 132, 199, 0.2);
-}
-
-.btn-copy-action:hover:not(:disabled) {
-  background: #0369a1;
-}
-
-/* ─── PING RESULT BOX ────────────────────────────────────────────────── */
-.ping-result-card {
-  margin-top: 14px;
-  border-radius: 9px;
-  padding: 12px 16px;
-  border: 1px solid;
-}
-
-.ping-success {
-  background: #ecfdf5;
-  border-color: #a7f3d0;
-  color: #065f46;
-}
-
-.ping-failed {
-  background: #fef2f2;
-  border-color: #fecaca;
-  color: #991b1b;
-}
-
-.ping-status-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-weight: 700;
-  font-size: 12.5px;
-}
-
-.ping-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.ping-metrics {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.status-code-tag {
-  background: rgba(0, 0, 0, 0.08);
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-family: monospace;
-}
-
-.latency-tag {
-  font-size: 11px;
-  opacity: 0.8;
-}
-
-.ping-message-detail {
-  margin-top: 6px;
-  font-family: 'Fira Code', monospace;
-  font-size: 11.5px;
-  line-height: 1.4;
-  white-space: pre-wrap;
-}
-
-/* ─── MODERN CODE TERMINAL ───────────────────────────────────────────── */
-.modern-code-terminal {
-  background: #0b1120;
-  border: 1px solid #1e293b;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.terminal-topbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 14px;
-  background: #131c31;
-  border-bottom: 1px solid #1e293b;
-}
-
-.terminal-dots {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-}
-
-.dot.red { background: #ef4444; }
-.dot.yellow { background: #f59e0b; }
-.dot.green { background: #10b981; }
-
-.terminal-label {
-  font-size: 11px;
-  font-weight: 700;
-  color: #94a3b8;
-  margin-left: 8px;
-  letter-spacing: 0.5px;
-}
-
-.btn-copy-terminal {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  color: #cbd5e1;
-  font-size: 11px;
-  padding: 4px 10px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.btn-copy-terminal:hover {
-  background: rgba(255, 255, 255, 0.16);
-  color: #ffffff;
-}
-
-.terminal-code {
-  margin: 0;
-  padding: 16px;
-  max-height: 300px;
-  overflow-y: auto;
-  font-family: 'Fira Code', Menlo, Monaco, Consolas, monospace;
-  font-size: 12px;
-  line-height: 1.5;
-  color: #38bdf8;
-}
-
-/* ─── DOCS GUIDE GRID ────────────────────────────────────────────────── */
-.docs-feature-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
-
-@media (max-width: 920px) {
-  .docs-feature-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.doc-card {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 20px;
-}
-
-.doc-badge {
-  display: inline-block;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.5px;
-  padding: 3px 8px;
-  border-radius: 5px;
-  margin-bottom: 8px;
-}
-
-.badge-ghl { background: #e0f2fe; color: #0369a1; }
-.badge-ops { background: #ede9fe; color: #6d28d9; }
-.badge-sec { background: #fef3c7; color: #b45309; }
-
-.doc-card-title {
-  margin: 0 0 6px 0;
-  font-size: 14.5px;
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.doc-card-text {
-  margin: 0 0 12px 0;
-  font-size: 12.5px;
-  color: #64748b;
-  line-height: 1.45;
-}
-
-.doc-numbered-list {
-  margin: 0;
-  padding-left: 18px;
-  font-size: 12px;
-  color: #334155;
-  line-height: 1.6;
-}
-
-.doc-numbered-list li {
-  margin-bottom: 5px;
-}
-
-.doc-bullet-list {
-  margin: 0;
-  padding-left: 18px;
-  font-size: 12px;
-  color: #334155;
-  line-height: 1.6;
-}
-
-/* ─── BRANDING DUAL GRID ─────────────────────────────────────────────── */
-.branding-dual-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 20px;
-}
-
-@media (max-width: 860px) {
-  .branding-dual-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.asset-editor-box {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  padding: 20px;
-}
-
-.asset-box-header {
-  margin-bottom: 14px;
-}
-
-.asset-title-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.asset-badge-icon {
-  font-size: 20px;
-}
-
-.asset-heading {
-  margin: 0;
-  font-size: 14.5px;
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.asset-sub {
-  margin: 2px 0 0 0;
-  font-size: 11.5px;
-  color: #64748b;
-}
-
-.asset-input-row {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 14px;
-}
-
-.btn-asset-upload {
-  padding: 9px 14px;
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-  color: #334155;
-  border-radius: 9px;
-  font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.15s;
-}
-
-.btn-asset-upload:hover:not(:disabled) {
-  background: #f1f5f9;
-  border-color: #94a3b8;
-}
-
-.asset-preview-canvas {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  overflow: hidden;
-}
-
-.paper-texture {
-  padding: 24px;
-  min-height: 140px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: radial-gradient(#f1f5f9 1px, #ffffff 1px);
-  background-size: 16px 16px;
-  position: relative;
-}
-
-.stamp-preview-wrapper,
-.sig-preview-wrapper {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-.stamp-image-preview {
-  max-height: 90px;
-  max-width: 170px;
-  object-fit: contain;
-  transform: rotate(-6deg);
-  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.12));
-}
-
-.sig-image-preview {
-  max-height: 60px;
-  max-width: 190px;
-  object-fit: contain;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.08));
-}
-
-.preview-tag-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  margin-top: 10px;
-  font-size: 11px;
-  font-weight: 700;
-  color: #15803d;
   background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+  font-size: 11px;
+  font-weight: 600;
   padding: 2px 8px;
   border-radius: 12px;
-  border: 1px solid #bbf7d0;
 }
 
-.dot-green {
+.pulse-beacon {
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: #22c55e;
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.3);
 }
 
-.preview-empty-state {
+.header-sub-text {
+  margin: 3px 0 0;
+  font-size: 12.5px;
+  color: #64748b;
+}
+
+.header-right-cluster {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dirty-status-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #16a34a;
+}
+.dirty-status-tag.dirty {
+  color: #d97706;
+}
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.btn-hdr {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+}
+
+.btn-hdr-ghost {
+  background: #f8fafc;
+  color: #334155;
+  border-color: #cbd5e1;
+}
+.btn-hdr-ghost:hover:not(:disabled) {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.btn-hdr-primary {
+  background: #2563eb;
+  color: #ffffff;
+}
+.btn-hdr-primary:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.btn-hdr:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.spin-active {
+  animation: rotate-inf 1s linear infinite;
+  display: inline-block;
+}
+@keyframes rotate-inf {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ─── TWO-COLUMN WORKSPACE ─────────────────────────────────────────── */
+.settings-workspace-layout {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+@media (max-width: 960px) {
+  .settings-workspace-layout {
+    flex-direction: column;
+  }
+}
+
+/* ─── SIDEBAR NAVIGATION ─────────────────────────────────────────────── */
+.settings-sidebar-nav {
+  width: 260px;
+  flex-shrink: 0;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+@media (max-width: 960px) {
+  .settings-sidebar-nav {
+    width: 100%;
+  }
+}
+
+.sidebar-nav-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 6px 10px 8px;
+}
+
+.sidebar-nav-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+@media (max-width: 960px) {
+  .sidebar-nav-list {
+    flex-direction: row;
+    overflow-x: auto;
+  }
+}
+
+.nav-tab-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: #334155;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: all 0.15s ease;
+  position: relative;
+}
+
+.nav-tab-item:hover {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.nav-tab-item.active {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.tab-icon-box {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.icon-ghl { background: #fef3c7; color: #d97706; }
+.icon-webhooks { background: #f3e8ff; color: #7e22ce; }
+.icon-signing { background: #e0f2fe; color: #0284c7; }
+.icon-branding { background: #dcfce7; color: #16a34a; }
+.icon-schema { background: #e0e7ff; color: #4338ca; }
+.icon-access { background: #f1f5f9; color: #475569; }
+.icon-workers { background: #f1f5f9; color: #475569; }
+
+.tab-label-group {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.tab-name {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tab-desc {
+  font-size: 11px;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nav-tab-item.active .tab-desc {
+  color: #3b82f6;
+}
+
+.tab-micro-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.badge-purple { background: #f3e8ff; color: #7e22ce; }
+.badge-blue { background: #dbeafe; color: #1d4ed8; }
+
+/* ─── CONTENT PANE ───────────────────────────────────────────────────── */
+.settings-content-pane {
+  flex: 1;
+  min-width: 0;
+}
+
+.pane-loading-box {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.pane-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  margin: 0 auto 12px;
+  animation: rotate-inf 0.8s linear infinite;
+}
+
+.pane-loading-text {
+  font-size: 13px;
+  color: #64748b;
+}
+
+/* ─── MODULE CARD ────────────────────────────────────────────────────── */
+.module-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.module-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f1f5f9;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.module-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.module-desc {
+  font-size: 12.5px;
+  color: #64748b;
+  margin: 3px 0 0;
+  line-height: 1.4;
+}
+
+.module-tag {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.tag-blue { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+.tag-emerald { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+.tag-purple { background: #faf5ff; color: #7e22ce; border: 1px solid #e9d5ff; }
+
+/* ─── FORM GRID & INPUT CONTROLS ─────────────────────────────────────── */
+.form-layout-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+@media (max-width: 720px) {
+  .form-layout-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.span-full {
+  grid-column: 1 / -1;
+}
+
+.form-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 5px;
+}
+
+.label-pill {
+  font-size: 10px;
+  font-weight: 500;
+  color: #64748b;
+  background: #f1f5f9;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.input-icon-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.input-leading-icon {
+  position: absolute;
+  left: 10px;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+
+.clean-input {
+  width: 100%;
+  height: 38px;
+  padding: 0 12px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #0f172a;
+  transition: all 0.15s ease;
+}
+
+.clean-input.with-lead {
+  padding-left: 32px;
+}
+
+.clean-input.with-trail {
+  padding-right: 36px;
+}
+
+.clean-input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.clean-select {
+  width: 100%;
+  height: 38px;
+  padding: 0 10px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.clean-select:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.input-trailing-btn {
+  position: absolute;
+  right: 6px;
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.input-trailing-btn:hover {
+  color: #1e293b;
+  background: #f1f5f9;
+}
+
+.field-sub-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+  gap: 8px;
+}
+
+.field-explanation {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.field-explanation code {
+  background: #f1f5f9;
+  padding: 1px 4px;
+  border-radius: 3px;
+  color: #1e40af;
+  font-size: 11px;
+}
+
+.btn-copy-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  color: #2563eb;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+.btn-copy-link:hover {
+  text-decoration: underline;
+}
+
+.module-footer {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-save-inline {
+  padding: 8px 16px;
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-save-inline:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.btn-save-inline:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ─── WEBHOOK SUBTABS ────────────────────────────────────────────────── */
+.sub-tab-pill-group {
+  display: flex;
+  background: #f1f5f9;
+  padding: 3px;
+  border-radius: 8px;
+  gap: 2px;
+}
+
+.sub-pill {
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.sub-pill.active {
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.subtab-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.inline-action-input {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-trigger-ping {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+  height: 38px;
+  background: #7c3aed;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-trigger-ping:hover:not(:disabled) {
+  background: #6d28d9;
+}
+
+.btn-blue-action {
+  background: #0284c7;
+}
+.btn-blue-action:hover:not(:disabled) {
+  background: #0369a1;
+}
+
+.ping-banner {
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid;
+  font-size: 12px;
+}
+
+.ping-success { background: #f0fdf4; border-color: #86efac; color: #166534; }
+.ping-error { background: #fef2f2; border-color: #fca5a5; color: #991b1b; }
+
+.ping-banner-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.ping-http-code {
+  background: rgba(0, 0, 0, 0.08);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 11px;
+}
+
+.ping-ms {
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.ping-detail-text {
+  margin-top: 4px;
+  font-family: monospace;
+  font-size: 11px;
+}
+
+.code-terminal-card {
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.terminal-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #1e293b;
+  border-bottom: 1px solid #334155;
+}
+
+.terminal-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.5px;
+}
+
+.btn-terminal-copy {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #e2e8f0;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.btn-terminal-copy:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.terminal-body {
+  margin: 0;
+  padding: 12px;
+  color: #38bdf8;
+  font-size: 11.5px;
+  max-height: 240px;
+  overflow-y: auto;
+  line-height: 1.45;
+}
+
+.docs-dual-column {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+@media (max-width: 800px) {
+  .docs-dual-column { grid-template-columns: 1fr; }
+}
+
+.doc-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.doc-header-pill {
+  font-size: 10px;
+  font-weight: 700;
+  color: #0369a1;
+  background: #e0f2fe;
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-bottom: 6px;
+}
+
+.doc-title {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.doc-p {
+  margin: 0 0 8px;
+  font-size: 11.5px;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.doc-steps {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 11.5px;
+  color: #334155;
+  line-height: 1.5;
+}
+
+/* ─── BRANDING SIDE BY SIDE ─────────────────────────────────────────── */
+.branding-side-by-side {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+@media (max-width: 820px) {
+  .branding-side-by-side { grid-template-columns: 1fr; }
+}
+
+.asset-card-unit {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.asset-card-top {
+  margin-bottom: 12px;
+}
+
+.asset-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.asset-svg-icon {
+  color: #16a34a;
+}
+
+.asset-unit-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.asset-unit-sub {
+  font-size: 11.5px;
+  color: #64748b;
+  margin: 1px 0 0;
+}
+
+.asset-upload-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.btn-file-pick {
+  padding: 0 12px;
+  height: 38px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-file-pick:hover:not(:disabled) {
+  background: #f1f5f9;
+}
+
+.paper-preview-box {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  min-height: 130px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background-image: radial-gradient(#e2e8f0 1px, transparent 1px);
+  background-size: 12px 12px;
+}
+
+.preview-active-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.stamp-preview-img {
+  max-height: 75px;
+  max-width: 140px;
+  object-fit: contain;
+  transform: rotate(-5deg);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.12));
+}
+
+.sig-preview-img {
+  max-height: 50px;
+  max-width: 160px;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.08));
+}
+
+.preview-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #166534;
+  background: #f0fdf4;
+  padding: 1px 6px;
+  border-radius: 10px;
+  border: 1px solid #bbf7d0;
+  margin-top: 8px;
+}
+
+.dot-live {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #22c55e;
+}
+
+.preview-blank-wrap {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
   color: #94a3b8;
-  font-size: 12.5px;
-  text-align: center;
+  font-size: 12px;
 }
 
-.empty-icon {
-  font-size: 24px;
-  margin-bottom: 2px;
-  opacity: 0.7;
-}
-
-.empty-hint {
-  font-size: 11px;
-  color: #cbd5e1;
-}
-
-.preview-footer-action {
-  padding: 8px 12px;
-  background: #f8fafc;
-  border-top: 1px solid #e2e8f0;
+.asset-remove-row {
+  margin-top: 10px;
   display: flex;
   justify-content: flex-end;
 }
 
-.btn-remove-asset {
+.btn-asset-delete {
   background: transparent;
   border: none;
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 600;
   color: #dc2626;
   cursor: pointer;
-  padding: 3px 8px;
-  border-radius: 4px;
-  transition: all 0.15s;
+  padding: 0;
+}
+.btn-asset-delete:hover {
+  text-decoration: underline;
 }
 
-.btn-remove-asset:hover {
-  background: #fee2e2;
-}
-
-/* ─── SCHEMA BUILDER ─────────────────────────────────────────────────── */
-.schema-action-toolbar {
+/* ─── SCHEMA CUSTOMIZER ──────────────────────────────────────────────── */
+.schema-btn-toolbar {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
 }
 
-.preset-dropdown-container {
+.preset-menu-wrap {
   position: relative;
 }
 
-.btn-schema-preset {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 12px;
-  background: #f8fafc;
-  border: 1px solid #cbd5e1;
-  color: #334155;
-  border-radius: 8px;
-  font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.preset-dropdown-menu {
+.preset-popover {
   position: absolute;
   top: 100%;
   right: 0;
-  margin-top: 6px;
+  margin-top: 4px;
   background: #ffffff;
   border: 1px solid #cbd5e1;
-  border-radius: 10px;
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-  padding: 6px;
+  border-radius: 8px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+  padding: 4px;
   z-index: 50;
-  min-width: 310px;
+  min-width: 280px;
 }
 
-.preset-item {
+.preset-choice {
   width: 100%;
   text-align: left;
-  padding: 8px 12px;
-  border: none;
+  padding: 6px 10px;
   background: transparent;
-  font-size: 12px;
-  font-weight: 600;
+  border: none;
+  font-size: 11.5px;
   color: #334155;
-  border-radius: 6px;
+  border-radius: 4px;
   cursor: pointer;
-  transition: all 0.15s;
 }
-
-.preset-item:hover {
+.preset-choice:hover {
   background: #eff6ff;
   color: #1d4ed8;
 }
 
-.btn-schema-action {
-  padding: 7px 14px;
-  border-radius: 8px;
-  font-size: 12.5px;
+.btn-tool {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s;
+  border: 1px solid transparent;
 }
 
-.btn-add-section {
+.btn-tool-ghost {
   background: #ffffff;
-  border: 1px solid #cbd5e1;
+  border-color: #cbd5e1;
   color: #334155;
 }
-
-.btn-add-section:hover {
+.btn-tool-ghost:hover {
   background: #f1f5f9;
 }
 
-.btn-add-field {
+.btn-tool-solid {
   background: #2563eb;
-  border: 1px solid #1d4ed8;
   color: #ffffff;
 }
-
-.btn-add-field:hover {
+.btn-tool-solid:hover {
   background: #1d4ed8;
 }
 
-.schema-tabs-row {
+.schema-sub-tabs {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   border-bottom: 1px solid #e2e8f0;
-  padding-bottom: 10px;
-  margin-bottom: 18px;
+  padding-bottom: 8px;
+  margin-bottom: 14px;
 }
 
-.schema-tab-pill {
+.schema-tab-btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   background: transparent;
   border: none;
-  padding: 7px 14px;
-  border-radius: 8px;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
   color: #64748b;
+  padding: 6px 10px;
+  border-radius: 6px;
   cursor: pointer;
-  transition: all 0.15s;
 }
 
-.schema-tab-pill.active {
+.schema-tab-btn.active {
   background: #eff6ff;
   color: #1d4ed8;
 }
 
-.tab-counter {
-  font-size: 11px;
-  padding: 1px 7px;
-  border-radius: 10px;
+.count-tag {
+  font-size: 10px;
   background: #e2e8f0;
   color: #475569;
+  padding: 1px 5px;
+  border-radius: 8px;
 }
 
-.schema-tab-pill.active .tab-counter {
+.schema-tab-btn.active .count-tag {
   background: #2563eb;
   color: #ffffff;
 }
 
-.empty-schema-state {
+.empty-table-note {
   text-align: center;
-  padding: 40px 20px;
+  padding: 30px;
   background: #f8fafc;
   border: 1px dashed #cbd5e1;
-  border-radius: 12px;
-}
-
-.empty-schema-icon {
-  font-size: 28px;
-  margin-bottom: 6px;
-}
-
-.empty-schema-title {
-  font-size: 14.5px;
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.empty-schema-desc {
+  border-radius: 8px;
   font-size: 12.5px;
   color: #64748b;
-  max-width: 520px;
-  margin: 6px auto 16px;
-  line-height: 1.45;
-}
-
-.empty-schema-actions {
   display: flex;
-  gap: 8px;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
 }
 
-.schema-table-container {
+.table-border-wrap {
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  border-radius: 8px;
   overflow: hidden;
 }
 
-.modern-schema-table {
+.data-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12.5px;
+  font-size: 12px;
 }
 
-.modern-schema-table thead th {
+.data-table thead th {
   background: #f8fafc;
-  padding: 10px 14px;
+  padding: 9px 12px;
   font-weight: 700;
   color: #475569;
   text-align: left;
   border-bottom: 1px solid #e2e8f0;
 }
 
-.modern-schema-table tbody td {
-  padding: 12px 14px;
+.data-table tbody td {
+  padding: 10px 12px;
   border-bottom: 1px solid #f1f5f9;
   vertical-align: middle;
 }
 
-.modern-schema-table tbody tr:last-child td {
+.data-table tbody tr:last-child td {
   border-bottom: none;
 }
 
-.field-title-bold {
-  font-weight: 700;
+.row-main-text {
+  font-weight: 600;
   color: #0f172a;
 }
 
-.field-placeholder-text {
-  font-size: 11px;
+.row-sub-text {
+  font-size: 10.5px;
   color: #94a3b8;
-  margin-top: 2px;
 }
 
-.mono-key-badge {
+.code-badge {
   background: #f1f5f9;
-  border: 1px solid #e2e8f0;
-  padding: 2px 7px;
-  border-radius: 5px;
+  padding: 1px 5px;
+  border-radius: 4px;
   color: #0369a1;
   font-family: monospace;
-  font-size: 11.5px;
-}
-
-.field-type-chip {
-  background: #f8fafc;
-  border: 1px solid #cbd5e1;
-  padding: 2px 7px;
-  border-radius: 5px;
   font-size: 11px;
-  font-weight: 600;
-  color: #334155;
 }
 
-.options-tag {
-  font-size: 10px;
-  color: #64748b;
-  margin-left: 6px;
+.type-pill {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10.5px;
 }
 
-.section-tag-pill {
-  font-size: 11.5px;
+.section-label-text {
   color: #475569;
 }
 
-.badge-req {
-  background: #fee2e2;
-  color: #b91c1c;
-  padding: 2px 7px;
-  border-radius: 5px;
-  font-size: 11px;
+.req-tag {
+  font-size: 10px;
   font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
 }
 
-.badge-opt {
-  background: #f1f5f9;
-  color: #64748b;
-  padding: 2px 7px;
-  border-radius: 5px;
-  font-size: 11px;
-}
+.tag-req { background: #fee2e2; color: #b91c1c; }
+.tag-opt { background: #f1f5f9; color: #64748b; }
 
-.table-action-group {
+.row-actions {
   display: inline-flex;
   gap: 3px;
-  align-items: center;
 }
 
-.btn-table-icon {
-  width: 26px;
-  height: 26px;
+.btn-act {
+  width: 24px;
+  height: 24px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   background: #f8fafc;
   border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  font-size: 11px;
-  color: #475569;
+  border-radius: 4px;
+  font-size: 10.5px;
   cursor: pointer;
-  transition: all 0.15s;
 }
-
-.btn-table-icon:hover:not(:disabled) {
+.btn-act:hover:not(:disabled) {
   background: #e2e8f0;
-  color: #0f172a;
 }
-
-.btn-table-icon:disabled {
-  opacity: 0.35;
+.btn-act:disabled {
+  opacity: 0.3;
   cursor: not-allowed;
 }
 
-.btn-table-delete:hover:not(:disabled) {
+.btn-act-del:hover:not(:disabled) {
   background: #fee2e2;
   color: #dc2626;
   border-color: #fca5a5;
 }
 
-.sections-sorting-toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 14px;
-  background: #f8fafc;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.sort-hint {
-  font-size: 11.5px;
-  color: #64748b;
-}
-
-.sort-buttons-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.sort-title {
-  font-size: 11px;
-  font-weight: 700;
-  color: #94a3b8;
-}
-
-.btn-sort-chip {
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 5px;
-  font-size: 11px;
-  padding: 2px 7px;
-  color: #334155;
-  cursor: pointer;
-}
-
-.btn-sort-chip:hover {
-  background: #eff6ff;
-  border-color: #93c5fd;
-  color: #1d4ed8;
-}
-
-.order-cell-row {
+.order-reorder-flex {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
 }
 
-.order-pill {
+.order-num {
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
   color: #1e40af;
   background: #dbeafe;
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: 1px 5px;
+  border-radius: 3px;
   font-family: monospace;
 }
 
-.field-meta-id {
-  font-size: 10px;
-  color: #94a3b8;
-  font-family: monospace;
+.row-desc-cell {
+  color: #64748b;
+  font-size: 11.5px;
 }
 
-.sec-description-text {
-  color: #475569;
-  font-size: 12px;
-  line-height: 1.4;
-}
-
-.fields-count-badge {
+.count-pill-gray {
   background: #f1f5f9;
   border: 1px solid #e2e8f0;
-  padding: 2px 8px;
-  border-radius: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
   font-weight: 700;
-  font-size: 11px;
+  font-size: 10.5px;
 }
 
-.schema-footer-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-top: 14px;
-  margin-top: 14px;
-  border-top: 1px solid #f1f5f9;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.footer-meta-text {
-  font-size: 12px;
-  color: #64748b;
-}
-
-/* ─── FLOATING SAVE BAR ──────────────────────────────────────────────── */
-.floating-save-bar {
+/* ─── STICKY SAVE DOCK ───────────────────────────────────────────────── */
+.sticky-save-dock {
   position: fixed;
-  bottom: 24px;
+  bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 1000;
-  width: calc(100% - 48px);
-  max-width: 820px;
+  width: calc(100% - 40px);
+  max-width: 680px;
 }
 
-.save-bar-content {
+.save-dock-inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
   background: #0f172a;
   border: 1px solid #334155;
-  border-radius: 14px;
-  padding: 12px 20px;
-  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.35);
+  border-radius: 12px;
+  padding: 10px 18px;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
   color: #ffffff;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.save-bar-left {
-  display: flex;
-  align-items: center;
   gap: 12px;
 }
 
-.warning-pulse-icon {
-  font-size: 22px;
-}
-
-.save-bar-title {
-  font-size: 13.5px;
-  font-weight: 700;
-  color: #f8fafc;
-}
-
-.save-bar-desc {
-  font-size: 11.5px;
-  color: #94a3b8;
-}
-
-.save-bar-actions {
+.dock-meta {
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
-.btn-discard {
+.dock-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f59e0b;
+}
+
+.dock-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  display: block;
+}
+
+.dock-sub {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.dock-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-dock-cancel {
   background: transparent;
   border: 1px solid #475569;
   color: #cbd5e1;
-  padding: 7px 14px;
-  border-radius: 8px;
-  font-size: 12.5px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s;
 }
 
-.btn-discard:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.08);
-  color: #ffffff;
-}
-
-.btn-save-floating {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+.btn-dock-commit {
+  background: #2563eb;
   border: none;
   color: #ffffff;
-  padding: 8px 18px;
-  border-radius: 8px;
-  font-size: 13px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.4);
-  transition: all 0.15s;
 }
 
-.btn-save-floating:hover:not(:disabled) {
-  background: linear-gradient(135deg, #1d4ed8, #1e40af);
-  transform: translateY(-1px);
-}
-
-.bar-slide-enter-active,
-.bar-slide-leave-active {
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.bar-slide-enter-from,
-.bar-slide-leave-to {
-  opacity: 0;
-  transform: translate(-50%, 25px);
-}
-
-/* ─── MODAL CUSTOM STYLES ────────────────────────────────────────────── */
-.modal-backdrop-custom {
+/* ─── MODAL ──────────────────────────────────────────────────────────── */
+.modal-layer {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.65);
+  background: rgba(15, 23, 42, 0.6);
   backdrop-filter: blur(4px);
-  z-index: 9999;
+  z-index: 99999;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 16px;
 }
 
-.modal-card-custom {
+.modal-box {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 16px;
+  border-radius: 12px;
   width: 100%;
-  max-width: 580px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
-  padding: 24px;
+  max-width: 520px;
+  box-shadow: 0 20px 30px rgba(0, 0, 0, 0.18);
+  padding: 20px;
 }
 
-.modal-header-custom {
+.modal-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-bottom: 14px;
+  padding-bottom: 12px;
   border-bottom: 1px solid #f1f5f9;
 }
 
-.modal-title-row {
+.modal-title-text {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.modal-x {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+.modal-body-form {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.modal-2-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 10px;
 }
 
-.modal-badge-icon {
-  font-size: 20px;
-}
-
-.modal-heading-text {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 800;
-  color: #0f172a;
-}
-
-.btn-close-custom {
-  background: transparent;
-  border: none;
-  font-size: 16px;
-  color: #94a3b8;
-  cursor: pointer;
-  padding: 4px;
-}
-
-.btn-close-custom:hover {
-  color: #0f172a;
-}
-
-.modal-form-body {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  margin-top: 16px;
-}
-
-.modal-grid-2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-@media (max-width: 560px) {
-  .modal-grid-2 {
-    grid-template-columns: 1fr;
-  }
-}
-
-.checkbox-label-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  font-size: 12.5px;
+.field-label-text {
+  font-size: 11.5px;
   font-weight: 600;
   color: #334155;
+  display: block;
+  margin-bottom: 4px;
 }
 
-.modal-footer-actions {
+.req-star {
+  color: #dc2626;
+}
+
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+}
+
+.modal-foot {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  margin-top: 16px;
+  margin-top: 14px;
+  padding-top: 12px;
   border-top: 1px solid #f1f5f9;
-  padding-top: 14px;
-}
-
-.animate-scale-up {
-  animation: scale-up-anim 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes scale-up-anim {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-.req {
-  color: #dc2626;
 }
 </style>
