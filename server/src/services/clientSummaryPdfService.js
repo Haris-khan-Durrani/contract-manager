@@ -31,6 +31,22 @@ function renderYesNo(val) {
   `;
 }
 
+function formatDateOnly(val) {
+  if (!val) return '';
+  if (val instanceof Date) {
+    return isNaN(val.getTime()) ? '' : val.toISOString().slice(0, 10);
+  }
+  if (typeof val === 'string') {
+    return val.trim().slice(0, 10);
+  }
+  try {
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? String(val) : d.toISOString().slice(0, 10);
+  } catch (_) {
+    return String(val);
+  }
+}
+
 /**
  * Generate full HTML and convert to PDF buffer
  */
@@ -266,7 +282,7 @@ async function generateSummaryPdf(contract, summaryData = {}) {
       </div>
       <div class="field-row">
         <span class="field-label">Registration Date:</span>
-        <span class="field-value">${renderValue(data.reg_date || contract.signed_at?.slice(0, 10))}</span>
+        <span class="field-value">${renderValue(data.reg_date || formatDateOnly(contract.signed_at) || formatDateOnly(contract.created_at))}</span>
       </div>
     </div>
 
@@ -658,7 +674,7 @@ async function generateSummaryPdf(contract, summaryData = {}) {
         <div style="font-size: 10px; color: #64748b;">Authorized Case Counsellor:</div>
         <div style="font-size: 12px; font-weight: 700; margin: 4px 0;">${renderValue(data.counselor_signature?.counselor_name || contract.assigned_user_name || 'Authorized Counsellor')}</div>
         <div style="font-size: 10px; color: #64748b;">360 Global Immigration</div>
-        <div style="margin-top: 8px; font-size: 10px;">Date: <strong>${renderValue(data.counselor_signature?.date || contract.completed_at?.slice(0, 10) || contract.signed_at?.slice(0, 10))}</strong></div>
+        <div style="margin-top: 8px; font-size: 10px;">Date: <strong>${renderValue(data.counselor_signature?.date || formatDateOnly(contract.completed_at) || formatDateOnly(contract.signed_at) || formatDateOnly(contract.created_at))}</strong></div>
       </div>
       <div class="sig-box" style="text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center;">
         ${data.counselor_signature?.signature_png ? `
@@ -763,7 +779,7 @@ async function generateSummaryPdf(contract, summaryData = {}) {
             <td><strong>${escapeHtml(att.name || 'Supporting Document')}</strong></td>
             <td>${escapeHtml(att.mimeType || 'Document')}</td>
             <td>${att.size ? `${Math.round(att.size / 1024)} KB` : '—'}</td>
-            <td>${att.uploadedAt ? escapeHtml(att.uploadedAt.slice(0, 10)) : '—'}</td>
+            <td>${att.uploadedAt ? escapeHtml(formatDateOnly(att.uploadedAt)) : '—'}</td>
           </tr>
         `).join('') : `
           <tr>
