@@ -27,6 +27,7 @@ const settingsService = require('./services/settingsService');
 // Background workers
 const expiryWorker = require('./services/expiryWorker');
 const retryWorker  = require('./services/retryWorker');
+const operationsHandoff = require('./services/operationsHandoff');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -124,12 +125,14 @@ const server = app.listen(PORT, async () => {
   // Start background workers
   expiryWorker.start();
   retryWorker.start();
+  await operationsHandoff.start();
 });
 
 // Graceful shutdown
 const pdfService = require('./services/pdfService');
 async function gracefulShutdown(signal) {
   console.log(`\n[Server] ${signal} received — shutting down gracefully…`);
+  operationsHandoff.stop();
   await pdfService.closeBrowser();
   server.close(() => {
     console.log('[Server] HTTP server closed.');
