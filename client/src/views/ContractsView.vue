@@ -331,7 +331,7 @@
               <th style="width: 210px;">Client Contact</th>
               <th style="width: 150px;">Assigned Agent</th>
               <th style="width: 130px;">Date</th>
-              <th style="text-align: right; min-width: 200px;">Actions</th>
+              <th style="text-align: right; min-width: 260px;">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -424,7 +424,7 @@
                     @click="sendViaGhl(c)"
                     title="Dispatch invitation via GoHighLevel"
                   >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                     <span>{{ sendingContractId === c.id ? 'Sending…' : 'Send GHL' }}</span>
                   </button>
 
@@ -432,19 +432,19 @@
                   <button
                     v-if="c.signing_token"
                     type="button"
-                    class="btn-row-icon-btn"
+                    class="btn-row-icon-btn btn-copy-link"
                     :class="{ 'btn-copied': copiedId === c.id }"
                     @click="copySigningLink(c.signing_token, c.id)"
                     :title="copiedId === c.id ? 'Copied to clipboard!' : 'Copy Public Signing Link'"
                   >
-                    <svg v-if="copiedId !== c.id" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                    <svg v-if="copiedId !== c.id" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
                     <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
                   </button>
 
                   <!-- View / Open Details -->
-                  <router-link :to="`/contracts/${c.id}`" class="btn-row-action btn-open-details">
+                  <router-link :to="`/contracts/${c.id}`" class="btn-row-action btn-open-details" title="Open Agreement Details">
                     <span>Open</span>
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                   </router-link>
 
                   <!-- Delete Contract -->
@@ -455,7 +455,7 @@
                     @click="deleteContract(c)"
                     title="Permanently Delete Contract"
                   >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6"/></svg>
                   </button>
                 </div>
               </td>
@@ -1624,44 +1624,69 @@ onMounted(() => {
 .row-actions-cluster {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  justify-content: flex-end;
+  gap: 6px;
+  white-space: nowrap !important;
 }
 
 .btn-row-action {
+  height: 32px;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 12px;
   border-radius: 6px;
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   text-decoration: none;
-  transition: all 0.15s;
+  transition: all 0.15s ease;
   border: 1px solid transparent;
+  white-space: nowrap !important;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  line-height: 1;
 }
 
 .btn-send-ghl {
   background: #2563eb;
+  border: 1px solid #1d4ed8;
   color: #ffffff;
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.2);
 }
 .btn-send-ghl:hover:not(:disabled) {
   background: #1d4ed8;
+  border-color: #1e40af;
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.3);
+  transform: translateY(-1px);
+}
+.btn-send-ghl:active:not(:disabled) {
+  background: #1e40af;
+  transform: translateY(0);
 }
 
 .btn-open-details {
-  background: #f8fafc;
-  border-color: #cbd5e1;
-  color: #1e293b;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 .btn-open-details:hover {
-  background: #f1f5f9;
+  background: #f8fafc;
   border-color: #94a3b8;
+  color: #2563eb;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
+}
+.btn-open-details:active {
+  background: #f1f5f9;
+  transform: translateY(0);
 }
 
 .btn-row-icon-btn {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1670,23 +1695,42 @@ onMounted(() => {
   border-radius: 6px;
   color: #475569;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  flex-shrink: 0;
+  box-sizing: border-box;
 }
 .btn-row-icon-btn:hover:not(:disabled) {
   background: #f8fafc;
+  border-color: #94a3b8;
   color: #0f172a;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
+}
+.btn-row-icon-btn:active:not(:disabled) {
+  background: #f1f5f9;
+  transform: translateY(0);
 }
 
 .btn-copied {
   background: #ecfdf5 !important;
-  border-color: #a7f3d0 !important;
+  border-color: #34d399 !important;
   color: #059669 !important;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15) !important;
 }
 
+.btn-delete-row {
+  color: #64748b;
+}
 .btn-delete-row:hover:not(:disabled) {
-  background: #fee2e2;
-  color: #dc2626;
-  border-color: #fca5a5;
+  background: #fef2f2 !important;
+  color: #dc2626 !important;
+  border-color: #fca5a5 !important;
+  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.15) !important;
+  transform: translateY(-1px);
+}
+.btn-delete-row:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 /* Empty & Loading States */
