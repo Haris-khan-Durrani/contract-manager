@@ -135,51 +135,296 @@
         </div>
       </div>
 
-      <!-- 3. Operations Team Handoff Webhook -->
-      <div class="glass-card" style="padding: var(--space-6);">
-        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: var(--space-4);">
-          <div style="font-size: 1.5rem;">🚀</div>
-          <div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <h3 style="margin: 0; font-size: 1.1rem; font-family: var(--font-heading);">Operations Team Handoff Webhook</h3>
-              <span class="badge badge-info" style="font-size: 10px;">Post-Contract Onboarding</span>
+      <!-- 3. Webhooks & Developer Integration Hub -->
+      <div class="glass-card webhook-hub-card" style="padding: var(--space-6);">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin-bottom: var(--space-4);">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="font-size: 1.5rem;">🔌</div>
+            <div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <h3 style="margin: 0; font-size: 1.15rem; font-family: var(--font-heading);">Webhooks &amp; Integration Hub</h3>
+                <span class="badge badge-info" style="font-size: 10px;">Developer &amp; Operations</span>
+              </div>
+              <p style="margin: 2px 0 0; font-size: var(--text-xs); color: var(--color-text-muted);">
+                Configure automated inbound contract triggers from GoHighLevel and outbound handoffs to Zapier, Make.com, n8n, or internal Operations ERP.
+              </p>
             </div>
-            <p style="margin: 0; font-size: var(--text-xs); color: var(--color-text-muted);">
-              Dispatch completed Client Summaries, signed agreements, and client file attachments directly to Operations / Processing / CRM / ERP.
-            </p>
+          </div>
+
+          <!-- Webhook Sub-Tabs -->
+          <div class="webhook-subtabs">
+            <button 
+              type="button" 
+              class="webhook-tab-btn" 
+              :class="{ active: webhookTab === 'operations' }"
+              @click="webhookTab = 'operations'"
+            >
+              🚀 Outbound (Operations)
+            </button>
+            <button 
+              type="button" 
+              class="webhook-tab-btn" 
+              :class="{ active: webhookTab === 'inbound' }"
+              @click="webhookTab = 'inbound'"
+            >
+              📥 Inbound (GHL Trigger)
+            </button>
+            <button 
+              type="button" 
+              class="webhook-tab-btn" 
+              :class="{ active: webhookTab === 'docs' }"
+              @click="webhookTab = 'docs'"
+            >
+              📖 Docs &amp; Setup Guide
+            </button>
           </div>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4);">
-          <div style="grid-column: span 2;">
-            <label class="form-label">Operations Webhook URL</label>
-            <input 
-              v-model="form.OPERATIONS_WEBHOOK_URL" 
-              type="text" 
-              class="form-control" 
-              placeholder="https://n8n.yourcompany.com/webhook/operations-handoff or Zapier / Make webhook URL" 
-            />
-            <span style="font-size: var(--text-xs); color: var(--color-text-muted); display: block; margin-top: 4px;">
-              When sales clicks <strong>"Share with Operations"</strong> on a completed summary, the full dossier JSON, signed contract PDF, summary PDF, and attachments will be POSTed here.
-            </span>
+        <!-- Toast Feedback for Copying -->
+        <div v-if="copyToast" class="badge badge-completed" style="padding: 6px 12px; margin-bottom: 12px; display: inline-flex; align-items: center; gap: 6px; font-size: 12px;">
+          <span>📋</span>
+          <span>{{ copyToast }}</span>
+        </div>
+
+        <!-- SUBTAB 1: Outbound Operations Webhook -->
+        <div v-if="webhookTab === 'operations'" class="webhook-tab-content">
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: var(--space-4);">
+            <div style="display: grid; grid-template-columns: 1fr; gap: var(--space-4);">
+              <div>
+                <label class="form-label" style="display: flex; justify-content: space-between; align-items: center;">
+                  <span>Operations Webhook Destination URL</span>
+                  <span class="badge badge-neutral" style="font-size: 10px;">POST Request</span>
+                </label>
+                <div style="display: flex; gap: 8px;">
+                  <input 
+                    v-model="form.OPERATIONS_WEBHOOK_URL" 
+                    type="text" 
+                    class="form-control" 
+                    placeholder="https://hook.eu1.make.com/... or https://hooks.zapier.com/... or https://n8n.yourorg.com/webhook/ops" 
+                  />
+                  <button 
+                    type="button" 
+                    class="btn btn-secondary" 
+                    :disabled="testingWebhook || !form.OPERATIONS_WEBHOOK_URL"
+                    @click="testOperationsWebhook"
+                    style="white-space: nowrap; display: flex; align-items: center; gap: 6px;"
+                  >
+                    <span>{{ testingWebhook ? '⏳ Pinging…' : '⚡ Test Webhook Ping' }}</span>
+                  </button>
+                </div>
+                <span style="font-size: var(--text-xs); color: var(--color-text-muted); display: block; margin-top: 4px;">
+                  When a sales agent marks a Client Summary as completed or clicks <strong>"Share with Operations"</strong>, the complete case dossier, signed legal agreement, 9-page summary PDF, and all attachments will be delivered here.
+                </span>
+              </div>
+
+              <!-- Test Result Banner -->
+              <div v-if="testWebhookResult" :style="{
+                padding: '10px 14px',
+                borderRadius: '6px',
+                fontSize: '12px',
+                border: '1px solid',
+                background: testWebhookResult.success ? '#ecfdf5' : '#fef2f2',
+                borderColor: testWebhookResult.success ? '#a7f3d0' : '#fecaca',
+                color: testWebhookResult.success ? '#065f46' : '#991b1b'
+              }">
+                <div style="font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                  <span>{{ testWebhookResult.success ? '✅ Test Ping Succeeded!' : '⚠️ Webhook Delivery Notice' }}</span>
+                  <span v-if="testWebhookResult.status" class="badge" :class="testWebhookResult.success ? 'badge-completed' : 'badge-declined'" style="font-size: 10px;">
+                    HTTP {{ testWebhookResult.status }}
+                  </span>
+                  <span v-if="testWebhookResult.durationMs" style="color: #64748b; font-weight: normal; font-size: 11px;">
+                    ({{ testWebhookResult.durationMs }}ms)
+                  </span>
+                </div>
+                <div style="margin-top: 4px; font-family: monospace; font-size: 11px; white-space: pre-wrap;">
+                  {{ testWebhookResult.message || testWebhookResult.error }}
+                </div>
+              </div>
+
+              <div>
+                <label class="form-label" style="display: flex; justify-content: space-between;">
+                  <span>HMAC-SHA256 Signing Secret Key</span>
+                  <span class="badge badge-info" style="font-size: 10px;">Payload Security</span>
+                </label>
+                <div style="display: flex; gap: 8px;">
+                  <input 
+                    v-model="form.OPERATIONS_WEBHOOK_SECRET" 
+                    :type="showSecret.OPERATIONS_WEBHOOK_SECRET ? 'text' : 'password'" 
+                    class="form-control" 
+                    placeholder="Enter secret for HMAC-SHA256 signature verification" 
+                  />
+                  <button 
+                    type="button" 
+                    class="btn btn-secondary" 
+                    @click="toggleShow('OPERATIONS_WEBHOOK_SECRET')"
+                    style="min-width: 75px;"
+                  >
+                    {{ showSecret.OPERATIONS_WEBHOOK_SECRET ? 'Hide' : 'Show' }}
+                  </button>
+                  <button 
+                    type="button" 
+                    class="btn btn-secondary" 
+                    @click="copyToClipboard(form.OPERATIONS_WEBHOOK_SECRET, 'Secret')"
+                    title="Copy Secret"
+                  >
+                    📋
+                  </button>
+                </div>
+                <span style="font-size: var(--text-xs); color: var(--color-text-muted); display: block; margin-top: 4px;">
+                  Passed in the <code>X-Webhook-Signature</code> header. Your receiving endpoint can verify this hash to guarantee the payload originated from your contract system.
+                </span>
+              </div>
+            </div>
           </div>
 
-          <div style="grid-column: span 2;">
-            <label class="form-label" style="display: flex; justify-content: space-between;">
-              <span>Operations Webhook Secret Key</span>
-              <span class="badge badge-info" style="font-size: 10px;">HMAC-SHA256 Signing</span>
-            </label>
-            <input 
-              v-model="form.OPERATIONS_WEBHOOK_SECRET" 
-              :type="showSecret.OPERATIONS_WEBHOOK_SECRET ? 'text' : 'password'" 
-              class="form-control" 
-              placeholder="Enter secret for HMAC-SHA256 payload verification" 
-            />
-            <div style="margin-top: 4px; display: flex; justify-content: space-between; font-size: var(--text-xs); color: var(--color-text-muted);">
-              <span>Passed in <code>X-Webhook-Signature</code> header for tamper-proof verification</span>
-              <a href="javascript:void(0)" @click="toggleShow('OPERATIONS_WEBHOOK_SECRET')">
-                {{ showSecret.OPERATIONS_WEBHOOK_SECRET ? 'Hide' : 'Show' }}
-              </a>
+          <!-- Outbound Payload Preview -->
+          <div class="code-preview-box">
+            <div class="code-preview-header">
+              <span style="font-weight: 600; font-size: 12px; color: #94a3b8;">OUTBOUND PAYLOAD SCHEMA PREVIEW</span>
+              <button type="button" class="btn-copy-code" @click="copyToClipboard(sampleOutboundJson, 'Payload Schema')">
+                📋 Copy Schema JSON
+              </button>
+            </div>
+            <pre class="code-block"><code>{{ sampleOutboundJson }}</code></pre>
+          </div>
+        </div>
+
+        <!-- SUBTAB 2: Inbound GHL Trigger Webhook -->
+        <div v-else-if="webhookTab === 'inbound'" class="webhook-tab-content">
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: var(--space-4);">
+            <div style="display: grid; grid-template-columns: 1fr; gap: var(--space-4);">
+              <div>
+                <label class="form-label" style="display: flex; justify-content: space-between; align-items: center;">
+                  <span>Inbound Webhook Trigger URL</span>
+                  <span class="badge badge-completed" style="font-size: 10px;">GHL Workflow Action</span>
+                </label>
+                <div style="display: flex; gap: 8px;">
+                  <input 
+                    :value="inboundWebhookUrl" 
+                    type="text" 
+                    readonly 
+                    class="form-control" 
+                    style="background: #ffffff; font-family: monospace; font-size: 12px;" 
+                  />
+                  <button 
+                    type="button" 
+                    class="btn btn-primary" 
+                    @click="copyToClipboard(inboundWebhookUrl, 'Inbound Webhook URL')"
+                    style="white-space: nowrap;"
+                  >
+                    📋 Copy URL
+                  </button>
+                </div>
+                <span style="font-size: var(--text-xs); color: var(--color-text-muted); display: block; margin-top: 4px;">
+                  Paste this URL into GoHighLevel Workflows (<strong>Add Action &rarr; Custom Webhook &rarr; POST</strong>) to automatically generate contracts when deals are won.
+                </span>
+              </div>
+
+              <div>
+                <label class="form-label" style="display: flex; justify-content: space-between;">
+                  <span>Webhook Authentication Secret (Bearer / Header)</span>
+                  <span class="badge badge-info" style="font-size: 10px;">Header: Authorization</span>
+                </label>
+                <div style="display: flex; gap: 8px;">
+                  <input 
+                    v-model="form.GHL_WEBHOOK_SECRET" 
+                    :type="showSecret.GHL_WEBHOOK_SECRET ? 'text' : 'password'" 
+                    class="form-control" 
+                    placeholder="Enter Webhook Auth Secret" 
+                  />
+                  <button 
+                    type="button" 
+                    class="btn btn-secondary" 
+                    @click="toggleShow('GHL_WEBHOOK_SECRET')"
+                    style="min-width: 75px;"
+                  >
+                    {{ showSecret.GHL_WEBHOOK_SECRET ? 'Hide' : 'Show' }}
+                  </button>
+                  <button 
+                    type="button" 
+                    class="btn btn-secondary" 
+                    @click="copyToClipboard(form.GHL_WEBHOOK_SECRET, 'Webhook Secret')"
+                    title="Copy Secret"
+                  >
+                    📋
+                  </button>
+                </div>
+                <span style="font-size: var(--text-xs); color: var(--color-text-muted); display: block; margin-top: 4px;">
+                  Pass in GHL Webhook Header: <code>Authorization: Bearer {{ form.GHL_WEBHOOK_SECRET || 'your_secret' }}</code> or <code>X-Contract-App-Key: {{ form.GHL_WEBHOOK_SECRET || 'your_secret' }}</code>.
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Inbound cURL & JSON preview -->
+          <div class="code-preview-box">
+            <div class="code-preview-header">
+              <span style="font-weight: 600; font-size: 12px; color: #94a3b8;">INBOUND WORKFLOW REQUEST BODY (JSON)</span>
+              <button type="button" class="btn-copy-code" @click="copyToClipboard(sampleInboundJson, 'Inbound Payload')">
+                📋 Copy JSON
+              </button>
+            </div>
+            <pre class="code-block"><code>{{ sampleInboundJson }}</code></pre>
+          </div>
+        </div>
+
+        <!-- SUBTAB 3: Documentation & Integration Guides -->
+        <div v-else-if="webhookTab === 'docs'" class="webhook-tab-content">
+          <div class="docs-guide-grid">
+            <!-- Guide 1 -->
+            <div class="doc-guide-card">
+              <div class="doc-guide-badge">GHL AUTOMATION</div>
+              <h4 class="doc-guide-title">1. Automatic Contract Creation via GoHighLevel</h4>
+              <p class="doc-guide-desc">Trigger contract generation whenever a lead moves to a specific pipeline stage or when an Opportunity is Won.</p>
+              <ol class="doc-step-list">
+                <li>Go to <strong>GoHighLevel &rarr; Automation &rarr; Workflows</strong>.</li>
+                <li>Add Trigger: <strong>Opportunity Status Changed</strong> (Status: <code>Won</code>) or <strong>Pipeline Stage Changed</strong>.</li>
+                <li>Add Action: <strong>Custom Webhook</strong>.</li>
+                <li>Method: <code>POST</code> &bull; URL: <code>{{ inboundWebhookUrl }}</code></li>
+                <li>Header: <code>Authorization</code> &bull; Value: <code>Bearer {{ form.GHL_WEBHOOK_SECRET }}</code></li>
+                <li>Body (JSON): Send <code>locationId</code>, <code>contactId</code>, <code>opportunityId</code>, and <code>trigger</code>.</li>
+              </ol>
+            </div>
+
+            <!-- Guide 2 -->
+            <div class="doc-guide-card">
+              <div class="doc-guide-badge">OPERATIONS &amp; CASE HANDOFF</div>
+              <h4 class="doc-guide-title">2. Receiving Completed Dossiers in Make.com / Zapier</h4>
+              <p class="doc-guide-desc">Automatically upload client files to Google Drive, notify processing teams on Slack, or create tickets in ClickUp / Monday.com / Jira.</p>
+              <ol class="doc-step-list">
+                <li>Create a <strong>Custom Webhook</strong> in Make.com or a <strong>Catch Hook</strong> in Zapier.</li>
+                <li>Copy the webhook URL and paste it into the <strong>Operations Webhook URL</strong> tab above.</li>
+                <li>Click <strong>"Test Webhook Ping"</strong> to automatically map all client, contract, and document fields.</li>
+                <li>Extract <code>documents.packageZipUrl</code> to download the compiled case dossier in 1 step.</li>
+                <li>Extract <code>documents.attachments</code> array to access individual passports, IDs, and bank statements hosted on GHL CDN.</li>
+              </ol>
+            </div>
+
+            <!-- Guide 3 -->
+            <div class="doc-guide-card">
+              <div class="doc-guide-badge">SECURITY</div>
+              <h4 class="doc-guide-title">3. Verifying HMAC-SHA256 Webhook Signatures</h4>
+              <p class="doc-guide-desc">Verify that incoming handoff payloads originate genuinely from your Contract &amp; Summary platform.</p>
+              <div class="code-preview-box" style="margin-top: 8px;">
+                <div class="code-preview-header">
+                  <span style="font-size: 11px; color: #94a3b8;">Node.js Verification Snippet</span>
+                  <button type="button" class="btn-copy-code" @click="copyToClipboard(nodeVerifySnippet, 'Node.js Snippet')">📋 Copy</button>
+                </div>
+                <pre class="code-block" style="max-height: 140px;"><code>{{ nodeVerifySnippet }}</code></pre>
+              </div>
+            </div>
+
+            <!-- Guide 4 -->
+            <div class="doc-guide-card">
+              <div class="doc-guide-badge">GHL NATIVE STORAGE</div>
+              <h4 class="doc-guide-title">4. GoHighLevel Media &amp; Custom Fields Access</h4>
+              <p class="doc-guide-desc">All finalized documents are permanently stored in GoHighLevel for instant access across your team.</p>
+              <ul class="doc-step-list" style="list-style-type: disc; padding-left: 20px;">
+                <li><strong>Signed Legal Agreement:</strong> Stored in <code>contract.ghl_file_url</code> and GHL contact custom field <code>contract_pdf_url</code>.</li>
+                <li><strong>9-Page Client Summary PDF:</strong> Uploaded to GHL Media Library and synced to GHL custom field <code>client_summary_pdf_url</code>.</li>
+                <li><strong>Case Package ZIP:</strong> Uploaded to GHL Media Library and synced to GHL custom field <code>case_package_zip_url</code>.</li>
+                <li><strong>Conversation Thread:</strong> Automatic Internal Comments are posted in GoHighLevel conversations whenever a contract is signed or shared with Operations.</li>
+              </ul>
             </div>
           </div>
         </div>
@@ -849,7 +1094,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import api from '../services/api'
 
 const loading = ref(true)
@@ -858,6 +1103,11 @@ const successMsg = ref('')
 const errorMsg = ref('')
 const stampFileInput = ref(null)
 const sigFileInput = ref(null)
+
+const webhookTab = ref('operations') // 'operations', 'inbound', 'docs'
+const testingWebhook = ref(false)
+const testWebhookResult = ref(null)
+const copyToast = ref('')
 
 const form = ref({
   GHL_SHARED_SECRET: '',
@@ -1001,6 +1251,116 @@ const showSecret = ref({
 function toggleShow(field) {
   showSecret.value[field] = !showSecret.value[field]
 }
+
+const inboundWebhookUrl = computed(() => {
+  const origin = window.location.origin
+  const serverBase = origin.includes(':5173') ? origin.replace(':5173', ':3000') : origin
+  return `${serverBase}/api/webhooks/ghl/contract-trigger`
+})
+
+function copyToClipboard(text, label = 'Copied') {
+  if (!text) return
+  if (navigator?.clipboard?.writeText) {
+    navigator.clipboard.writeText(text).then(() => {
+      copyToast.value = `${label} copied to clipboard!`
+      setTimeout(() => { copyToast.value = '' }, 2500)
+    }).catch(() => {
+      prompt('Copy to clipboard:', text)
+    })
+  } else {
+    prompt('Copy to clipboard:', text)
+  }
+}
+
+async function testOperationsWebhook() {
+  if (!form.value.OPERATIONS_WEBHOOK_URL) {
+    alert('Please enter an Operations Webhook URL first.')
+    return
+  }
+
+  testingWebhook.value = true
+  testWebhookResult.value = null
+
+  try {
+    const res = await api.post('/settings/test-operations-webhook', {
+      webhookUrl: form.value.OPERATIONS_WEBHOOK_URL,
+      webhookSecret: form.value.OPERATIONS_WEBHOOK_SECRET,
+    })
+    testWebhookResult.value = res.data
+  } catch (err) {
+    testWebhookResult.value = {
+      success: false,
+      error: err.response?.data?.error || err.message,
+    }
+  } finally {
+    testingWebhook.value = false
+  }
+}
+
+const sampleOutboundJson = computed(() => {
+  return JSON.stringify({
+    event: "client_dossier.shared_with_operations",
+    eventId: "evt_ops_1042_1713180000",
+    timestamp: new Date().toISOString(),
+    locationId: "ghl_location_123",
+    handover: {
+      action: "OPERATIONS_HANDOFF",
+      sharedByName: "Akram Mammeri",
+      sharedAt: new Date().toISOString(),
+      counsellorName: "Akram Mammeri",
+      registeredBranch: "Dubai HQ"
+    },
+    client: {
+      ghlContactId: "cont_8829103",
+      fullName: "Ahmed Al Mansoor",
+      email: "ahmed.mansoor@example.com",
+      phone: "+971501234567",
+      nationality: "Emirati",
+      dateOfBirth: "1988-06-14"
+    },
+    contract: {
+      id: 1042,
+      templateName: "Cyprus Permanent Residency Agreement",
+      contractType: "IMMIGRATION_SERVICES",
+      state: "COMPLETED",
+      signedAt: new Date().toISOString(),
+      pdfSha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    documents: {
+      signedContractPdfUrl: "https://services.leadconnectorhq.com/.../contract_1042_signed.pdf",
+      clientSummaryPdfUrl: "https://services.leadconnectorhq.com/.../Client_Summary_1042.pdf",
+      packageZipUrl: "https://services.leadconnectorhq.com/.../Case_Package_1042.zip",
+      attachments: [
+        {
+          name: "Passport_Copy.pdf",
+          url: "https://services.leadconnectorhq.com/.../passport.pdf",
+          mimeType: "application/pdf",
+          sizeBytes: 1420500,
+          category: "Identity"
+        }
+      ]
+    },
+    summaryData: {
+      page1_general_info: { reg_number: "REF-1042", country_applying_for: "Cyprus" },
+      page2_immigration_history: { q2_refused_visa: "no" },
+      page3_business_background: { q8_own_business: "yes", q9_business_name: "Apex Trading LLC" },
+      page8_financials: { q48_source_of_funds: "Business retained earnings" }
+    }
+  }, null, 2)
+})
+
+const sampleInboundJson = computed(() => {
+  return JSON.stringify({
+    locationId: "{{contact.location_id}}",
+    contactId: "{{contact.id}}",
+    opportunityId: "{{opportunity.id}}",
+    trigger: "OPPORTUNITY_WON"
+  }, null, 2)
+})
+
+const nodeVerifySnippet = computed(() => {
+  return `const crypto = require('crypto');\n\nfunction verifyWebhook(rawPayload, headerSignature, secret) {\n  const calculated = crypto.createHmac('sha256', secret).update(rawPayload).digest('hex');\n  return crypto.timingSafeEqual(Buffer.from(calculated), Buffer.from(headerSignature));\n}`
+})
 
 async function loadSettings() {
   loading.value = true
@@ -1750,5 +2110,142 @@ onMounted(() => {
   opacity: 0.3;
   cursor: not-allowed;
   border-color: #e2e8f0;
+}
+
+/* Webhook & Docs Hub Styles */
+.webhook-hub-card {
+  border: 1px solid rgba(14, 165, 233, 0.25);
+  box-shadow: 0 4px 20px rgba(14, 165, 233, 0.08);
+}
+
+.webhook-subtabs {
+  display: flex;
+  background: #f1f5f9;
+  border-radius: 8px;
+  padding: 3px;
+  gap: 3px;
+  flex-wrap: wrap;
+}
+
+.webhook-tab-btn {
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.webhook-tab-btn.active {
+  background: #ffffff;
+  color: #0284c7;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.code-preview-box {
+  background: #0f172a;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #1e293b;
+  margin-top: 12px;
+}
+
+.code-preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 14px;
+  background: #1e293b;
+  border-bottom: 1px solid #334155;
+}
+
+.btn-copy-code {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #e2e8f0;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-copy-code:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+.code-block {
+  margin: 0;
+  padding: 14px;
+  max-height: 280px;
+  overflow-y: auto;
+  font-family: 'Fira Code', Menlo, Monaco, Consolas, monospace;
+  font-size: 11.5px;
+  color: #38bdf8;
+  line-height: 1.5;
+}
+
+.docs-guide-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 900px) {
+  .docs-guide-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.doc-guide-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.doc-guide-badge {
+  display: inline-block;
+  align-self: flex-start;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #0369a1;
+  background: #e0f2fe;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.doc-guide-title {
+  margin: 0 0 6px 0;
+  font-size: 14px;
+  font-family: var(--font-heading);
+  color: #0f172a;
+}
+
+.doc-guide-desc {
+  margin: 0 0 10px 0;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.doc-step-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: #334155;
+  line-height: 1.6;
+}
+
+.doc-step-list li {
+  margin-bottom: 4px;
 }
 </style>
