@@ -114,4 +114,4 @@ it('Middleware rejects missing Authorization header', () => {
 });
 
 console.log(`\nSecurity & Auth Results: ${passed} passed, ${failed} failed.\n`);
-if (failed > 0) process.exit(1);
+process.exit(failed > 0 ? 1 : 0);

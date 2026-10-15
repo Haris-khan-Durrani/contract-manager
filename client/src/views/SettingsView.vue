@@ -480,6 +480,12 @@
                   <span v-if="testWebhookResult.durationMs" class="ping-ms">{{ testWebhookResult.durationMs }}ms</span>
                 </div>
                 <div class="ping-detail-text">{{ testWebhookResult.message || testWebhookResult.error }}</div>
+                <div v-if="testWebhookResult.responseData" class="ping-response-box">
+                  <div class="ping-response-title">
+                    {{ testWebhookResult.success ? 'Receiver Response Body (HTTP 200):' : 'Receiver Response Body:' }}
+                  </div>
+                  <pre class="ping-response-code"><code>{{ typeof testWebhookResult.responseData === 'object' ? JSON.stringify(testWebhookResult.responseData, null, 2) : testWebhookResult.responseData }}</code></pre>
+                </div>
               </div>
 
               <div class="form-item span-full" style="margin-top: 14px;">
@@ -1987,15 +1993,22 @@ async function testOperationsWebhook() {
   testWebhookResult.value = null
 
   try {
-    const res = await api.post('/settings/test-operations-webhook', {
+    const payload = {
       webhookUrl: form.value.OPERATIONS_WEBHOOK_URL,
-      webhookSecret: form.value.OPERATIONS_WEBHOOK_SECRET,
-    })
+    }
+    // Only pass secret if it was explicitly typed/changed (not masked with bullets)
+    if (form.value.OPERATIONS_WEBHOOK_SECRET && !form.value.OPERATIONS_WEBHOOK_SECRET.includes('••••')) {
+      payload.webhookSecret = form.value.OPERATIONS_WEBHOOK_SECRET
+    }
+
+    const res = await api.post('/settings/test-operations-webhook', payload)
     testWebhookResult.value = res.data
   } catch (err) {
     testWebhookResult.value = {
       success: false,
+      status: err.response?.status,
       error: err.response?.data?.error || err.message,
+      responseData: err.response?.data?.responseData || err.response?.data || null,
     }
   } finally {
     testingWebhook.value = false
@@ -3354,6 +3367,41 @@ onMounted(() => {
   margin-top: 4px;
   font-family: monospace;
   font-size: 11px;
+}
+
+.ping-response-box {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+.ping-error .ping-response-box {
+  background: #ffffff;
+  border-color: #fecaca;
+}
+.ping-success .ping-response-box {
+  background: #ffffff;
+  border-color: #bbf7d0;
+}
+.ping-response-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+  opacity: 0.85;
+}
+.ping-response-code {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: #0f172a;
+  max-height: 180px;
+  overflow-y: auto;
 }
 
 .code-terminal-card {

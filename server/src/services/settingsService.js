@@ -25,7 +25,7 @@ const DEFAULT_SETTINGS = {
   COMPANY_STAMP_URL:             DEFAULT_COMPANY_STAMP,
   COMPANY_SIGNATURE_URL:         DEFAULT_COMPANY_SIGNATURE,
   CLIENT_SUMMARY_CUSTOM_SCHEMA:  JSON.stringify({ sections: [], fields: [] }),
-  OPERATIONS_WEBHOOK_URL:        '',
+  OPERATIONS_WEBHOOK_URL:        'https://opr.360globalimmigration.com/api/integrations/contracts/events',
   OPERATIONS_WEBHOOK_SECRET:     'ops_secret_dev_123',
 };
 
@@ -98,13 +98,17 @@ class SettingsService {
       }
 
       // Ensure OPERATIONS_WEBHOOK_URL is seeded if not present
-      if (!this._cache.has('OPERATIONS_WEBHOOK_URL')) {
+      if (!this._cache.has('OPERATIONS_WEBHOOK_URL') || !this._cache.get('OPERATIONS_WEBHOOK_URL')?.value) {
+        const defaultOpsUrl = 'https://opr.360globalimmigration.com/api/integrations/contracts/events';
         await db.execute(
-          `INSERT IGNORE INTO system_settings (setting_key, setting_value, description, is_secret, category)
-           VALUES ('OPERATIONS_WEBHOOK_URL', '', 'Outbound Webhook URL to dispatch completed Client Dossiers to Operations team', 0, 'operations')`
+          `INSERT INTO system_settings (setting_key, setting_value, description, is_secret, category)
+           VALUES ('OPERATIONS_WEBHOOK_URL', ?, 'Outbound Webhook URL to dispatch completed Client Dossiers to Operations team', 0, 'operations')
+           ON DUPLICATE KEY UPDATE setting_value = IF(setting_value IS NULL OR setting_value = '', VALUES(setting_value), setting_value)`,
+          [defaultOpsUrl]
         ).catch(() => {});
+        const currentVal = this._cache.get('OPERATIONS_WEBHOOK_URL')?.value;
         this._cache.set('OPERATIONS_WEBHOOK_URL', {
-          value: '',
+          value: currentVal || defaultOpsUrl,
           description: 'Outbound Webhook URL to dispatch completed Client Dossiers to Operations team',
           isSecret: false,
           category: 'operations',

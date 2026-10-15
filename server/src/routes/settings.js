@@ -95,86 +95,104 @@ router.put('/', ghlAuthMiddleware, loadAppUser, requirePermission('settings:mana
 // Send a test ping to the configured Operations Webhook URL to verify integration
 router.post('/test-operations-webhook', ghlAuthMiddleware, loadAppUser, requirePermission('settings:manage'), async (req, res) => {
   try {
-    const { webhookUrl, webhookSecret } = req.body;
-    const targetUrl = (webhookUrl || settingsService.get('OPERATIONS_WEBHOOK_URL') || '').trim();
-    const targetSecret = (webhookSecret || settingsService.get('OPERATIONS_WEBHOOK_SECRET') || '').trim();
+    // 1. Read destination URL and signing secret from saved integration settings
+    let targetUrl = (settingsService.get('OPERATIONS_WEBHOOK_URL') || '').trim();
+    let targetSecret = (settingsService.get('OPERATIONS_WEBHOOK_SECRET') || '').trim();
+
+    // Allow testing an unsaved destination URL if explicitly supplied in request
+    if (req.body?.webhookUrl && typeof req.body.webhookUrl === 'string' && req.body.webhookUrl.trim()) {
+      const candidateUrl = req.body.webhookUrl.trim();
+      if (!targetUrl || candidateUrl !== targetUrl) {
+        targetUrl = candidateUrl;
+      }
+    }
+
+    // Allow testing an unsaved secret if explicitly entered in UI (must not be masked with bullets)
+    if (req.body?.webhookSecret && typeof req.body.webhookSecret === 'string') {
+      const candidateSecret = req.body.webhookSecret.trim();
+      if (candidateSecret && !candidateSecret.includes('••••')) {
+        targetSecret = candidateSecret;
+      }
+    }
 
     if (!targetUrl) {
-      return res.status(400).json({ error: 'Please provide or save an Operations Webhook URL first.' });
+      return res.status(400).json({
+        success: false,
+        error: 'Operations Webhook Destination URL is not configured. Please save or enter a destination URL.',
+      });
+    }
+
+    if (!targetSecret) {
+      return res.status(400).json({
+        success: false,
+        error: 'Operations Webhook Signing Secret is not configured. Please save or enter a signing secret.',
+      });
     }
 
     const startTime = Date.now();
-    const testPayload = {
-      event: 'client_dossier.test_ping',
-      eventId: `evt_test_${Date.now()}`,
-      timestamp: new Date().toISOString(),
-      test: true,
-      message: 'Test ping from Contract & Client Summary Management System',
-      handover: {
-        action: 'TEST_PING',
-        sharedByUserId: req.ghlUser?.userId || 'usr_admin_test',
-        sharedByName: req.appUser?.name || 'Administrator',
-        sharedAt: new Date().toISOString(),
-        counsellorName: 'Akram Mammeri',
-        registeredBranch: 'Dubai HQ',
-      },
-      client: {
-        ghlContactId: 'sample_contact_123',
-        fullName: 'Test Client (Ahmed Al Mansoor)',
-        email: 'test.client@example.com',
-        phone: '+971500000000',
-        nationality: 'United Arab Emirates',
-      },
-      contract: {
-        id: 9999,
-        templateName: 'Cyprus Permanent Residency Agreement (Sample)',
-        contractType: 'IMMIGRATION_SERVICES',
-        state: 'COMPLETED',
-        signedAt: new Date().toISOString(),
-      },
-      documents: {
-        signedContractPdfUrl: 'https://example.com/sample_signed_contract.pdf',
-        clientSummaryPdfUrl: 'https://example.com/sample_client_summary.pdf',
-        packageZipUrl: 'https://example.com/sample_case_package.zip',
-        attachments: [
-          { name: 'sample_passport.pdf', url: 'https://example.com/sample_passport.pdf', mimeType: 'application/pdf', sizeBytes: 524288, category: 'Identity' },
-        ],
-      },
-    };
 
+    // 2. Exact JSON body: {"event":"webhook.ping"}
+    // 6. Serialize the body once, sign it, and send those same bytes
+    const rawBody = JSON.stringify({ event: 'webhook.ping' });
+
+    // 3. Calculate HMAC-SHA256 over the exact raw JSON bytes, using the saved signing secret as a UTF-8 string
+    // 4. Resulting 64-character hexadecimal digest in X-Webhook-Signature, without a sha256= prefix
     const signature = crypto
-      .createHmac('sha256', targetSecret || 'ops_secret')
-      .update(JSON.stringify(testPayload))
+      .createHmac('sha256', Buffer.from(targetSecret, 'utf8'))
+      .update(Buffer.from(rawBody, 'utf8'))
       .digest('hex');
 
-    const webhookRes = await axios.post(targetUrl, testPayload, {
+    // 5. Set Content-Type: application/json and X-Webhook-Event: webhook.ping
+    const webhookRes = await axios.post(targetUrl, rawBody, {
       headers: {
         'Content-Type': 'application/json',
+        'X-Webhook-Event': 'webhook.ping',
         'X-Webhook-Signature': signature,
-        'X-Event-Type': 'TEST_PING',
-        ...(targetSecret ? { Authorization: `Bearer ${targetSecret}` } : {}),
       },
       timeout: 10000,
+      transformRequest: [(data) => data],
     });
 
     const durationMs = Date.now() - startTime;
 
-    res.json({
+    // Expected success: HTTP 200 with: {"ok":true,"service":"operations","test":true}
+    return res.json({
       success: true,
-      message: `Test ping received HTTP ${webhookRes.status} (${webhookRes.statusText || 'OK'}) from destination.`,
+      message: `Test ping received HTTP ${webhookRes.status} from destination.`,
       status: webhookRes.status,
       durationMs,
       targetUrl,
+      responseData: webhookRes.data,
     });
   } catch (err) {
-    console.error('[Settings] Test webhook error:', err.message);
-    const status = err.response?.status || 502;
+    const status = err.response?.status || (err.code === 'ECONNABORTED' ? 504 : 502);
     const responseData = err.response?.data;
-    res.status(200).json({
+
+    let responseSummary = err.message;
+    if (responseData) {
+      if (typeof responseData === 'string') {
+        responseSummary = responseData;
+      } else if (responseData.error || responseData.message) {
+        responseSummary = responseData.error || responseData.message;
+      } else {
+        try {
+          responseSummary = JSON.stringify(responseData);
+        } catch (_) {
+          responseSummary = String(responseData);
+        }
+      }
+    }
+
+    // Display the receiver's response body on failure, not just its HTTP status.
+    // Never log or display the signing secret.
+    console.error(`[Settings] Test webhook ping failed (HTTP ${status}):`, responseSummary);
+
+    return res.status(200).json({
       success: false,
-      error: `Webhook delivery failed: ${err.message}`,
       status,
-      responseData,
+      error: `Webhook delivery failed (HTTP ${status}): ${responseSummary}`,
+      responseData: responseData || null,
+      targetUrl: req.body?.webhookUrl || settingsService.get('OPERATIONS_WEBHOOK_URL') || '',
     });
   }
 });

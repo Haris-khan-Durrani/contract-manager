@@ -874,27 +874,46 @@ router.post('/:contractId/share-operations', async (req, res) => {
 
     if (webhookUrl) {
       try {
+        // Serialize once and sign exact raw bytes using HMAC-SHA256
+        const rawBody = JSON.stringify(payload);
         const signature = crypto
-          .createHmac('sha256', webhookSecret || 'ops_secret')
-          .update(JSON.stringify(payload))
+          .createHmac('sha256', Buffer.from(webhookSecret || '', 'utf8'))
+          .update(Buffer.from(rawBody, 'utf8'))
           .digest('hex');
 
-        const webhookRes = await axios.post(webhookUrl, payload, {
+        const webhookRes = await axios.post(webhookUrl, rawBody, {
           headers: {
             'Content-Type': 'application/json',
+            'X-Webhook-Event': 'client_dossier.shared_with_operations',
             'X-Webhook-Signature': signature,
-            'X-Event-Type': 'OPERATIONS_HANDOFF',
-            ...(webhookSecret ? { Authorization: `Bearer ${webhookSecret}` } : {}),
           },
           timeout: 15000,
+          transformRequest: [(data) => data],
         });
 
         webhookSuccess = true;
         webhookMessage = `Webhook delivered successfully (HTTP ${webhookRes.status}).`;
       } catch (whErr) {
-        console.error('[Client Summary] Webhook post error:', whErr.response?.data || whErr.message);
+        const errStatus = whErr.response?.status || 502;
+        const errData = whErr.response?.data;
+        let errSummary = whErr.message;
+        if (errData) {
+          if (typeof errData === 'string') {
+            errSummary = errData;
+          } else if (errData.error || errData.message) {
+            errSummary = errData.error || errData.message;
+          } else {
+            try {
+              errSummary = JSON.stringify(errData);
+            } catch (_) {
+              errSummary = String(errData);
+            }
+          }
+        }
+        console.error(`[Client Summary] Webhook post error (HTTP ${errStatus}):`, errSummary);
         return res.status(502).json({
-          error: `Operations Webhook returned an error: ${whErr.response?.data?.message || whErr.message}`,
+          error: `Operations Webhook returned an error (HTTP ${errStatus}): ${errSummary}`,
+          responseData: errData || null,
         });
       }
     } else {
