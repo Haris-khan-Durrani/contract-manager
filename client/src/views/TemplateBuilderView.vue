@@ -752,21 +752,38 @@
                 @click.stop
               >
                 <div class="float-tag">
-                  <span class="float-tag-name">&lt;{{ selectedHtmlTag }}&gt;</span>
-                  <span v-if="hasSelectedRow" class="float-tag-sub">Row</span>
+                  <span class="float-tag-name">{{ isTrSelected ? 'Bilingual Row' : `&lt;${selectedHtmlTag}&gt;` }}</span>
+                  <span v-if="hasSelectedRow && !isTrSelected" class="float-tag-sub">In Row</span>
+                  <span v-else-if="isTrSelected" class="float-tag-sub" style="color: #38bdf8;">(EN + AR)</span>
                 </div>
 
+                <!-- Select Entire Bilingual Row (when child inside row is focused) -->
                 <button
                   v-if="!isTrSelected && hasSelectedRow"
                   type="button"
                   class="float-btn float-btn-primary"
                   @click="selectParentRow"
-                  title="Select entire bilingual row (TR)"
+                  title="Select entire bilingual row (English & Arabic cells together)"
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                     <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
                   </svg>
                   Select Row
+                </button>
+
+                <!-- Edit Text button (when whole row is currently selected) -->
+                <button
+                  v-if="isTrSelected"
+                  type="button"
+                  class="float-btn"
+                  @click="editSelectedRowText"
+                  title="Click to edit text directly inside this row"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                  </svg>
+                  Edit Text
                 </button>
 
                 <button
@@ -797,7 +814,7 @@
                   type="button"
                   class="float-btn"
                   @click="duplicateSelectedRow"
-                  title="Duplicate Row immediately below"
+                  title="Duplicate entire bilingual row immediately below"
                 >
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                     <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
@@ -806,18 +823,18 @@
                   Duplicate
                 </button>
 
-                <!-- Copy to Studio Clipboard (Cross-Template) -->
+                <!-- Copy Entire Bilingual Row / Element to Clipboard -->
                 <button
                   type="button"
                   class="float-btn float-btn-accent"
                   @click="copySelectedToClipboard"
-                  title="Copy Row/Section (Paste anywhere or in another template)"
+                  :title="hasSelectedRow ? 'Copy entire bilingual row (both English and Arabic cells) to clipboard' : 'Copy selected element to clipboard'"
                 >
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                     <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
                     <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
                   </svg>
-                  Copy
+                  <span>{{ hasSelectedRow ? 'Copy Row (EN+AR)' : 'Copy' }}</span>
                 </button>
 
                 <!-- Paste from Studio Clipboard -->
@@ -904,6 +921,7 @@
                 class="html-canvas-inner interactive-html-canvas"
                 v-html="canvasContent"
                 @click="onHtmlCanvasClick"
+                @dblclick="onHtmlCanvasDblClick"
                 @input="onHtmlCanvasInput"
                 @dragover.prevent
                 @drop="onDropOnHtmlCanvas($event)"
@@ -1487,7 +1505,7 @@
             </div>
 
             <!-- Content Editor & Typography (for text elements) -->
-            <template v-else>
+            <template v-else-if="!isTrSelected">
               <!-- Content Editor -->
               <div class="inspector-section studio-clause-editor-section">
                 <div class="section-header-row" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
@@ -1613,6 +1631,37 @@
               </div>
             </template>
 
+            <!-- Bilingual Row Inspector (when whole TR is selected) -->
+            <template v-else-if="isTrSelected">
+              <div class="inspector-section" style="background: #f8fafc; border: 1.5px solid #6366f1; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                  <span class="badge badge-primary" style="font-size: 0.72rem; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">
+                    🌐 Bilingual Row Selected
+                  </span>
+                  <button type="button" class="btn btn-sm btn-secondary" @click="editSelectedRowText" title="Edit text inside this row" style="font-size: 0.72rem; padding: 3px 8px; font-weight: 600;">
+                    ✏️ Edit Text
+                  </button>
+                </div>
+
+                <div v-if="selectedRowInfo?.clauseNumber" style="font-size: 0.8rem; font-weight: 700; color: #1e293b; margin-bottom: 4px;">
+                  Clause {{ selectedRowInfo.clauseNumber }}
+                </div>
+                <div v-if="selectedRowInfo?.secTitle" style="font-size: 0.78rem; font-weight: 700; color: #4338ca; margin-bottom: 4px;">
+                  {{ selectedRowInfo.secTitle }}
+                </div>
+
+                <div v-if="selectedRowInfo?.enPreview" style="margin-top: 6px; padding: 7px 10px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px;">
+                  <div style="font-size: 0.65rem; font-weight: 700; color: #64748b; text-transform: uppercase;">English Cell:</div>
+                  <div style="font-size: 0.74rem; color: #1e293b; line-height: 1.35; margin-top: 2px;">{{ selectedRowInfo.enPreview }}</div>
+                </div>
+
+                <div v-if="selectedRowInfo?.arPreview" style="margin-top: 6px; padding: 7px 10px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; direction: rtl; text-align: right;">
+                  <div style="font-size: 0.65rem; font-weight: 700; color: #64748b; text-transform: uppercase;">الجانب العربي:</div>
+                  <div style="font-size: 0.74rem; color: #1e293b; line-height: 1.35; margin-top: 2px;">{{ selectedRowInfo.arPreview }}</div>
+                </div>
+              </div>
+            </template>
+
             <!-- Row & Element Operations -->
             <div class="inspector-section">
               <h4 class="section-subtitle">Row &amp; Element Actions</h4>
@@ -1623,12 +1672,28 @@
                   class="btn btn-secondary btn-sm"
                   style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 600;"
                   @click="selectParentRow"
-                  title="Select the entire bilingual row (TR)"
+                  title="Select the entire bilingual row (English & Arabic cells together)"
                 >
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                     <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
                   </svg>
                   <span>Select Entire Bilingual Row</span>
+                </button>
+              </div>
+
+              <div v-else-if="isTrSelected" style="margin-bottom: 8px;">
+                <button
+                  type="button"
+                  class="btn btn-primary btn-sm"
+                  style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 600;"
+                  @click="editSelectedRowText"
+                  title="Click to edit text directly inside this row"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                  </svg>
+                  <span>Edit Text in this Row</span>
                 </button>
               </div>
 
@@ -1657,24 +1722,24 @@
                   type="button"
                   class="row-action-btn"
                   @click="duplicateSelectedRow"
-                  title="Duplicate Row (📋)"
+                  title="Duplicate entire bilingual row (📋)"
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                  <span>Duplicate</span>
+                  <span>Duplicate Row</span>
                 </button>
 
                 <button
                   type="button"
                   class="row-action-btn"
                   @click="copySelectedToClipboard"
-                  title="Copy Row / Section (Cross-Template Clipboard)"
-                  style="color: #d97706;"
+                  title="Copy entire bilingual row (both English & Arabic cells) to clipboard"
+                  style="color: #d97706; font-weight: 700;"
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                     <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
                     <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
                   </svg>
-                  <span>Copy Row</span>
+                  <span>Copy Bilingual Row</span>
                 </button>
 
                 <button
@@ -3188,6 +3253,31 @@ const isTrSelected = computed(() => {
   return activeSelectedDomEl?.tagName?.toLowerCase() === 'tr'
 })
 
+const selectedRowInfo = computed(() => {
+  if (!activeSelectedDomEl) return null
+  const tr = activeSelectedDomEl.closest('tr')
+  if (!tr) return null
+  const num = tr.querySelector('.clause-number')?.textContent?.trim() || ''
+  const en = tr.querySelector('.en-cell')?.textContent?.trim().replace(/\s+/g, ' ') || ''
+  const ar = tr.querySelector('.ar-cell')?.textContent?.trim().replace(/\s+/g, ' ') || ''
+  const secTitle = tr.querySelector('.section-title, .cover-title')?.textContent?.trim() || ''
+  return {
+    clauseNumber: num,
+    secTitle,
+    enPreview: en ? (en.slice(0, 100) + (en.length > 100 ? '…' : '')) : '',
+    arPreview: ar ? (ar.slice(0, 100) + (ar.length > 100 ? '…' : '')) : '',
+  }
+})
+
+function editSelectedRowText() {
+  if (!activeSelectedDomEl) return
+  const tr = activeSelectedDomEl.closest('tr') || activeSelectedDomEl
+  const editableChild = tr.querySelector('.clause-text, .clause, p, td')
+  if (editableChild) {
+    selectHtmlElement(editableChild)
+  }
+}
+
 function updateFloatingToolbarPos() {
   if (!activeSelectedDomEl) {
     floatingToolbarPos.value.visible = false
@@ -3229,21 +3319,44 @@ function selectHtmlElement(target) {
   // Automatically expand inspector sidebar so user can immediately style/edit
   isRightCollapsed.value = false
 
-  if (activeSelectedDomEl && activeSelectedDomEl !== target) {
-    activeSelectedDomEl.classList.remove('studio-selected-node')
-  }
+  // Clear previous selections and active parent row highlights
+  canvas.querySelectorAll('.studio-selected-node, .studio-selected-row, .studio-parent-row-active').forEach(el => {
+    if (el !== target) {
+      el.classList.remove('studio-selected-node', 'studio-selected-row', 'studio-parent-row-active')
+      el.removeAttribute('contenteditable')
+      el.removeAttribute('tabindex')
+    }
+  })
 
   activeSelectedDomEl = target
   target.classList.add('studio-selected-node')
 
+  const isTr = target.tagName.toLowerCase() === 'tr'
   const isImg = target.tagName.toLowerCase() === 'img'
-  if (isImg) {
+
+  if (isTr) {
+    // Standard table row: do NOT set contenteditable on TR (breaks browser layout & focus)
+    target.classList.add('studio-selected-row')
+    target.removeAttribute('contenteditable')
+    target.setAttribute('tabindex', '-1')
+    try {
+      target.focus({ preventScroll: true })
+    } catch (_) {
+      target.focus()
+    }
+  } else if (isImg) {
     selectedHtmlImageSrc.value = target.getAttribute('src') || ''
     selectedHtmlImageAlt.value = target.getAttribute('alt') || ''
     selectedHtmlImageWidth.value = target.style.width || ''
   } else {
     target.setAttribute('contenteditable', 'true')
     target.focus()
+
+    // Light up the parent bilingual row across English & Arabic cells
+    const parentTr = target.closest('tr')
+    if (parentTr) {
+      parentTr.classList.add('studio-parent-row-active')
+    }
   }
 
   const pageEl = target.closest('.page:not(.page-no), section.page')
@@ -3258,8 +3371,8 @@ function selectHtmlElement(target) {
   const compStyle = window.getComputedStyle(target)
   selectedHtmlNode.value = target
   selectedHtmlTag.value = target.tagName.toLowerCase()
-  selectedHtmlText.value = target.innerHTML || ''
-  selectedHtmlClass.value = target.className.replace('studio-selected-node', '').trim()
+  selectedHtmlText.value = isTr ? '' : (target.innerHTML || '')
+  selectedHtmlClass.value = target.className.replace(/studio-(selected-node|selected-row|parent-row-active)/g, '').trim()
   selectedHtmlFontSize.value = target.style.fontSize || compStyle.fontSize || '8.45pt'
   selectedHtmlFontFamily.value = target.style.fontFamily || compStyle.fontFamily || 'Inter, sans-serif'
   selectedHtmlFontWeight.value = target.style.fontWeight || compStyle.fontWeight || '400'
@@ -3466,6 +3579,20 @@ function deleteSelectedImage() {
   })
 }
 
+function onHtmlCanvasDblClick(event) {
+  if (!isHtmlTemplate.value) return
+  if (event.target.closest('.canvas-floating-toolbar')) return
+
+  // Double-clicking anywhere inside a table row immediately selects the entire bilingual row
+  const tr = event.target.closest('tr')
+  if (tr) {
+    event.preventDefault()
+    event.stopPropagation()
+    selectHtmlElement(tr)
+    showStudioToast('Selected Entire Bilingual Row (English & Arabic)', 'info')
+  }
+}
+
 function onHtmlCanvasClick(event) {
   if (!isHtmlTemplate.value) return
   if (event.target.closest('.canvas-floating-toolbar')) return
@@ -3476,12 +3603,18 @@ function onHtmlCanvasClick(event) {
     return
   }
 
+  // If clicked inside canvas inner background or whitespace
+  if (event.target.classList.contains('html-canvas-inner') || event.target.classList.contains('document')) {
+    clearHtmlSelection()
+    return
+  }
+
   const target = event.target.closest(
     'img, .clause, .clause-text, .clause-number, .section-title, .cover-title, ' +
     '.money, .dynamic, .label, p, h1, h2, h3, td, th, li, tr, .signature-line'
   ) || event.target
 
-  if (!target || target.classList.contains('html-canvas-inner') || target.classList.contains('document')) {
+  if (!target) {
     clearHtmlSelection()
     return
   }
@@ -3491,7 +3624,7 @@ function onHtmlCanvasClick(event) {
 
 let textInputDebounce = null
 function onHtmlCanvasInput(event) {
-  if (!activeSelectedDomEl) return
+  if (!activeSelectedDomEl || isTrSelected.value) return
   selectedHtmlText.value = activeSelectedDomEl.innerHTML
 
   clearTimeout(textInputDebounce)
@@ -3502,9 +3635,18 @@ function onHtmlCanvasInput(event) {
 }
 
 function clearHtmlSelection() {
+  const canvas = document.getElementById('html-studio-canvas')
+  if (canvas) {
+    canvas.querySelectorAll('.studio-selected-node, .studio-selected-row, .studio-parent-row-active').forEach(el => {
+      el.classList.remove('studio-selected-node', 'studio-selected-row', 'studio-parent-row-active')
+      el.removeAttribute('contenteditable')
+      el.removeAttribute('tabindex')
+    })
+  }
   if (activeSelectedDomEl) {
-    activeSelectedDomEl.classList.remove('studio-selected-node')
+    activeSelectedDomEl.classList.remove('studio-selected-node', 'studio-selected-row', 'studio-parent-row-active')
     activeSelectedDomEl.removeAttribute('contenteditable')
+    activeSelectedDomEl.removeAttribute('tabindex')
     activeSelectedDomEl = null
   }
   selectedHtmlNode.value = null
@@ -3516,6 +3658,7 @@ function selectParentRow() {
   const tr = activeSelectedDomEl.closest('tr')
   if (tr) {
     selectHtmlElement(tr)
+    showStudioToast('Selected Entire Bilingual Row (English & Arabic)', 'info')
   }
 }
 
@@ -3546,10 +3689,18 @@ function duplicateSelectedRow() {
 
   recordHistoryState('Duplicate Row')
   const clone = tr.cloneNode(true)
-  clone.classList.remove('studio-selected-node')
+  clone.classList.remove('studio-selected-node', 'studio-selected-row', 'studio-parent-row-active')
+  clone.removeAttribute('contenteditable')
+  clone.removeAttribute('tabindex')
+  clone.querySelectorAll('.studio-selected-node, .studio-selected-row, .studio-parent-row-active').forEach(el => {
+    el.classList.remove('studio-selected-node', 'studio-selected-row', 'studio-parent-row-active')
+    el.removeAttribute('contenteditable')
+    el.removeAttribute('tabindex')
+  })
   tr.insertAdjacentElement('afterend', clone)
   selectHtmlElement(clone)
   syncDomToRawHtml()
+  showStudioToast('Duplicated Entire Bilingual Row below!', 'success')
 }
 
 // ─── Cross-Template & Cross-Page Copy & Paste Operations ───────────────────────
@@ -3560,17 +3711,37 @@ function copySelectedToClipboard() {
 
   // Clone node and strip editor artifacts
   const clone = target.cloneNode(true)
-  clone.classList.remove('studio-selected-node')
+  clone.classList.remove('studio-selected-node', 'studio-selected-row', 'studio-parent-row-active')
   clone.removeAttribute('contenteditable')
-  clone.querySelectorAll('.studio-selected-node').forEach(el => el.classList.remove('studio-selected-node'))
+  clone.removeAttribute('tabindex')
+  clone.querySelectorAll('.studio-selected-node, .studio-selected-row, .studio-parent-row-active').forEach(el => {
+    el.classList.remove('studio-selected-node', 'studio-selected-row', 'studio-parent-row-active')
+    el.removeAttribute('contenteditable')
+    el.removeAttribute('tabindex')
+  })
   clone.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'))
 
   // Human-readable title
-  const titleEl = clone.querySelector('.section-title, .cover-title, h1, h2, h3, .label, b, strong')
-  let title = titleEl ? titleEl.textContent.trim().replace(/\s+/g, ' ') : ''
-  if (!title) {
-    title = clone.textContent.trim().replace(/\s+/g, ' ').slice(0, 45) || 'Row / Element'
+  let title = ''
+  if (tr) {
+    const clauseNum = clone.querySelector('.clause-number')?.textContent?.trim() || ''
+    const enText = clone.querySelector('.en-cell')?.textContent?.trim().replace(/\s+/g, ' ') || ''
+    const secTitle = clone.querySelector('.section-title, .cover-title, h1, h2, h3')?.textContent?.trim() || ''
+
+    if (clauseNum && enText) {
+      title = `Clause ${clauseNum}: ${enText.slice(0, 35)}`
+    } else if (secTitle) {
+      title = secTitle.slice(0, 45)
+    } else if (enText) {
+      title = enText.slice(0, 45)
+    } else {
+      title = clone.textContent.trim().replace(/\s+/g, ' ').slice(0, 45) || 'Bilingual Row'
+    }
+  } else {
+    const titleEl = clone.querySelector('.section-title, .cover-title, h1, h2, h3, .label, b, strong')
+    title = titleEl ? titleEl.textContent.trim().replace(/\s+/g, ' ') : clone.textContent.trim().replace(/\s+/g, ' ').slice(0, 45)
   }
+  if (!title) title = 'Row / Element'
   if (title.length > 50) title = title.slice(0, 50) + '…'
 
   const item = {
@@ -3587,7 +3758,19 @@ function copySelectedToClipboard() {
     localStorage.setItem('contract_studio_clipboard', JSON.stringify(item))
   } catch (_) {}
 
-  showStudioToast(`📋 Copied "${title}" to clipboard! Ready to paste into any template or page.`, 'success')
+  // Also copy to System Clipboard (both plain text & HTML) so user can paste anywhere
+  try {
+    const plainText = tr
+      ? `[EN]: ${clone.querySelector('.en-cell')?.textContent?.trim().replace(/\s+/g, ' ') || ''}\n[AR]: ${clone.querySelector('.ar-cell')?.textContent?.trim().replace(/\s+/g, ' ') || ''}`
+      : clone.textContent?.trim() || ''
+    navigator.clipboard?.writeText(plainText || clone.outerHTML)
+  } catch (_) {}
+
+  if (tr) {
+    showStudioToast(`📋 Copied Entire Bilingual Row (English & Arabic: "${title}") to clipboard!`, 'success')
+  } else {
+    showStudioToast(`📋 Copied "${title}" to clipboard! Ready to paste into any template or page.`, 'success')
+  }
 }
 
 function copyActivePageSection() {
@@ -3863,11 +4046,13 @@ function syncDomToRawHtml() {
   const canvas = document.getElementById('html-studio-canvas')
   if (!canvas) return
   const clone = canvas.cloneNode(true)
-  clone.querySelectorAll('.studio-selected-node').forEach(el => {
-    el.classList.remove('studio-selected-node')
+  clone.querySelectorAll('.studio-selected-node, .studio-selected-row, .studio-parent-row-active, .studio-layer-hover').forEach(el => {
+    el.classList.remove('studio-selected-node', 'studio-selected-row', 'studio-parent-row-active', 'studio-layer-hover')
     el.removeAttribute('contenteditable')
+    el.removeAttribute('tabindex')
   })
   clone.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'))
+  clone.querySelectorAll('[tabindex="-1"]').forEach(el => el.removeAttribute('tabindex'))
   clone.querySelectorAll('[data-studio-insert]').forEach(el => el.removeAttribute('data-studio-insert'))
   clone.querySelectorAll('style').forEach(el => el.remove())
 
@@ -4193,9 +4378,9 @@ function onGlobalKeydown(e) {
       e.preventDefault()
       triggerRedo()
     } else if (e.key.toLowerCase() === 'c' && activeSelectedDomEl) {
-      // If no text is actively highlighted inside contenteditable, copy the selected row/element to Studio clipboard
+      // If row is selected, Shift is held, or no text is actively highlighted inside contenteditable, copy selected row/element
       const selText = window.getSelection()?.toString().trim()
-      if (!selText) {
+      if (e.shiftKey || isTrSelected.value || !selText) {
         e.preventDefault()
         copySelectedToClipboard()
       }
@@ -4205,7 +4390,7 @@ function onGlobalKeydown(e) {
       const isInput = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')
       if (!isInput && activeSelectedDomEl) {
         const selText = window.getSelection()?.toString().trim()
-        if (!selText) {
+        if (isTrSelected.value || !selText) {
           e.preventDefault()
           pasteFromClipboard()
         }
@@ -7718,16 +7903,53 @@ watch(activeTab, (newTab, oldTab) => {
   color: #dc2626;
 }
 
-/* Enhanced selected row indicator across bilingual columns */
-.interactive-html-canvas :deep(tr.studio-selected-node) {
-  outline: 2.5px solid #6366f1 !important;
-  outline-offset: 1px;
-  background-color: rgba(99, 102, 241, 0.06) !important;
+/* ═══════════════════════════════════════════════════════════════════════════
+   ENHANCED BILINGUAL ROW SELECTION & PARENT ROW HIGHLIGHTING
+   ═══════════════════════════════════════════════════════════════════════════ */
+.interactive-html-canvas :deep(tr.studio-selected-node),
+.interactive-html-canvas :deep(tr.studio-selected-row) {
+  position: relative;
 }
 
-.interactive-html-canvas :deep(tr.studio-selected-node > td) {
-  background-color: rgba(99, 102, 241, 0.07) !important;
-  box-shadow: inset 0 0 0 1.5px rgba(99, 102, 241, 0.4) !important;
+/* Selected row cells - continuous vivid outline enclosing both English and Arabic */
+.interactive-html-canvas :deep(tr.studio-selected-node > td),
+.interactive-html-canvas :deep(tr.studio-selected-row > td) {
+  background-color: rgba(79, 70, 229, 0.09) !important;
+  border-top: 2.5px solid #4f46e5 !important;
+  border-bottom: 2.5px solid #4f46e5 !important;
+  position: relative;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+
+.interactive-html-canvas :deep(tr.studio-selected-node > td:first-child),
+.interactive-html-canvas :deep(tr.studio-selected-row > td:first-child) {
+  border-left: 3.5px solid #4f46e5 !important;
+}
+
+.interactive-html-canvas :deep(tr.studio-selected-node > td:last-child),
+.interactive-html-canvas :deep(tr.studio-selected-row > td:last-child) {
+  border-right: 3.5px solid #4f46e5 !important;
+}
+
+/* Active Parent Row Indicator (When editing a child cell/clause) */
+.interactive-html-canvas :deep(tr.studio-parent-row-active > td) {
+  background-color: rgba(99, 102, 241, 0.035) !important;
+  border-top: 1.5px dashed rgba(99, 102, 241, 0.55) !important;
+  border-bottom: 1.5px dashed rgba(99, 102, 241, 0.55) !important;
+  transition: background-color 0.12s ease;
+}
+
+.interactive-html-canvas :deep(tr.studio-parent-row-active > td:first-child) {
+  border-left: 2px solid rgba(99, 102, 241, 0.55) !important;
+}
+
+.interactive-html-canvas :deep(tr.studio-parent-row-active > td:last-child) {
+  border-right: 2px solid rgba(99, 102, 241, 0.55) !important;
+}
+
+/* Row Hover on Canvas */
+.interactive-html-canvas :deep(tr:hover:not(.studio-selected-node):not(.studio-selected-row) > td) {
+  background-color: rgba(99, 102, 241, 0.02);
 }
 
 /* Hover outline when hovering a layer in the Layers sidebar */
