@@ -13,6 +13,7 @@ const router = express.Router();
 const axios = require('axios');
 const crypto = require('crypto');
 const db = require('../config/db');
+const operationsHandoff = require('../services/operationsHandoff');
 const { ghlAuthMiddleware } = require('../middleware/ghlAuth');
 const { loadAppUser, requireClientSummaryAccess, hasPermission } = require('../middleware/rbac');
 const settingsService = require('../services/settingsService');
@@ -459,7 +460,7 @@ router.post('/:contractId', async (req, res) => {
 
     // Verify contract exists and is signed
     const [contractRows] = await db.execute(
-      `SELECT ci.id, ci.state, ci.signed_at, ci.assigned_user_id
+      `SELECT ci.*
        FROM contract_instances ci
        WHERE ci.id = ? AND ci.location_id = ?`,
       [contractId, locationId]
@@ -489,7 +490,20 @@ router.post('/:contractId', async (req, res) => {
     // MySQL DATETIME format (strict mode rejects ISO 'T...Z' strings)
     const completedAtDb = completedAt ? completedAt.slice(0, 19).replace('T', ' ') : null;
 
-    await db.execute(
+    // Save the summary and durable Operations event in one MySQL transaction.
+    let operationsHandoffQueued = false;
+    const connection = await db.getConnection();
+    try {
+      await connection.beginTransaction();
+      const [lockedContracts] = await connection.execute(
+        'SELECT * FROM contract_instances WHERE id=? AND location_id=?' + (db.driver === 'MYSQL' ? ' FOR UPDATE' : ''),
+        [contractId, locationId]
+      );
+      const [previousSummaries] = await connection.execute(
+        'SELECT status FROM contract_client_summaries WHERE contract_id=? AND location_id=? LIMIT 1',
+        [contractId, locationId]
+      );
+    await connection.execute(
       `INSERT INTO contract_client_summaries (
         location_id, contract_id, status, summary_data_json,
         completed_by_user_id, completed_by_name, completed_at
@@ -512,6 +526,22 @@ router.post('/:contractId', async (req, res) => {
         completedAtDb,
       ]
     );
+
+
+      if (validStatus === 'COMPLETED') {
+        const result = await operationsHandoff.enqueue(connection, lockedContracts[0], summaryData, completedAt, previousSummaries[0]?.status);
+        operationsHandoffQueued = result.queued;
+      }
+      await connection.commit();
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+
+    // Try delivery immediately after commit; the durable worker retries failures.
+    if (operationsHandoffQueued) operationsHandoff.processQueue().catch(error => console.warn('[Operations handoff]', error.message));
 
     // Audit log & auto-sync client summary event to GHL Conversation InternalComment
     const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || '';
@@ -540,6 +570,7 @@ router.post('/:contractId', async (req, res) => {
       status: validStatus,
       completed_by_name: completedByName,
       completed_at: completedAt,
+      operations_handoff_queued: operationsHandoffQueued,
       message: validStatus === 'COMPLETED' ? 'Client summary marked as completed.' : 'Client summary draft saved successfully.',
     });
   } catch (err) {
