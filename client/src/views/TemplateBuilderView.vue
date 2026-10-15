@@ -797,13 +797,43 @@
                   type="button"
                   class="float-btn"
                   @click="duplicateSelectedRow"
-                  title="Duplicate Row (📋)"
+                  title="Duplicate Row immediately below"
                 >
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                     <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
                     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
                   </svg>
                   Duplicate
+                </button>
+
+                <!-- Copy to Studio Clipboard (Cross-Template) -->
+                <button
+                  type="button"
+                  class="float-btn float-btn-accent"
+                  @click="copySelectedToClipboard"
+                  title="Copy Row/Section (Paste anywhere or in another template)"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+                    <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+                  </svg>
+                  Copy
+                </button>
+
+                <!-- Paste from Studio Clipboard -->
+                <button
+                  v-if="studioClipboard"
+                  type="button"
+                  class="float-btn float-btn-success"
+                  @click="pasteFromClipboard"
+                  :title="`Paste ${studioClipboard.type} '${studioClipboard.title}' below`"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <path d="M19 11v9a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-9"/>
+                    <polyline points="15 6 12 9 9 6"/>
+                    <line x1="12" y1="9" x2="12" y2="3"/>
+                  </svg>
+                  Paste
                 </button>
 
                 <button
@@ -829,7 +859,37 @@
                       High-fidelity paired-table layout with Arabic RTL &amp; English LTR synchronization.
                     </p>
                   </div>
-                  <div style="display:flex; gap: 8px;">
+                  <div style="display:flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                    <!-- Cross-Template Clipboard Paste Indicator -->
+                    <button
+                      v-if="studioClipboard"
+                      type="button"
+                      class="btn btn-success btn-sm"
+                      @click="pasteFromClipboard"
+                      style="display: flex; align-items: center; gap: 6px; font-weight: 600;"
+                      :title="`Paste '${studioClipboard.title}' into this template`"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                        <path d="M19 11v9a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-9"/>
+                        <polyline points="15 6 12 9 9 6"/>
+                        <line x1="12" y1="9" x2="12" y2="3"/>
+                      </svg>
+                      <span>Paste: {{ studioClipboard.title ? (studioClipboard.title.length > 20 ? studioClipboard.title.slice(0, 20) + '…' : studioClipboard.title) : 'Copied Section' }}</span>
+                    </button>
+                    <!-- Copy Entire Current Section / Page -->
+                    <button
+                      type="button"
+                      class="btn btn-secondary btn-sm"
+                      @click="copyActivePageSection"
+                      title="Copy full active page section (can paste into any other template or page)"
+                      style="display: flex; align-items: center; gap: 5px;"
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+                        <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+                      </svg>
+                      <span>Copy Full Page Section</span>
+                    </button>
                     <button type="button" class="btn btn-secondary btn-sm" @click="activeTab = 'code'">
                       💻 Edit HTML / CSS Source
                     </button>
@@ -1605,12 +1665,66 @@
 
                 <button
                   type="button"
+                  class="row-action-btn"
+                  @click="copySelectedToClipboard"
+                  title="Copy Row / Section (Cross-Template Clipboard)"
+                  style="color: #d97706;"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+                    <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+                  </svg>
+                  <span>Copy Row</span>
+                </button>
+
+                <button
+                  type="button"
+                  class="row-action-btn"
+                  :disabled="!studioClipboard"
+                  @click="pasteFromClipboard"
+                  title="Paste from Cross-Template Clipboard below"
+                  style="color: #059669;"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <path d="M19 11v9a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-9"/>
+                    <polyline points="15 6 12 9 9 6"/>
+                    <line x1="12" y1="9" x2="12" y2="3"/>
+                  </svg>
+                  <span>Paste Row</span>
+                </button>
+
+                <button
+                  type="button"
                   class="row-action-btn text-danger"
                   @click="deleteSelectedRow"
                   title="Delete Row (🗑️)"
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                   <span>Delete Row</span>
+                </button>
+              </div>
+
+              <!-- Persistent Cross-Template Clipboard Preview -->
+              <div v-if="studioClipboard" class="studio-clipboard-box" style="margin-top: 12px; padding: 10px 12px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 6px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                  <span style="font-size: 0.7rem; font-weight: 700; color: #0284c7; text-transform: uppercase; letter-spacing: 0.04em;">
+                    📋 Clipboard Ready
+                  </span>
+                  <button type="button" class="btn-tool-mini" @click="clearStudioClipboard" title="Clear clipboard">✕ Clear</button>
+                </div>
+                <div style="font-size: 0.8rem; font-weight: 600; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  {{ studioClipboard.title }}
+                </div>
+                <div style="font-size: 0.7rem; color: #64748b; margin-top: 2px; margin-bottom: 8px;">
+                  Copied from: <em>{{ studioClipboard.templateName || 'Template' }}</em> ({{ studioClipboard.type }})
+                </div>
+                <button
+                  type="button"
+                  class="btn btn-primary btn-sm"
+                  style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 600;"
+                  @click="pasteFromClipboard"
+                >
+                  📥 Paste Here
                 </button>
               </div>
 
@@ -2527,6 +2641,26 @@
         </form>
       </div>
     </div>
+
+    <!-- Floating Toast Notification -->
+    <transition name="toast-fade">
+      <div
+        v-if="studioToast.visible"
+        class="studio-floating-toast"
+        :class="`toast-${studioToast.type}`"
+      >
+        <div class="toast-content">
+          <span class="toast-icon">
+            <template v-if="studioToast.type === 'success'">✅</template>
+            <template v-else-if="studioToast.type === 'warning'">⚠️</template>
+            <template v-else-if="studioToast.type === 'error'">❌</template>
+            <template v-else>ℹ️</template>
+          </span>
+          <span class="toast-msg">{{ studioToast.message }}</span>
+        </div>
+        <button type="button" class="toast-close" @click="studioToast.visible = false">✕</button>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -2547,6 +2681,37 @@ const studioRteRef = ref(null)
 // Canvas content (independent of documentSchema.rawHtml to prevent destructive re-renders during editing)
 const canvasContent = ref('')
 const floatingToolbarPos = ref({ top: 0, left: 0, visible: false })
+
+// ─── Cross-Template & Cross-Page Persistent Clipboard ─────────────────────────
+function loadStudioClipboard() {
+  try {
+    const raw = localStorage.getItem('contract_studio_clipboard')
+    return raw ? JSON.parse(raw) : null
+  } catch (_) {
+    return null
+  }
+}
+const studioClipboard = ref(loadStudioClipboard())
+
+// ─── Studio Toast Notification System ─────────────────────────────────────────
+const studioToast = ref({
+  visible: false,
+  message: '',
+  type: 'success',
+})
+let toastTimer = null
+
+function showStudioToast(message, type = 'success') {
+  clearTimeout(toastTimer)
+  studioToast.value = {
+    visible: true,
+    message,
+    type,
+  }
+  toastTimer = setTimeout(() => {
+    studioToast.value.visible = false
+  }, 3200)
+}
 
 // Undo / Redo History Stack
 const undoStack = ref([])
@@ -3387,6 +3552,175 @@ function duplicateSelectedRow() {
   syncDomToRawHtml()
 }
 
+// ─── Cross-Template & Cross-Page Copy & Paste Operations ───────────────────────
+function copySelectedToClipboard() {
+  if (!activeSelectedDomEl) return
+  const tr = activeSelectedDomEl.closest('tr')
+  const target = tr || activeSelectedDomEl
+
+  // Clone node and strip editor artifacts
+  const clone = target.cloneNode(true)
+  clone.classList.remove('studio-selected-node')
+  clone.removeAttribute('contenteditable')
+  clone.querySelectorAll('.studio-selected-node').forEach(el => el.classList.remove('studio-selected-node'))
+  clone.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'))
+
+  // Human-readable title
+  const titleEl = clone.querySelector('.section-title, .cover-title, h1, h2, h3, .label, b, strong')
+  let title = titleEl ? titleEl.textContent.trim().replace(/\s+/g, ' ') : ''
+  if (!title) {
+    title = clone.textContent.trim().replace(/\s+/g, ' ').slice(0, 45) || 'Row / Element'
+  }
+  if (title.length > 50) title = title.slice(0, 50) + '…'
+
+  const item = {
+    type: tr ? 'row' : 'element',
+    tag: target.tagName.toLowerCase(),
+    title,
+    html: clone.outerHTML,
+    copiedAt: Date.now(),
+    templateName: templateName.value || 'Contract Template',
+  }
+
+  studioClipboard.value = item
+  try {
+    localStorage.setItem('contract_studio_clipboard', JSON.stringify(item))
+  } catch (_) {}
+
+  showStudioToast(`📋 Copied "${title}" to clipboard! Ready to paste into any template or page.`, 'success')
+}
+
+function copyActivePageSection() {
+  const canvas = document.getElementById('html-studio-canvas')
+  if (!canvas) return
+  const pageEls = Array.from(canvas.querySelectorAll('.page:not(.page-no), section.page'))
+  const page = (activeSelectedDomEl && activeSelectedDomEl.closest('.page:not(.page-no), section.page'))
+    || pageEls[activePageIndex.value]
+    || pageEls[0]
+
+  if (!page) {
+    showStudioToast('No active page section found to copy.', 'warning')
+    return
+  }
+
+  const clone = page.cloneNode(true)
+  clone.classList.remove('studio-selected-node')
+  clone.querySelectorAll('.studio-selected-node').forEach(el => el.classList.remove('studio-selected-node'))
+  clone.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'))
+
+  const titleEl = clone.querySelector('.section-title, .cover-title, h1, h2, h3')
+  let title = titleEl ? titleEl.textContent.trim().replace(/\s+/g, ' ') : `Page Section ${activePageIndex.value + 1}`
+  if (title.length > 50) title = title.slice(0, 50) + '…'
+
+  const item = {
+    type: 'section',
+    tag: 'section',
+    title,
+    html: clone.outerHTML,
+    copiedAt: Date.now(),
+    templateName: templateName.value || 'Contract Template',
+  }
+
+  studioClipboard.value = item
+  try {
+    localStorage.setItem('contract_studio_clipboard', JSON.stringify(item))
+  } catch (_) {}
+
+  showStudioToast(`📋 Copied full page section "${title}" to clipboard! You can paste it into any template.`, 'success')
+}
+
+function pasteFromClipboard() {
+  const item = studioClipboard.value || loadStudioClipboard()
+  if (!item || !item.html) {
+    showStudioToast('Clipboard is empty. Copy a row or section first.', 'warning')
+    return
+  }
+
+  const canvas = document.getElementById('html-studio-canvas')
+  if (!canvas) return
+
+  recordHistoryState(`Paste ${item.title || item.type}`)
+
+  // Parse HTML snippet safely
+  const temp = document.createElement('div')
+  temp.innerHTML = item.html.trim()
+  const newEl = temp.firstElementChild
+  if (!newEl) return
+
+  newEl.classList.remove('studio-selected-node')
+  newEl.removeAttribute('contenteditable')
+
+  let inserted = false
+
+  if (item.type === 'section') {
+    // Section/Page insertion
+    const pageEls = Array.from(canvas.querySelectorAll('.page:not(.page-no), section.page'))
+    const currentPg = (activeSelectedDomEl && activeSelectedDomEl.closest('.page:not(.page-no), section.page'))
+      || pageEls[activePageIndex.value]
+
+    if (currentPg && currentPg.parentNode) {
+      currentPg.insertAdjacentElement('afterend', newEl)
+      inserted = true
+    } else {
+      const doc = canvas.querySelector('.document') || canvas
+      doc.appendChild(newEl)
+      inserted = true
+    }
+  } else if (item.type === 'row' || newEl.tagName.toLowerCase() === 'tr') {
+    // Row insertion
+    const currentTr = activeSelectedDomEl ? activeSelectedDomEl.closest('tr') : null
+    if (currentTr && currentTr.parentNode) {
+      currentTr.insertAdjacentElement('afterend', newEl)
+      inserted = true
+    } else {
+      const pageEls = Array.from(canvas.querySelectorAll('.page:not(.page-no), section.page'))
+      const activePg = pageEls[activePageIndex.value] || pageEls[0]
+      if (activePg) {
+        let tbody = activePg.querySelector('tbody')
+        if (!tbody) {
+          const tbl = activePg.querySelector('table') || document.createElement('table')
+          tbl.className = tbl.className || 'bilingual-table'
+          tbody = document.createElement('tbody')
+          tbl.appendChild(tbody)
+          if (!tbl.parentNode) activePg.appendChild(tbl)
+        }
+        tbody.appendChild(newEl)
+        inserted = true
+      }
+    }
+  } else {
+    // General element insertion
+    if (activeSelectedDomEl && activeSelectedDomEl.parentNode) {
+      activeSelectedDomEl.insertAdjacentElement('afterend', newEl)
+      inserted = true
+    } else {
+      const pageEls = Array.from(canvas.querySelectorAll('.page:not(.page-no), section.page'))
+      const activePg = pageEls[activePageIndex.value] || pageEls[0]
+      const targetBox = activePg?.querySelector('td, .page') || canvas
+      targetBox.appendChild(newEl)
+      inserted = true
+    }
+  }
+
+  if (inserted) {
+    syncDomToRawHtml()
+    selectHtmlElement(newEl)
+    newEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    refreshLayersList()
+    showStudioToast(`📥 Pasted "${item.title}" successfully into this template!`, 'success')
+  } else {
+    showStudioToast('Could not paste at the current position. Please select a row or section first.', 'error')
+  }
+}
+
+function clearStudioClipboard() {
+  studioClipboard.value = null
+  try {
+    localStorage.removeItem('contract_studio_clipboard')
+  } catch (_) {}
+  showStudioToast('Clipboard cleared.', 'info')
+}
+
 function deleteSelectedRow() {
   if (!activeSelectedDomEl) return
   const tr = activeSelectedDomEl.closest('tr')
@@ -3858,6 +4192,24 @@ function onGlobalKeydown(e) {
     } else if ((e.key === 'z' && e.shiftKey) || e.key === 'y') {
       e.preventDefault()
       triggerRedo()
+    } else if (e.key.toLowerCase() === 'c' && activeSelectedDomEl) {
+      // If no text is actively highlighted inside contenteditable, copy the selected row/element to Studio clipboard
+      const selText = window.getSelection()?.toString().trim()
+      if (!selText) {
+        e.preventDefault()
+        copySelectedToClipboard()
+      }
+    } else if (e.key.toLowerCase() === 'v' && isHtmlTemplate.value && studioClipboard.value) {
+      // If user is on canvas and no text input is focused, paste from Studio clipboard
+      const activeEl = document.activeElement
+      const isInput = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')
+      if (!isInput && activeSelectedDomEl) {
+        const selText = window.getSelection()?.toString().trim()
+        if (!selText) {
+          e.preventDefault()
+          pasteFromClipboard()
+        }
+      }
     }
   }
 }
@@ -7296,6 +7648,30 @@ watch(activeTab, (newTab, oldTab) => {
   border-color: #4f46e5;
 }
 
+.float-btn-accent {
+  background: rgba(217, 119, 6, 0.25);
+  border-color: rgba(245, 158, 11, 0.5);
+  color: #fbbf24;
+}
+
+.float-btn-accent:hover {
+  background: #d97706;
+  border-color: #f59e0b;
+  color: #ffffff;
+}
+
+.float-btn-success {
+  background: rgba(16, 185, 129, 0.25);
+  border-color: rgba(16, 185, 129, 0.5);
+  color: #34d399;
+}
+
+.float-btn-success:hover {
+  background: #059669;
+  border-color: #10b981;
+  color: #ffffff;
+}
+
 .float-btn-danger {
   color: #f87171;
   border-color: rgba(239, 68, 68, 0.3);
@@ -8458,5 +8834,83 @@ watch(activeTab, (newTab, oldTab) => {
     flex-direction: column;
     align-items: flex-start;
   }
+}
+
+/* Floating Toast Notification */
+.studio-floating-toast {
+  position: fixed;
+  top: 24px;
+  right: 28px;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 300px;
+  max-width: 480px;
+  padding: 12px 16px;
+  background: #0f172a;
+  color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.12);
+  font-size: 0.84rem;
+  font-weight: 500;
+}
+
+.studio-floating-toast.toast-success {
+  border-left: 4px solid #10b981;
+}
+
+.studio-floating-toast.toast-warning {
+  border-left: 4px solid #f59e0b;
+}
+
+.studio-floating-toast.toast-error {
+  border-left: 4px solid #ef4444;
+}
+
+.studio-floating-toast.toast-info {
+  border-left: 4px solid #3b82f6;
+}
+
+.toast-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+.toast-icon {
+  font-size: 1.1rem;
+}
+
+.toast-msg {
+  line-height: 1.35;
+}
+
+.toast-close {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 2px 6px;
+  font-size: 0.9rem;
+  border-radius: 4px;
+}
+
+.toast-close:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.toast-fade-enter-active,
+.toast-fade-leave-active {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.toast-fade-enter-from,
+.toast-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-12px) scale(0.95);
 }
 </style>
