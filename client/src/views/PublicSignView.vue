@@ -686,14 +686,19 @@ const renderedHtmlContent = computed(() => {
   const dateOfBirth = fd.date_of_birth || fd.dob || '—'
   const dependents = fd.dependents || fd.note || 'Spouse & Kids under 18 are included.'
 
-  const totalFees = fd.contract_value || '20,000 EUR'
-  const totalAfterDiscount = fd.discounted_amount || fd.contract_value || '15,000 EUR'
-  const currencyText = fd.currency || 'THE GREAT BRITAIN POUND (GBP)'
-  const paymentMode = fd.payment_terms || '50% Upon Signing, 50% on Approval'
-  const additionalInfo = fd.visa_type || fd.additional_information || 'Standard Legal & Immigration Advisory'
+  const sectionsConfig = fd.sectionsConfig || {}
+  const isCommercialTermsDisabled = sectionsConfig.commercialTerms === false
+  const isRteDisabled = isCommercialTermsDisabled || sectionsConfig.includeScheduleThreeRte === false
+  const isVarsDisabled = isCommercialTermsDisabled || sectionsConfig.includeIndividualVars === false
 
-  const scheduleThreeContent = fd.schedule_three_content || fd.payment_breakup || fd.commercial_terms || '50% Initial Deposit upon signing, 50% upon Visa Approval'
-  const initialAmount = fd.discounted_amount || fd.initial_deposit || '15,000 EUR'
+  const totalFees = isVarsDisabled ? '' : (fd.contract_value || '20,000 EUR')
+  const totalAfterDiscount = isVarsDisabled ? '' : (fd.discounted_amount || fd.contract_value || '15,000 EUR')
+  const currencyText = fd.currency || 'THE GREAT BRITAIN POUND (GBP)'
+  const paymentMode = isVarsDisabled ? '' : (fd.payment_terms || '50% Upon Signing, 50% on Approval')
+  const additionalInfo = isVarsDisabled ? '' : (fd.visa_type || fd.additional_information || 'Standard Legal & Immigration Advisory')
+
+  const scheduleThreeContent = isRteDisabled ? '' : (fd.schedule_three_content || fd.payment_breakup || fd.commercial_terms || '50% Initial Deposit upon signing, 50% upon Visa Approval')
+  const initialAmount = isVarsDisabled ? '' : (fd.discounted_amount || fd.initial_deposit || '15,000 EUR')
 
   const contractDateRaw = fd.contract_date || contract.value?.created_at
   const formattedContractDate = formatContractDate(contractDateRaw)

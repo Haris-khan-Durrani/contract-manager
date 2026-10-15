@@ -166,15 +166,20 @@ function renderHtmlTemplate(html, css, context = {}, options = {}) {
   const dateOfBirth = applicant.date_of_birth || form.date_of_birth || form.dob || '—';
   const dependents = applicant.dependents || form.dependents || form.note || 'Spouse & Kids under 18 are included.';
 
-  const totalFees = fees.total_fees || form.contract_value || '20,000 EUR';
-  const totalAfterDiscount = fees.total_after_discount || form.discounted_amount || form.contract_value || '15,000 EUR';
+  const sectionsConfig = form.sectionsConfig || {};
+  const isCommercialTermsDisabled = sectionsConfig.commercialTerms === false;
+  const isRteDisabled = isCommercialTermsDisabled || sectionsConfig.includeScheduleThreeRte === false;
+  const isVarsDisabled = isCommercialTermsDisabled || sectionsConfig.includeIndividualVars === false;
+
+  const totalFees = isVarsDisabled ? '' : (fees.total_fees || form.contract_value || '20,000 EUR');
+  const totalAfterDiscount = isVarsDisabled ? '' : (fees.total_after_discount || form.discounted_amount || form.contract_value || '15,000 EUR');
   const currencyText = fees.currency_text || form.currency || 'THE GREAT BRITAIN POUND (GBP)';
-  const paymentMode = fees.payment_mode || form.payment_terms || '50% Upon Signing, 50% on Approval';
-  const additionalInfo = fees.additional_information || form.additional_information || form.visa_type || 'Standard Legal & Immigration Advisory';
+  const paymentMode = isVarsDisabled ? '' : (fees.payment_mode || form.payment_terms || '50% Upon Signing, 50% on Approval');
+  const additionalInfo = isVarsDisabled ? '' : (fees.additional_information || form.additional_information || form.visa_type || 'Standard Legal & Immigration Advisory');
   
   // Section 5: Commercial Terms & Fees (Schedule Three) rich editor content
-  const scheduleThreeContent = form.schedule_three_content || form.payment_breakup || fees.payment_breakup || form.commercial_terms || fees.commercial_terms || '50% Initial Deposit upon signing, 50% upon Visa Approval';
-  const initialAmount = fees.initial_amount || form.discounted_amount || form.initial_deposit || '15,000 EUR';
+  const scheduleThreeContent = isRteDisabled ? '' : (form.schedule_three_content || form.payment_breakup || fees.payment_breakup || form.commercial_terms || fees.commercial_terms || '50% Initial Deposit upon signing, 50% upon Visa Approval');
+  const initialAmount = isVarsDisabled ? '' : (fees.initial_amount || form.discounted_amount || form.initial_deposit || '15,000 EUR');
 
   const contractDate = formatDate(form.contract_date || context.contractDate || form.created_at || system.currentDate);
   const jurisdiction = context.jurisdiction || form.jurisdiction || 'Courts of the Dubai International Financial Centre (“the DIFC COURTS”)';

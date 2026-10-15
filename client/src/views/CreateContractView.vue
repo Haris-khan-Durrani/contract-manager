@@ -6,7 +6,17 @@
         <h1 class="page-title">Create Contract</h1>
         <p class="page-subtitle">Configure applicant details, commercial terms, and generate the client signing link.</p>
       </div>
-      <div class="header-actions">
+      <div class="header-actions" style="display: flex; gap: 8px; align-items: center;">
+        <button
+          type="button"
+          class="btn btn-secondary btn-settings-trigger"
+          @click="toggleCollapse('settingsBar')"
+          :class="{ active: !sectionCollapsed.settingsBar }"
+          title="Toggle Contract Requirements & Section Settings"
+        >
+          <span>⚙️ Section Settings</span>
+          <span class="badge badge-primary badge-xs" style="margin-left: 6px;">{{ activeSectionsCount }}/4 Active</span>
+        </button>
         <router-link to="/contracts" class="btn btn-secondary">← Back to Contracts</router-link>
       </div>
     </div>
@@ -19,6 +29,145 @@
         <!-- LEFT: Main Form Card -->
         <div class="create-main">
           <div class="glass-card main-form-card">
+
+            <!-- ⚙️ CONTRACT BUILDER SETTINGS & REQUIREMENTS TOOLBAR -->
+            <div class="contract-settings-card animate-fade-in">
+              <div class="settings-card-head" @click="toggleCollapse('settingsBar')">
+                <div class="settings-head-left">
+                  <span class="settings-icon">⚙️</span>
+                  <div>
+                    <div class="settings-title-line">
+                      <strong class="settings-title">Contract Builder Settings &amp; Requirement Sections</strong>
+                      <span class="badge badge-primary badge-xs">
+                        {{ activeSectionsCount }}/4 Optional Sections Active
+                      </span>
+                    </div>
+                    <p class="settings-sub">
+                      Customize which requirement sections and schedules are included for this specific contract. All sections are enabled and open by default.
+                    </p>
+                  </div>
+                </div>
+                <div class="settings-head-right">
+                  <button
+                    type="button"
+                    class="btn-settings-pill"
+                    :class="{ active: !sectionCollapsed.settingsBar }"
+                    @click.stop="toggleCollapse('settingsBar')"
+                  >
+                    <span>{{ sectionCollapsed.settingsBar ? '⚙️ Show Settings' : 'Hide Settings' }}</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" :style="sectionCollapsed.settingsBar ? '' : 'transform: rotate(180deg);'" style="transition: transform 0.2s ease;">
+                      <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Collapsible Settings Matrix -->
+              <div v-show="!sectionCollapsed.settingsBar" class="settings-drawer animate-fade-in">
+                <div class="settings-grid">
+                  <!-- Setting 1: Section 3 Intake Specifications -->
+                  <div class="setting-item-box" :class="{ disabled: !sectionToggles.intakeFields }">
+                    <div class="setting-item-meta">
+                      <div class="setting-item-title-row">
+                        <span class="setting-dot" :class="{ on: sectionToggles.intakeFields }"></span>
+                        <strong>3. Intake Specifications</strong>
+                      </div>
+                      <small>Dynamic questions &amp; template criteria</small>
+                    </div>
+                    <label class="switch-control" title="Toggle Intake Specifications section">
+                      <input type="checkbox" v-model="sectionToggles.intakeFields" />
+                      <span class="slider"></span>
+                    </label>
+                  </div>
+
+                  <!-- Setting 2: Section 5 Group / Team Applicants -->
+                  <div class="setting-item-box" :class="{ disabled: !sectionToggles.groupApplicants }">
+                    <div class="setting-item-meta">
+                      <div class="setting-item-title-row">
+                        <span class="setting-dot" :class="{ on: sectionToggles.groupApplicants }"></span>
+                        <strong>5. Group Applicants</strong>
+                      </div>
+                      <small>Additional dependents &amp; applicants repeater</small>
+                    </div>
+                    <label class="switch-control" title="Toggle Group Applicants section">
+                      <input type="checkbox" v-model="sectionToggles.groupApplicants" />
+                      <span class="slider"></span>
+                    </label>
+                  </div>
+
+                  <!-- Setting 3: Section 6 Commercial Terms & Fees (Schedule Three) -->
+                  <div class="setting-item-box" :class="{ disabled: !sectionToggles.commercialTerms }">
+                    <div class="setting-item-meta">
+                      <div class="setting-item-title-row">
+                        <span class="setting-dot" :class="{ on: sectionToggles.commercialTerms }"></span>
+                        <strong>6. Commercial Terms &amp; Fees</strong>
+                      </div>
+                      <small>Schedule Three terms, presets &amp; fee variables</small>
+                    </div>
+                    <label class="switch-control" title="Toggle Section 6 Commercial Terms & Fees">
+                      <input type="checkbox" v-model="sectionToggles.commercialTerms" />
+                      <span class="slider"></span>
+                    </label>
+                  </div>
+
+                  <!-- Setting 4: Rich Text Editor Sub-box -->
+                  <div class="setting-item-box sub-setting" :class="{ disabled: !sectionToggles.commercialTerms || !sectionToggles.includeScheduleThreeRte }">
+                    <div class="setting-item-meta">
+                      <div class="setting-item-title-row">
+                        <span class="setting-dot" :class="{ on: sectionToggles.commercialTerms && sectionToggles.includeScheduleThreeRte }"></span>
+                        <strong>└ Rich Text Editor (Schedule 3)</strong>
+                      </div>
+                      <small>Visual WYSIWYG milestone editor &amp; presets</small>
+                    </div>
+                    <label class="switch-control" title="Toggle Rich Text Editor" :class="{ 'opacity-50': !sectionToggles.commercialTerms }">
+                      <input type="checkbox" v-model="sectionToggles.includeScheduleThreeRte" :disabled="!sectionToggles.commercialTerms" />
+                      <span class="slider"></span>
+                    </label>
+                  </div>
+
+                  <!-- Setting 5: Individual Variable Inputs Sub-box -->
+                  <div class="setting-item-box sub-setting" :class="{ disabled: !sectionToggles.commercialTerms || !sectionToggles.includeIndividualVars }">
+                    <div class="setting-item-meta">
+                      <div class="setting-item-title-row">
+                        <span class="setting-dot" :class="{ on: sectionToggles.commercialTerms && sectionToggles.includeIndividualVars }"></span>
+                        <strong>└ Individual Variable Inputs</strong>
+                      </div>
+                      <small>Fees, discount, payment schedule, visa scope</small>
+                    </div>
+                    <label class="switch-control" title="Toggle Individual Variable Inputs" :class="{ 'opacity-50': !sectionToggles.commercialTerms }">
+                      <input type="checkbox" v-model="sectionToggles.includeIndividualVars" :disabled="!sectionToggles.commercialTerms" />
+                      <span class="slider"></span>
+                    </label>
+                  </div>
+
+                  <!-- Setting 6: Section 7 Signature Controls -->
+                  <div class="setting-item-box" :class="{ disabled: !sectionToggles.signatureControls }">
+                    <div class="setting-item-meta">
+                      <div class="setting-item-title-row">
+                        <span class="setting-dot" :class="{ on: sectionToggles.signatureControls }"></span>
+                        <strong>7. Signature Controls</strong>
+                      </div>
+                      <small>Draw, Type, Upload signing permissions</small>
+                    </div>
+                    <label class="switch-control" title="Toggle Signature Controls section">
+                      <input type="checkbox" v-model="sectionToggles.signatureControls" />
+                      <span class="slider"></span>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="settings-footer-row">
+                  <span class="settings-hint">
+                    💡 Disabled sections are omitted from the generated contract and will not block creation.
+                  </span>
+                  <div class="settings-actions">
+                    <button type="button" class="btn btn-xs btn-secondary" @click="resetAllSections">
+                      Reset to Default (All Open)
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
 
             <!-- SECTION 1: Agreement Template & Contract Date -->
             <div class="card-section">
@@ -286,31 +435,74 @@
             <div class="section-divider"></div>
 
             <!-- SECTION 3: Template Intake & Specifications Form -->
-            <div class="card-section">
-              <div class="section-title-wrap">
-                <span class="section-icon">📋</span>
-                <div style="flex: 1;">
-                  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-                    <h3 class="section-title">
-                      3. Template Intake Specifications
-                      <span v-if="selectedTemplate?.form_name" style="font-weight: 600; color: #4f46e5; font-size: 0.92rem; margin-left: 6px;">
-                        ({{ selectedTemplate.form_name }})
-                      </span>
-                    </h3>
-                    <div style="display: flex; gap: 6px; align-items: center;" v-if="selectedTemplate">
-                      <span v-if="templateFormFields.length" class="badge badge-primary badge-xs">
-                        {{ completedIntakeFieldsCount }}/{{ templateFormFields.length }} Completed
-                      </span>
-                      <span v-if="selectedTemplate.form_name" class="badge badge-success badge-xs">Auto-Linked</span>
+            <div class="card-section" :class="{ 'section-omitted-card': !sectionToggles.intakeFields }">
+              <div class="section-title-wrap section-title-flex">
+                <div class="section-title-left">
+                  <span class="section-icon">📋</span>
+                  <div>
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                      <h3 class="section-title">
+                        3. Template Intake Specifications
+                        <span v-if="selectedTemplate?.form_name" style="font-weight: 600; color: #4f46e5; font-size: 0.92rem; margin-left: 4px;">
+                          ({{ selectedTemplate.form_name }})
+                        </span>
+                      </h3>
+                      <div style="display: flex; gap: 6px; align-items: center;" v-if="selectedTemplate && sectionToggles.intakeFields">
+                        <span v-if="templateFormFields.length" class="badge badge-primary badge-xs">
+                          {{ completedIntakeFieldsCount }}/{{ templateFormFields.length }} Completed
+                        </span>
+                        <span v-if="selectedTemplate.form_name" class="badge badge-success badge-xs">Auto-Linked</span>
+                      </div>
                     </div>
+                    <p class="section-sub">
+                      Intake specifications linked to this template. Completed values are automatically embedded into the agreement and saved directly to the contract workspace (Tab 1).
+                    </p>
                   </div>
-                  <p class="section-sub">
-                    Intake specifications linked to this template. Completed values are automatically embedded into the agreement and saved directly to the contract workspace (Tab 1).
-                  </p>
+                </div>
+
+                <div class="section-title-controls">
+                  <button
+                    type="button"
+                    class="btn-toggle-badge"
+                    :class="sectionToggles.intakeFields ? 'included' : 'omitted'"
+                    @click="toggleSection('intakeFields')"
+                    title="Toggle Template Intake Specifications for this contract"
+                  >
+                    <span class="toggle-indicator-dot"></span>
+                    <span>{{ sectionToggles.intakeFields ? 'Included in Contract' : 'Omitted for this Contract' }}</span>
+                  </button>
+
+                  <button
+                    v-if="sectionToggles.intakeFields"
+                    type="button"
+                    class="btn-collapse-toggle"
+                    @click="toggleCollapse('intakeFields')"
+                    :title="sectionCollapsed.intakeFields ? 'Expand Section' : 'Collapse Section'"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" :style="sectionCollapsed.intakeFields ? '' : 'transform: rotate(180deg);'" style="transition: transform 0.2s ease;">
+                      <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                  </button>
                 </div>
               </div>
 
-              <!-- When no template selected yet -->
+              <!-- When Section 3 is OMITTED -->
+              <div v-if="!sectionToggles.intakeFields" class="section-omitted-notice animate-fade-in">
+                <div class="omitted-notice-left">
+                  <span class="omitted-icon">🚫</span>
+                  <div>
+                    <strong>Template Intake Specifications are excluded from this contract.</strong>
+                    <p>Dynamic questions are disabled. Required questions will not block contract generation.</p>
+                  </div>
+                </div>
+                <button type="button" class="btn btn-sm btn-primary" @click="toggleSection('intakeFields')">
+                  + Enable Specifications
+                </button>
+              </div>
+
+              <!-- When Section 3 is ENABLED -->
+              <div v-else-if="!sectionCollapsed.intakeFields" class="section-body-flow animate-fade-in">
+                <!-- When no template selected yet -->
               <div v-if="!selectedTemplate" class="empty-intake-banner animate-fade-in">
                 <span style="font-size: 1.3rem;">📋</span>
                 <div>
@@ -444,6 +636,7 @@
                 </div>
               </div>
             </div>
+          </div>
 
             <div class="section-divider"></div>
 
@@ -548,16 +741,59 @@
             <div class="section-divider"></div>
 
             <!-- SECTION 5: Application Type & Additional Team Applicants (Repeater) -->
-            <div class="card-section">
-              <div class="section-title-wrap">
-                <span class="section-icon">👥</span>
-                <div>
-                  <h3 class="section-title">5. Application Mode &amp; Group Applicants</h3>
-                  <p class="section-sub">Select Individual for a single applicant, or Team to add Main Applicant 2, 3, etc. into Schedule One.</p>
+            <div class="card-section" :class="{ 'section-omitted-card': !sectionToggles.groupApplicants }">
+              <div class="section-title-wrap section-title-flex">
+                <div class="section-title-left">
+                  <span class="section-icon">👥</span>
+                  <div>
+                    <h3 class="section-title">5. Application Mode &amp; Group Applicants</h3>
+                    <p class="section-sub">Select Individual for a single applicant, or Team to add Main Applicant 2, 3, etc. into Schedule One.</p>
+                  </div>
+                </div>
+
+                <div class="section-title-controls">
+                  <button
+                    type="button"
+                    class="btn-toggle-badge"
+                    :class="sectionToggles.groupApplicants ? 'included' : 'omitted'"
+                    @click="toggleSection('groupApplicants')"
+                    title="Toggle Group Applicants section for this contract"
+                  >
+                    <span class="toggle-indicator-dot"></span>
+                    <span>{{ sectionToggles.groupApplicants ? 'Included in Contract' : 'Omitted for this Contract' }}</span>
+                  </button>
+
+                  <button
+                    v-if="sectionToggles.groupApplicants"
+                    type="button"
+                    class="btn-collapse-toggle"
+                    @click="toggleCollapse('groupApplicants')"
+                    :title="sectionCollapsed.groupApplicants ? 'Expand Section' : 'Collapse Section'"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" :style="sectionCollapsed.groupApplicants ? '' : 'transform: rotate(180deg);'" style="transition: transform 0.2s ease;">
+                      <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                  </button>
                 </div>
               </div>
 
-              <!-- Application Type Mode Selector -->
+              <!-- When Section 5 is OMITTED -->
+              <div v-if="!sectionToggles.groupApplicants" class="section-omitted-notice animate-fade-in">
+                <div class="omitted-notice-left">
+                  <span class="omitted-icon">🚫</span>
+                  <div>
+                    <strong>Group / Team Applicants section is omitted for this contract.</strong>
+                    <p>Contract will be issued for Primary Applicant 1 only. Multi-applicant repeater is disabled.</p>
+                  </div>
+                </div>
+                <button type="button" class="btn btn-sm btn-primary" @click="toggleSection('groupApplicants')">
+                  + Enable Group Mode
+                </button>
+              </div>
+
+              <!-- When Section 5 is ENABLED -->
+              <div v-else-if="!sectionCollapsed.groupApplicants" class="section-body-flow animate-fade-in">
+                <!-- Application Type Mode Selector -->
               <div class="mode-toggle-grid">
                 <button
                   type="button"
@@ -707,75 +943,158 @@
                 </div>
               </div>
             </div>
+            </div>
 
             <div class="section-divider"></div>
 
             <!-- SECTION 6: Commercial Terms & Fees (Rich Text Editor) -->
-            <div class="card-section">
-              <div class="section-title-wrap">
-                <span class="section-icon">💼</span>
-                <div>
-                  <h3 class="section-title">6. Commercial Terms &amp; Fees (Schedule Three)</h3>
-                  <p class="section-sub">Use the rich editor below to format professional fees, milestones, tables, and payment conditions.</p>
+            <div class="card-section" :class="{ 'section-omitted-card': !sectionToggles.commercialTerms }">
+              <div class="section-title-wrap section-title-flex">
+                <div class="section-title-left">
+                  <span class="section-icon">💼</span>
+                  <div>
+                    <h3 class="section-title">6. Commercial Terms &amp; Fees (Schedule Three)</h3>
+                    <p class="section-sub">Use the rich editor below to format professional fees, milestones, tables, and payment conditions.</p>
+                  </div>
+                </div>
+
+                <div class="section-title-controls">
+                  <button
+                    type="button"
+                    class="btn-toggle-badge"
+                    :class="sectionToggles.commercialTerms ? 'included' : 'omitted'"
+                    @click="toggleSection('commercialTerms')"
+                    title="Click to toggle Commercial Terms & Fees for this contract"
+                  >
+                    <span class="toggle-indicator-dot"></span>
+                    <span>{{ sectionToggles.commercialTerms ? 'Included in Contract' : 'Omitted for this Contract' }}</span>
+                  </button>
+
+                  <button
+                    v-if="sectionToggles.commercialTerms"
+                    type="button"
+                    class="btn-collapse-toggle"
+                    @click="toggleCollapse('commercialTerms')"
+                    :title="sectionCollapsed.commercialTerms ? 'Expand Section' : 'Collapse Section'"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" :style="sectionCollapsed.commercialTerms ? '' : 'transform: rotate(180deg);'" style="transition: transform 0.2s ease;">
+                      <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                  </button>
                 </div>
               </div>
 
-              <!-- Rich Text Editor with Extensive Formatting Options -->
-              <div class="rte-section-box">
-                <RichTextEditor
-                  v-model="formResponses['schedule_three_content']"
-                  @change="onScheduleThreeChange"
-                  placeholder="Draft program fees, payment schedule terms, discount details, or structured milestone table here…"
-                />
+              <!-- When Section 6 is OMITTED -->
+              <div v-if="!sectionToggles.commercialTerms" class="section-omitted-notice animate-fade-in">
+                <div class="omitted-notice-left">
+                  <span class="omitted-icon">🚫</span>
+                  <div>
+                    <strong>Commercial Terms &amp; Fees (Schedule Three) is excluded from this contract.</strong>
+                    <p>No fee tables or individual variable amounts will be included or required for this agreement.</p>
+                  </div>
+                </div>
+                <button type="button" class="btn btn-sm btn-primary" @click="toggleSection('commercialTerms')">
+                  + Enable Section
+                </button>
               </div>
 
-              <!-- Individual Variable Inputs (Always Visible) -->
-              <div class="individual-fields-box">
-                <div class="field-sync-hint-row" style="margin-top: 0; margin-bottom: 12px;">
-                  <span class="field-label" style="font-weight: 700; color: #1e293b; margin: 0;">
-                    Individual Variable Inputs
-                  </span>
-                  <small class="text-hint">
-                    Your formatted terms and these individual variables will be rendered directly into the legal agreement &amp; PDF certificate.
-                  </small>
+              <!-- When Section 6 is ENABLED -->
+              <div v-else-if="!sectionCollapsed.commercialTerms" class="section-body-flow animate-fade-in">
+                <!-- Sub-part A: Rich Text Editor -->
+                <div class="sub-section-container" :class="{ 'sub-box-omitted': !sectionToggles.includeScheduleThreeRte }">
+                  <div class="sub-section-header">
+                    <div class="sub-header-left">
+                      <span class="sub-header-badge">WYSIWYG</span>
+                      <strong class="sub-header-title">Schedule Three Rich Text Editor</strong>
+                    </div>
+                    <div class="sub-header-right">
+                      <label class="sub-toggle-label" title="Include or omit rich text terms from contract">
+                        <input type="checkbox" v-model="sectionToggles.includeScheduleThreeRte" />
+                        <span class="sub-toggle-text">{{ sectionToggles.includeScheduleThreeRte ? '✓ Included' : '✕ Omitted' }}</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div v-if="!sectionToggles.includeScheduleThreeRte" class="sub-omitted-banner animate-fade-in">
+                    <span>Schedule Three rich text formatting is omitted for this contract.</span>
+                    <button type="button" class="btn btn-xs btn-secondary" @click="sectionToggles.includeScheduleThreeRte = true">
+                      + Include Editor
+                    </button>
+                  </div>
+
+                  <div v-else class="rte-section-box">
+                    <RichTextEditor
+                      v-model="formResponses['schedule_three_content']"
+                      @change="onScheduleThreeChange"
+                      placeholder="Draft program fees, payment schedule terms, discount details, or structured milestone table here…"
+                    />
+                  </div>
                 </div>
 
-                <div class="form-grid-2">
-                  <div class="form-group">
-                    <label class="field-label">Total Professional Fees</label>
-                    <input
-                      type="text"
-                      v-model="formResponses['contract_value']"
-                      class="form-control"
-                      placeholder="e.g. 20,000 USD / AED"
-                    />
+                <!-- Sub-part B: Individual Variable Inputs -->
+                <div class="individual-fields-box" :class="{ 'sub-box-omitted': !sectionToggles.includeIndividualVars }">
+                  <div class="field-sync-hint-row" style="margin-top: 0; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                    <div>
+                      <span class="field-label" style="font-weight: 700; color: #1e293b; margin: 0;">
+                        Individual Variable Inputs
+                      </span>
+                      <small class="text-hint">
+                        Your formatted terms and these individual variables will be rendered directly into the legal agreement &amp; PDF certificate.
+                      </small>
+                    </div>
+
+                    <div class="sub-header-right">
+                      <label class="sub-toggle-label" title="Include or omit individual variable inputs from contract">
+                        <input type="checkbox" v-model="sectionToggles.includeIndividualVars" />
+                        <span class="sub-toggle-text">{{ sectionToggles.includeIndividualVars ? '✓ Included' : '✕ Omitted' }}</span>
+                      </label>
+                    </div>
                   </div>
-                  <div class="form-group">
-                    <label class="field-label">Amount after Exclusive Discount</label>
-                    <input
-                      type="text"
-                      v-model="formResponses['discounted_amount']"
-                      class="form-control"
-                      placeholder="e.g. 15,000 USD / AED"
-                    />
+
+                  <div v-if="!sectionToggles.includeIndividualVars" class="sub-omitted-banner animate-fade-in">
+                    <span>Individual variable inputs (fees, discount, payment schedule &amp; scope) are omitted for this contract.</span>
+                    <button type="button" class="btn btn-xs btn-secondary" @click="sectionToggles.includeIndividualVars = true">
+                      + Include Variables
+                    </button>
                   </div>
-                  <div class="form-group full-col">
-                    <label class="field-label">Payment Mode / Schedule</label>
-                    <input
-                      type="text"
-                      v-model="formResponses['payment_terms']"
-                      class="form-control"
-                      placeholder="e.g. 50% Advance Upon Signing, 50% on File Approval"
-                    />
-                  </div>
-                  <div class="form-group full-col">
-                    <label class="field-label">Visa Program / Scope (Schedule Two)</label>
-                    <input
-                      type="text"
-                      v-model="formResponses['visa_type']"
-                      class="form-control"
-                      placeholder="e.g. Golden Visa Program / Business Immigration"
-                    />
+
+                  <div v-else class="form-grid-2">
+                    <div class="form-group">
+                      <label class="field-label">Total Professional Fees</label>
+                      <input
+                        type="text"
+                        v-model="formResponses['contract_value']"
+                        class="form-control"
+                        placeholder="e.g. 20,000 USD / AED"
+                      />
+                    </div>
+                    <div class="form-group">
+                      <label class="field-label">Amount after Exclusive Discount</label>
+                      <input
+                        type="text"
+                        v-model="formResponses['discounted_amount']"
+                        class="form-control"
+                        placeholder="e.g. 15,000 USD / AED"
+                      />
+                    </div>
+                    <div class="form-group full-col">
+                      <label class="field-label">Payment Mode / Schedule</label>
+                      <input
+                        type="text"
+                        v-model="formResponses['payment_terms']"
+                        class="form-control"
+                        placeholder="e.g. 50% Advance Upon Signing, 50% on File Approval"
+                      />
+                    </div>
+                    <div class="form-group full-col">
+                      <label class="field-label">Visa Program / Scope (Schedule Two)</label>
+                      <input
+                        type="text"
+                        v-model="formResponses['visa_type']"
+                        class="form-control"
+                        placeholder="e.g. Golden Visa Program / Business Immigration"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -784,45 +1103,89 @@
             <div class="section-divider"></div>
 
             <!-- SECTION 7: Client Signature Controls -->
-            <div class="card-section">
-              <div class="section-title-wrap">
-                <span class="section-icon">✍️</span>
-                <div>
-                  <h3 class="section-title">7. Client Signature Controls</h3>
-                  <p class="section-sub">Configure permitted signature methods for the client (public link validity defaults to 1 day).</p>
+            <div class="card-section" :class="{ 'section-omitted-card': !sectionToggles.signatureControls }">
+              <div class="section-title-wrap section-title-flex">
+                <div class="section-title-left">
+                  <span class="section-icon">✍️</span>
+                  <div>
+                    <h3 class="section-title">7. Client Signature Controls</h3>
+                    <p class="section-sub">Configure permitted signature methods for the client (public link validity defaults to 1 day).</p>
+                  </div>
+                </div>
+
+                <div class="section-title-controls">
+                  <button
+                    type="button"
+                    class="btn-toggle-badge"
+                    :class="sectionToggles.signatureControls ? 'included' : 'omitted'"
+                    @click="toggleSection('signatureControls')"
+                    title="Click to toggle signature method customizations"
+                  >
+                    <span class="toggle-indicator-dot"></span>
+                    <span>{{ sectionToggles.signatureControls ? 'Customized' : 'Standard Default' }}</span>
+                  </button>
+
+                  <button
+                    v-if="sectionToggles.signatureControls"
+                    type="button"
+                    class="btn-collapse-toggle"
+                    @click="toggleCollapse('signatureControls')"
+                    :title="sectionCollapsed.signatureControls ? 'Expand Section' : 'Collapse Section'"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" :style="sectionCollapsed.signatureControls ? '' : 'transform: rotate(180deg);'" style="transition: transform 0.2s ease;">
+                      <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                  </button>
                 </div>
               </div>
 
-              <!-- Allowed Signature Methods -->
-              <div class="form-group">
-                <label class="field-label">Allowed Client Signature Methods <span class="req">*</span></label>
-                <div class="sig-methods-row">
-                  <label class="sig-toggle-chip" :class="{ active: form.signatureMethods.draw }">
-                    <input type="checkbox" v-model="form.signatureMethods.draw" />
-                    <span class="sig-icon">✏️</span>
-                    <div class="sig-text">
-                      <strong>Draw</strong>
-                      <small>Freehand canvas</small>
-                    </div>
-                  </label>
+              <!-- When Section 7 is collapsed/default -->
+              <div v-if="!sectionToggles.signatureControls" class="section-omitted-notice animate-fade-in">
+                <div class="omitted-notice-left">
+                  <span class="omitted-icon">✍️</span>
+                  <div>
+                    <strong>Standard signature controls active.</strong>
+                    <p>Default signing methods (Draw &amp; Type cursive signature) are permitted.</p>
+                  </div>
+                </div>
+                <button type="button" class="btn btn-sm btn-secondary" @click="toggleSection('signatureControls')">
+                  Customize Methods
+                </button>
+              </div>
 
-                  <label class="sig-toggle-chip" :class="{ active: form.signatureMethods.type }">
-                    <input type="checkbox" v-model="form.signatureMethods.type" />
-                    <span class="sig-icon">⌨️</span>
-                    <div class="sig-text">
-                      <strong>Type</strong>
-                      <small>Cursive script</small>
-                    </div>
-                  </label>
+              <!-- When Section 7 is open -->
+              <div v-else-if="!sectionCollapsed.signatureControls" class="section-body-flow animate-fade-in">
+                <!-- Allowed Signature Methods -->
+                <div class="form-group">
+                  <label class="field-label">Allowed Client Signature Methods <span class="req">*</span></label>
+                  <div class="sig-methods-row">
+                    <label class="sig-toggle-chip" :class="{ active: form.signatureMethods.draw }">
+                      <input type="checkbox" v-model="form.signatureMethods.draw" />
+                      <span class="sig-icon">✏️</span>
+                      <div class="sig-text">
+                        <strong>Draw</strong>
+                        <small>Freehand canvas</small>
+                      </div>
+                    </label>
 
-                  <label class="sig-toggle-chip" :class="{ active: form.signatureMethods.upload }">
-                    <input type="checkbox" v-model="form.signatureMethods.upload" />
-                    <span class="sig-icon">📤</span>
-                    <div class="sig-text">
-                      <strong>Upload</strong>
-                      <small>Signature image</small>
-                    </div>
-                  </label>
+                    <label class="sig-toggle-chip" :class="{ active: form.signatureMethods.type }">
+                      <input type="checkbox" v-model="form.signatureMethods.type" />
+                      <span class="sig-icon">⌨️</span>
+                      <div class="sig-text">
+                        <strong>Type</strong>
+                        <small>Cursive script</small>
+                      </div>
+                    </label>
+
+                    <label class="sig-toggle-chip" :class="{ active: form.signatureMethods.upload }">
+                      <input type="checkbox" v-model="form.signatureMethods.upload" />
+                      <span class="sig-icon">📤</span>
+                      <div class="sig-text">
+                        <strong>Upload</strong>
+                        <small>Signature image</small>
+                      </div>
+                    </label>
+                  </div>
                 </div>
               </div>
             </div>
@@ -848,9 +1211,17 @@
                 <strong class="summary-v">{{ formatContractDate(formResponses['contract_date']) }}</strong>
               </div>
               <div class="summary-row">
+                <span class="summary-k">Sections:</span>
+                <span class="summary-v">
+                  <span class="badge" :class="activeSectionsCount === 4 ? 'badge-success' : 'badge-neutral'">
+                    {{ activeSectionsCount }}/4 Included
+                  </span>
+                </span>
+              </div>
+              <div class="summary-row">
                 <span class="summary-k">Application</span>
-                <span class="badge" :class="form.formMode === 'TEAM' ? 'badge-primary' : 'badge-neutral'">
-                  {{ form.formMode === 'TEAM' ? `👥 Team (${teamMembers.length + 1} Applicants)` : '👤 Individual (1 Applicant)' }}
+                <span class="badge" :class="form.formMode === 'TEAM' && sectionToggles.groupApplicants ? 'badge-primary' : 'badge-neutral'">
+                  {{ (form.formMode === 'TEAM' && sectionToggles.groupApplicants) ? `👥 Team (${teamMembers.length + 1} Applicants)` : '👤 Individual (1 Applicant)' }}
                 </span>
               </div>
               <div class="summary-row" v-if="selectedTemplate?.form_name">
@@ -859,11 +1230,15 @@
                   📋 {{ selectedTemplate.form_name }}
                 </strong>
               </div>
-              <div class="summary-row" v-if="templateFormFields.length">
+              <div class="summary-row" v-if="templateFormFields.length && sectionToggles.intakeFields">
                 <span class="summary-k">Intake Fields:</span>
                 <span class="summary-v">
                   <strong style="color: #16a34a;">{{ completedIntakeFieldsCount }}</strong> / {{ templateFormFields.length }} filled
                 </span>
+              </div>
+              <div class="summary-row" v-else-if="templateFormFields.length && !sectionToggles.intakeFields">
+                <span class="summary-k">Intake Fields:</span>
+                <span class="summary-v" style="color: #64748b; font-size: 0.8rem; font-style: italic;">Omitted</span>
               </div>
               <div class="summary-row">
                 <span class="summary-k">Main Applicant: 1</span>
@@ -873,13 +1248,17 @@
                 <span class="summary-k">Assigned Agent:</span>
                 <strong class="summary-v">{{ selectedAgentName }}</strong>
               </div>
-              <div class="summary-row" v-if="form.formMode === 'TEAM' && teamMembers.length">
+              <div class="summary-row" v-if="sectionToggles.groupApplicants && form.formMode === 'TEAM' && teamMembers.length">
                 <span class="summary-k">Additional:</span>
                 <span class="summary-v">{{ teamMembers.length }} member{{ teamMembers.length > 1 ? 's' : '' }}</span>
               </div>
-              <div class="summary-row" v-if="formResponses['contract_value']">
+              <div class="summary-row" v-if="sectionToggles.commercialTerms && sectionToggles.includeIndividualVars && formResponses['contract_value']">
                 <span class="summary-k">Total Fees:</span>
                 <strong class="summary-v">{{ formResponses['contract_value'] }}</strong>
+              </div>
+              <div class="summary-row" v-else-if="!sectionToggles.commercialTerms">
+                <span class="summary-k">Commercial Terms:</span>
+                <span class="summary-v" style="color: #64748b; font-size: 0.8rem; font-style: italic;">Omitted for this contract</span>
               </div>
               <div class="summary-row">
                 <span class="summary-k">Validity:</span>
@@ -896,7 +1275,7 @@
                 <span class="check-bullet">{{ (form.recipientName && form.recipientEmail) ? '✓' : '○' }}</span>
                 <span>Applicant 1 Name & Email filled</span>
               </div>
-              <div v-if="requiredIntakeFieldsCount > 0" class="check-item" :class="{ ok: allRequiredIntakeFilled }">
+              <div v-if="sectionToggles.intakeFields && requiredIntakeFieldsCount > 0" class="check-item" :class="{ ok: allRequiredIntakeFilled }">
                 <span class="check-bullet">{{ allRequiredIntakeFilled ? '✓' : '○' }}</span>
                 <span>Required intake completed ({{ filledRequiredIntakeCount }}/{{ requiredIntakeFieldsCount }})</span>
               </div>
@@ -1070,9 +1449,66 @@ import RichTextEditor from '../components/common/RichTextEditor.vue'
 
 const router = useRouter()
 const auth   = useAuthStore()
-const apiBase = import.meta.env.VITE_API_BASE_URL || (typeof window !== 'undefined' && (window.location.protocol === 'https:' || (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')) ? '/api' : 'http://localhost:3001/api')
+// ─── Section Visibility & Requirement Settings (Default: All Open & Included) ─
+const sectionToggles = ref({
+  intakeFields:            true, // Section 3: Template Intake Specifications
+  groupApplicants:         true, // Section 5: Group / Team Applicants
+  commercialTerms:         true, // Section 6: Commercial Terms & Fees (Schedule Three)
+  includeScheduleThreeRte: true, // Section 6 Sub: WYSIWYG Rich Text Editor
+  includeIndividualVars:   true, // Section 6 Sub: Individual Variable Inputs
+  signatureControls:       true, // Section 7: Client Signature Controls
+})
 
-const showIndividualFields = ref(false)
+// Visual collapse state (all false = all open by default)
+const sectionCollapsed = ref({
+  settingsBar:             false,
+  intakeFields:            false,
+  groupApplicants:         false,
+  commercialTerms:         false,
+  includeScheduleThreeRte: false,
+  includeIndividualVars:   false,
+  signatureControls:       false,
+})
+
+function toggleSection(secKey) {
+  sectionToggles.value[secKey] = !sectionToggles.value[secKey]
+  if (sectionToggles.value[secKey]) {
+    sectionCollapsed.value[secKey] = false
+  }
+}
+
+function toggleCollapse(secKey) {
+  sectionCollapsed.value[secKey] = !sectionCollapsed.value[secKey]
+}
+
+function resetAllSections() {
+  sectionToggles.value = {
+    intakeFields:            true,
+    groupApplicants:         true,
+    commercialTerms:         true,
+    includeScheduleThreeRte: true,
+    includeIndividualVars:   true,
+    signatureControls:       true,
+  }
+  sectionCollapsed.value = {
+    settingsBar:             false,
+    intakeFields:            false,
+    groupApplicants:         false,
+    commercialTerms:         false,
+    includeScheduleThreeRte: false,
+    includeIndividualVars:   false,
+    signatureControls:       false,
+  }
+}
+
+const activeSectionsCount = computed(() => {
+  let count = 0
+  if (sectionToggles.value.intakeFields) count++
+  if (sectionToggles.value.groupApplicants) count++
+  if (sectionToggles.value.commercialTerms) count++
+  if (sectionToggles.value.signatureControls) count++
+  return count
+})
 
 const defaultScheduleHtml = `
 <p><strong>Total Professional Fees:</strong> 20,000 EUR</p>
@@ -1277,6 +1713,7 @@ const filledRequiredIntakeCount = computed(() => {
 })
 
 const allRequiredIntakeFilled = computed(() => {
+  if (!sectionToggles.value.intakeFields) return true
   if (requiredIntakeFieldsCount.value === 0) return true
   return filledRequiredIntakeCount.value >= requiredIntakeFieldsCount.value
 })
@@ -1683,21 +2120,58 @@ async function createContract(isDraft = false) {
     formResponses.value['phone']         = form.value.recipientPhone
     formResponses.value['contract_date'] = formResponses.value['contract_date'] || getTodayDateString()
 
+    const sectionsConfig = {
+      intakeFields:            Boolean(sectionToggles.value.intakeFields),
+      groupApplicants:         Boolean(sectionToggles.value.groupApplicants),
+      commercialTerms:         Boolean(sectionToggles.value.commercialTerms),
+      includeScheduleThreeRte: Boolean(sectionToggles.value.commercialTerms && sectionToggles.value.includeScheduleThreeRte),
+      includeIndividualVars:   Boolean(sectionToggles.value.commercialTerms && sectionToggles.value.includeIndividualVars),
+      signatureControls:       Boolean(sectionToggles.value.signatureControls),
+    }
+
+    const resolvedResponses = { ...formResponses.value }
+
+    // If commercial terms disabled, do not inject fee or schedule 3 values
+    if (!sectionsConfig.commercialTerms) {
+      resolvedResponses.schedule_three_content = ''
+      resolvedResponses.commercial_terms = ''
+      resolvedResponses.payment_breakup = ''
+      resolvedResponses.contract_value = ''
+      resolvedResponses.discounted_amount = ''
+      resolvedResponses.payment_terms = ''
+      resolvedResponses.visa_type = ''
+    } else {
+      if (!sectionsConfig.includeScheduleThreeRte) {
+        resolvedResponses.schedule_three_content = ''
+        resolvedResponses.commercial_terms = ''
+        resolvedResponses.payment_breakup = ''
+      }
+      if (!sectionsConfig.includeIndividualVars) {
+        resolvedResponses.contract_value = ''
+        resolvedResponses.discounted_amount = ''
+        resolvedResponses.payment_terms = ''
+        resolvedResponses.visa_type = ''
+      }
+    }
+
+    resolvedResponses.sectionsConfig = sectionsConfig
+
     const payload = {
       templateId:       parseInt(form.value.templateId),
       ghlContactId:     contactId,
       ghlOpportunityId: form.value.ghlOpportunityId || null,
       assignedUserId:   form.value.assignedUserId || null,
-      formMode:         form.value.formMode,
+      formMode:         sectionsConfig.groupApplicants ? form.value.formMode : 'NORMAL',
       recipientName:    form.value.recipientName,
       recipientEmail:   form.value.recipientEmail,
       recipientPhone:   form.value.recipientPhone,
-      formData:         formResponses.value,
-      teamMembers:      form.value.formMode === 'TEAM' ? teamMembers.value : [],
+      formData:         resolvedResponses,
+      teamMembers:      (sectionsConfig.groupApplicants && form.value.formMode === 'TEAM') ? teamMembers.value : [],
       validityDays:     form.value.validityDays,
       isDraft:          Boolean(isDraft),
       saveAsDraft:      Boolean(isDraft),
       autoSend:         !isDraft,
+      sectionsConfig,
       signingConfig: {
         clientSignatureRequired:  form.value.clientSignatureRequired,
         companySignatureRequired: form.value.companySignatureRequired,
@@ -3071,6 +3545,461 @@ select.form-control:focus,
   background: #f8fafc;
   border-radius: 10px;
   border: 1px solid #e2e8f0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════ */
+/* Contract Builder Settings & Requirement Sections Controls         */
+/* ═══════════════════════════════════════════════════════════════════ */
+.contract-settings-card {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+  margin-bottom: 24px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+  transition: all 0.2s ease;
+}
+
+.contract-settings-card:hover {
+  border-color: #cbd5e1;
+}
+
+.settings-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  cursor: pointer;
+  background: #ffffff;
+  border-bottom: 1px solid #f1f5f9;
+  user-select: none;
+}
+
+.settings-head-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.settings-icon {
+  font-size: 1.25rem;
+  background: #eef2ff;
+  color: #4f46e5;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.settings-title-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.settings-title {
+  font-size: 0.96rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.settings-sub {
+  font-size: 0.78rem;
+  color: #64748b;
+  margin: 2px 0 0;
+}
+
+.btn-settings-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #475569;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 20px;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-settings-pill:hover,
+.btn-settings-pill.active {
+  background: #eef2ff;
+  color: #4338ca;
+  border-color: #c7d2fe;
+}
+
+.settings-drawer {
+  padding: 16px 18px;
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.setting-item-box {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 14px;
+  transition: all 0.15s ease;
+}
+
+.setting-item-box:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+}
+
+.setting-item-box.sub-setting {
+  margin-left: 12px;
+  border-left: 3px solid #818cf8;
+  background: #fafbff;
+}
+
+.setting-item-box.disabled {
+  opacity: 0.65;
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.setting-item-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.setting-item-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: #1e293b;
+}
+
+.setting-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #94a3b8;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.setting-dot.on {
+  background: #10b981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
+}
+
+.setting-item-meta small {
+  font-size: 0.74rem;
+  color: #64748b;
+}
+
+/* Modern Toggle Switch */
+.switch-control {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.switch-control input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.switch-control .slider {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #cbd5e1;
+  transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 24px;
+}
+
+.switch-control .slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.switch-control input:checked + .slider {
+  background-color: #4f46e5;
+}
+
+.switch-control input:checked + .slider:before {
+  transform: translateX(18px);
+}
+
+.switch-control.opacity-50 {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.settings-footer-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed #e2e8f0;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.settings-hint {
+  font-size: 0.77rem;
+  color: #64748b;
+}
+
+/* Section Title Flex & Controls */
+.section-title-flex {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  width: 100%;
+}
+
+.section-title-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex: 1;
+  min-width: 240px;
+}
+
+.section-title-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.btn-toggle-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.btn-toggle-badge.included {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1.5px solid #86efac;
+}
+
+.btn-toggle-badge.included:hover {
+  background: #dcfce7;
+  border-color: #4ade80;
+}
+
+.btn-toggle-badge.included .toggle-indicator-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #16a34a;
+  box-shadow: 0 0 5px rgba(22, 163, 74, 0.5);
+}
+
+.btn-toggle-badge.omitted {
+  background: #f8fafc;
+  color: #64748b;
+  border: 1.5px dashed #cbd5e1;
+}
+
+.btn-toggle-badge.omitted:hover {
+  background: #f1f5f9;
+  color: #334155;
+  border-color: #94a3b8;
+}
+
+.btn-toggle-badge.omitted .toggle-indicator-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #94a3b8;
+}
+
+.btn-collapse-toggle {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-collapse-toggle:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+/* Omitted Notices */
+.section-omitted-card {
+  opacity: 0.9;
+  border-color: #e2e8f0;
+}
+
+.section-omitted-notice {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  background: #f8fafc;
+  border: 1.5px dashed #cbd5e1;
+  border-radius: 12px;
+  flex-wrap: wrap;
+}
+
+.omitted-notice-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.omitted-icon {
+  font-size: 1.4rem;
+  opacity: 0.8;
+}
+
+.omitted-notice-left strong {
+  display: block;
+  font-size: 0.88rem;
+  color: #334155;
+}
+
+.omitted-notice-left p {
+  margin: 2px 0 0;
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+/* Sub-section Container inside Section 6 */
+.sub-section-container {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+  background: #ffffff;
+  margin-bottom: 16px;
+  transition: all 0.15s ease;
+}
+
+.sub-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sub-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sub-header-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  background: #eef2ff;
+  color: #4f46e5;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.sub-header-title {
+  font-size: 0.94rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.sub-toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  user-select: none;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  padding: 3px 10px;
+  transition: all 0.15s ease;
+}
+
+.sub-toggle-label:hover {
+  background: #f1f5f9;
+}
+
+.sub-toggle-label input[type="checkbox"] {
+  cursor: pointer;
+  accent-color: #4f46e5;
+}
+
+.sub-box-omitted {
+  background: #f8fafc;
+  border-style: dashed;
+}
+
+.sub-omitted-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: #f1f5f9;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  color: #64748b;
+  flex-wrap: wrap;
+}
+
+.btn-settings-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 @media (max-width: 1024px) {
