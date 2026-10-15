@@ -739,9 +739,12 @@
           <!-- SCROLLABLE ZOOMABLE A4 WORKSPACE -->
           <div
             class="a4-scroll-viewport"
-            :style="{ transform: `scale(${zoomScale})`, transformOrigin: 'top center' }"
             @wheel="onCanvasWheel"
           >
+            <div
+              class="a4-zoom-stage"
+              :style="{ transform: `scale(${zoomScale})`, transformOrigin: 'top center' }"
+            >
             <!-- If raw HTML template -->
             <div v-if="documentSchema.rawHtml" class="html-canvas-view" style="position: relative;">
               <!-- Floating Row / Element Quick Action Toolbar -->
@@ -1137,6 +1140,7 @@
               </div>
             </div>
             </template>
+            </div>
           </div>
 
           <!-- BOTTOM A4 PAGE THUMBNAILS STRIP -->
@@ -1363,17 +1367,18 @@
               <span class="breadcrumb-chip" @click="scrollToHtmlPage(activePageIndex)" title="Scroll to Current Page">
                 📄 Page {{ activePageIndex + 1 }}
               </span>
-              <span class="breadcrumb-arrow">›</span>
+              <span v-if="hasSelectedRow" class="breadcrumb-arrow">›</span>
               <span
                 v-if="hasSelectedRow"
                 class="breadcrumb-chip clickable"
+                :class="{ 'current-chip': isTrSelected }"
                 @click="selectParentRow"
-                title="Select parent bilingual row (&lt;tr&gt;)"
+                title="Select parent bilingual row (<tr>)"
               >
                 &lt;tr&gt; Row
               </span>
-              <span v-if="hasSelectedRow" class="breadcrumb-arrow">›</span>
-              <span class="breadcrumb-chip current-chip">
+              <span v-if="hasSelectedRow && !isTrSelected" class="breadcrumb-arrow">›</span>
+              <span v-if="!isTrSelected" class="breadcrumb-chip current-chip">
                 &lt;{{ selectedHtmlTag }}&gt;
               </span>
             </div>
@@ -1383,12 +1388,124 @@
                 <div style="display: flex; gap: 6px; align-items: center; margin-bottom: 3px;">
                   <span class="badge badge-primary badge-sm">&lt;{{ selectedHtmlTag }}&gt;</span>
                   <span class="badge badge-neutral badge-sm">{{ selectedHtmlDir === 'rtl' ? 'Arabic (RTL)' : 'English (LTR)' }}</span>
+                  <span v-if="isTrSelected" class="badge badge-success badge-sm" style="font-weight: 700;">🌐 Bilingual Row</span>
                 </div>
                 <h3 class="inspector-title" style="font-size: 0.88rem; font-family: monospace;">
-                  {{ selectedHtmlClass ? '.' + selectedHtmlClass.split(' ')[0] : 'HTML Element' }}
+                  {{ isTrSelected ? 'Bilingual Row (TR)' : (selectedHtmlClass ? '.' + selectedHtmlClass.split(' ')[0] : 'HTML Element') }}
                 </h3>
               </div>
               <button type="button" class="btn-icon-xs text-danger" @click="clearHtmlSelection" title="Deselect">✕</button>
+            </div>
+
+            <!-- 🌐 BILINGUAL ROW TOP CONTROLS (Always visible at the top when inside a table row) -->
+            <div v-if="hasSelectedRow" class="inspector-row-top-card">
+              <div class="row-top-header">
+                <div class="row-top-title">
+                  <span class="badge" :class="isTrSelected ? 'badge-primary' : 'badge-neutral'" style="font-weight: 700; font-size: 0.72rem;">
+                    🌐 {{ isTrSelected ? 'Bilingual Row Selected' : 'In Bilingual Row' }}
+                  </span>
+                  <span class="badge badge-neutral" style="font-size: 0.68rem;">Page {{ activePageIndex + 1 }}</span>
+                </div>
+
+                <!-- Toggle between Row Selection and Text Edit -->
+                <button
+                  v-if="!isTrSelected"
+                  type="button"
+                  class="btn btn-xs btn-outline-primary"
+                  @click="selectParentRow"
+                  title="Select entire bilingual row (English & Arabic cells together)"
+                  style="font-size: 0.72rem; padding: 3px 8px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;"
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                  </svg>
+                  <span>Select Entire Row</span>
+                </button>
+                <button
+                  v-else
+                  type="button"
+                  class="btn btn-xs btn-outline-secondary"
+                  @click="editSelectedRowText"
+                  title="Switch back to editing text in this row"
+                  style="font-size: 0.72rem; padding: 3px 8px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;"
+                >
+                  <span>✏️ Edit Text</span>
+                </button>
+              </div>
+
+              <!-- Primary 1-Click Copy Row Button (prominent & always accessible at top) -->
+              <div class="row-top-btn-group" style="margin-top: 8px; display: flex; flex-direction: column; gap: 6px;">
+                <button
+                  type="button"
+                  class="btn-copy-row-primary"
+                  @click="copySelectedToClipboard"
+                  title="Copy entire bilingual row (both English and Arabic cells) to clipboard"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+                    <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+                  </svg>
+                  <span>Copy Entire Row (EN+AR)</span>
+                </button>
+
+                <!-- Row action buttons: Duplicate, Move Up, Move Down, Delete -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 38px; gap: 4px;">
+                  <button
+                    type="button"
+                    class="btn btn-xs btn-secondary"
+                    @click="duplicateSelectedRow"
+                    title="Duplicate entire row below"
+                    style="font-size: 0.72rem; padding: 4px 6px; display: inline-flex; align-items: center; justify-content: center; gap: 3px;"
+                  >
+                    <span>📑 Duplicate</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-xs btn-secondary"
+                    @click="moveSelectedRow(-1)"
+                    title="Move Row Up"
+                    style="font-size: 0.72rem; padding: 4px 6px; display: inline-flex; align-items: center; justify-content: center; gap: 3px;"
+                  >
+                    <span>⬆ Up</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-xs btn-secondary"
+                    @click="moveSelectedRow(1)"
+                    title="Move Row Down"
+                    style="font-size: 0.72rem; padding: 4px 6px; display: inline-flex; align-items: center; justify-content: center; gap: 3px;"
+                  >
+                    <span>⬇ Down</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-xs btn-danger"
+                    @click="deleteSelectedRow"
+                    title="Delete Row"
+                    style="font-size: 0.72rem; padding: 4px 6px; display: inline-flex; align-items: center; justify-content: center;"
+                  >
+                    🗑️
+                  </button>
+                </div>
+              </div>
+
+              <!-- Previews when whole TR is selected -->
+              <div v-if="isTrSelected" style="margin-top: 10px; border-top: 1px dashed #cbd5e1; padding-top: 8px;">
+                <div v-if="selectedRowInfo?.clauseNumber" style="font-size: 0.8rem; font-weight: 700; color: #1e293b; margin-bottom: 3px;">
+                  Clause {{ selectedRowInfo.clauseNumber }}
+                </div>
+                <div v-if="selectedRowInfo?.secTitle" style="font-size: 0.78rem; font-weight: 700; color: #4338ca; margin-bottom: 4px;">
+                  {{ selectedRowInfo.secTitle }}
+                </div>
+                <div v-if="selectedRowInfo?.enPreview" style="margin-top: 4px; padding: 6px 8px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 5px;">
+                  <div style="font-size: 0.65rem; font-weight: 700; color: #64748b; text-transform: uppercase;">English Cell:</div>
+                  <div style="font-size: 0.74rem; color: #1e293b; line-height: 1.35; margin-top: 2px;">{{ selectedRowInfo.enPreview }}</div>
+                </div>
+                <div v-if="selectedRowInfo?.arPreview" style="margin-top: 4px; padding: 6px 8px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 5px; direction: rtl; text-align: right;">
+                  <div style="font-size: 0.65rem; font-weight: 700; color: #64748b; text-transform: uppercase;">الجانب العربي:</div>
+                  <div style="font-size: 0.74rem; color: #1e293b; line-height: 1.35; margin-top: 2px;">{{ selectedRowInfo.arPreview }}</div>
+                </div>
+              </div>
             </div>
 
             <!-- Image & Logo Settings (when <img> is selected) -->
@@ -1627,37 +1744,6 @@
                   >
                     + &#123;&#123;{{ v }}&#125;&#125;
                   </button>
-                </div>
-              </div>
-            </template>
-
-            <!-- Bilingual Row Inspector (when whole TR is selected) -->
-            <template v-else-if="isTrSelected">
-              <div class="inspector-section" style="background: #f8fafc; border: 1.5px solid #6366f1; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-                  <span class="badge badge-primary" style="font-size: 0.72rem; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">
-                    🌐 Bilingual Row Selected
-                  </span>
-                  <button type="button" class="btn btn-sm btn-secondary" @click="editSelectedRowText" title="Edit text inside this row" style="font-size: 0.72rem; padding: 3px 8px; font-weight: 600;">
-                    ✏️ Edit Text
-                  </button>
-                </div>
-
-                <div v-if="selectedRowInfo?.clauseNumber" style="font-size: 0.8rem; font-weight: 700; color: #1e293b; margin-bottom: 4px;">
-                  Clause {{ selectedRowInfo.clauseNumber }}
-                </div>
-                <div v-if="selectedRowInfo?.secTitle" style="font-size: 0.78rem; font-weight: 700; color: #4338ca; margin-bottom: 4px;">
-                  {{ selectedRowInfo.secTitle }}
-                </div>
-
-                <div v-if="selectedRowInfo?.enPreview" style="margin-top: 6px; padding: 7px 10px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px;">
-                  <div style="font-size: 0.65rem; font-weight: 700; color: #64748b; text-transform: uppercase;">English Cell:</div>
-                  <div style="font-size: 0.74rem; color: #1e293b; line-height: 1.35; margin-top: 2px;">{{ selectedRowInfo.enPreview }}</div>
-                </div>
-
-                <div v-if="selectedRowInfo?.arPreview" style="margin-top: 6px; padding: 7px 10px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; direction: rtl; text-align: right;">
-                  <div style="font-size: 0.65rem; font-weight: 700; color: #64748b; text-transform: uppercase;">الجانب العربي:</div>
-                  <div style="font-size: 0.74rem; color: #1e293b; line-height: 1.35; margin-top: 2px;">{{ selectedRowInfo.arPreview }}</div>
                 </div>
               </div>
             </template>
@@ -3763,7 +3849,9 @@ function copySelectedToClipboard() {
     const plainText = tr
       ? `[EN]: ${clone.querySelector('.en-cell')?.textContent?.trim().replace(/\s+/g, ' ') || ''}\n[AR]: ${clone.querySelector('.ar-cell')?.textContent?.trim().replace(/\s+/g, ' ') || ''}`
       : clone.textContent?.trim() || ''
-    navigator.clipboard?.writeText(plainText || clone.outerHTML)
+    if (navigator && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      navigator.clipboard.writeText(plainText || clone.outerHTML).catch(() => {})
+    }
   } catch (_) {}
 
   if (tr) {
@@ -3824,10 +3912,18 @@ function pasteFromClipboard() {
 
   recordHistoryState(`Paste ${item.title || item.type}`)
 
-  // Parse HTML snippet safely
-  const temp = document.createElement('div')
-  temp.innerHTML = item.html.trim()
-  const newEl = temp.firstElementChild
+  // Parse HTML snippet safely (support <tr> elements by wrapping in <table><tbody>)
+  let newEl = null
+  const htmlStr = item.html.trim()
+  if (item.type === 'row' || item.tag === 'tr' || htmlStr.toLowerCase().startsWith('<tr')) {
+    const tableTemp = document.createElement('table')
+    tableTemp.innerHTML = `<tbody>${htmlStr}</tbody>`
+    newEl = tableTemp.querySelector('tr')
+  } else {
+    const temp = document.createElement('div')
+    temp.innerHTML = htmlStr
+    newEl = temp.firstElementChild
+  }
   if (!newEl) return
 
   newEl.classList.remove('studio-selected-node')
@@ -6041,6 +6137,8 @@ watch(activeTab, (newTab, oldTab) => {
   grid-template-columns: 290px 1fr 340px;
   width: 100%;
   height: 100%;
+  max-height: 100%;
+  min-height: 0;
   overflow: hidden;
   transition: grid-template-columns 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -6074,6 +6172,9 @@ watch(activeTab, (newTab, oldTab) => {
 .palette-sidebar {
   background: var(--color-bg-card);
   border-right: 1px solid var(--color-border);
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -6355,6 +6456,8 @@ watch(activeTab, (newTab, oldTab) => {
   display: flex;
   flex-direction: column;
   height: 100%;
+  max-height: 100%;
+  min-height: 0;
   overflow: hidden;
   background: #cbd5e1;
 }
@@ -6438,14 +6541,28 @@ watch(activeTab, (newTab, oldTab) => {
 
 /* Viewport for zoom & scroll */
 .a4-scroll-viewport {
-  flex: 1;
-  overflow-y: auto;
+  flex: 1 1 0%;
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
+  overflow-y: auto !important;
+  overflow-x: auto;
   padding: 30px 20px 80px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-sizing: border-box;
+  overscroll-behavior: contain;
+}
+
+.a4-zoom-stage {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 30px;
   transition: transform 0.15s ease-out;
+  transform-origin: top center;
+  width: 100%;
 }
 
 /* Fixed Discrete A4 Page Canvas */
@@ -7000,10 +7117,13 @@ watch(activeTab, (newTab, oldTab) => {
   background: var(--color-bg-card);
   border-left: 1px solid var(--color-border);
   height: 100%;
+  max-height: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  overflow: visible;
+  overflow: hidden !important;
   padding: 0;
+  box-sizing: border-box;
   transition: width 0.2s ease;
 }
 
@@ -7018,12 +7138,15 @@ watch(activeTab, (newTab, oldTab) => {
 }
 
 .inspector-scroll-container {
-  flex: 1;
-  overflow-y: auto;
+  flex: 1 1 0%;
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
+  overflow-y: auto !important;
   overflow-x: hidden;
   padding: var(--space-4);
-  height: 100%;
   box-sizing: border-box;
+  overscroll-behavior: contain;
 }
 
 /* ── Sidebar Drag Resizer Handle ── */
@@ -8004,6 +8127,83 @@ watch(activeTab, (newTab, oldTab) => {
   color: #94a3b8;
   font-size: 0.8rem;
   user-select: none;
+}
+
+/* ── Bilingual Row Top Controls Card in Inspector ── */
+.inspector-row-top-card {
+  background: #f8fafc;
+  border: 1.5px solid #6366f1;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  box-shadow: 0 1px 3px rgba(99, 102, 241, 0.08);
+}
+
+.row-top-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  gap: 6px;
+}
+
+.row-top-title {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.btn-copy-row-primary {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-weight: 700;
+  font-size: 0.8rem;
+  background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+  color: #ffffff !important;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(79, 70, 229, 0.25);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-copy-row-primary:hover {
+  background: linear-gradient(135deg, #4338ca 0%, #3730a3 100%);
+  box-shadow: 0 3px 6px rgba(79, 70, 229, 0.35);
+  transform: translateY(-1px);
+}
+
+.btn-outline-primary {
+  background: #ffffff;
+  border: 1px solid #6366f1;
+  color: #4f46e5;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.btn-outline-primary:hover {
+  background: #eef2ff;
+  border-color: #4f46e5;
+}
+
+.btn-outline-secondary {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.btn-outline-secondary:hover {
+  background: #f1f5f9;
+  color: #0f172a;
 }
 
 /* ── Layers Drawer in Sidebar ── */
