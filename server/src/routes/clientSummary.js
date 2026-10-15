@@ -809,12 +809,83 @@ router.post('/:contractId/share-operations', async (req, res) => {
       }
     }
 
+    // Ensure Signed Contract PDF is uploaded to GHL Media if not already cached
+    let signedContractUrl = (contract.ghl_file_url || '').trim();
+    if (!signedContractUrl || !signedContractUrl.startsWith('https://')) {
+      try {
+        const { getContractPdfBuffer } = require('../services/contractPdfHelper');
+        const contractPdfBuffer = await getContractPdfBuffer(contract.id, locationId);
+        const contractPdfFilename = `Signed_Contract_${contract.id}_${Date.now()}.pdf`;
+        const uploadedGhlContractUrl = await ghlService.uploadMediaFile({
+          locationId,
+          buffer: contractPdfBuffer,
+          filename: contractPdfFilename,
+          mimeType: 'application/pdf',
+          privateToken: req.ghlUser?.privateToken,
+        });
+        if (uploadedGhlContractUrl && uploadedGhlContractUrl.startsWith('https://')) {
+          signedContractUrl = uploadedGhlContractUrl;
+          contract.ghl_file_url = uploadedGhlContractUrl;
+          await db.execute(
+            'UPDATE contract_instances SET ghl_file_url = ?, updated_at = NOW() WHERE id = ?',
+            [uploadedGhlContractUrl, contract.id]
+          ).catch((e) => console.warn('[Client Summary] Could not persist ghl_file_url:', e.message));
+        }
+      } catch (contractUploadErr) {
+        console.warn('[Client Summary] On-demand signed contract PDF upload notice:', contractUploadErr.message);
+      }
+    }
+
+    // Ensure Case Package ZIP is uploaded to GHL Media if not already cached
+    if (!summaryData.package_zip_url || !summaryData.package_zip_url.startsWith('https://')) {
+      try {
+        const { compileClientPackageZip } = require('../services/clientSummaryZipService');
+        const { zipBuffer, zipFilename } = await compileClientPackageZip(contract.id, locationId);
+        const uploadedZipUrl = await ghlService.uploadMediaFile({
+          locationId,
+          buffer: zipBuffer,
+          filename: zipFilename,
+          mimeType: 'application/zip',
+          privateToken: req.ghlUser?.privateToken,
+        });
+        if (uploadedZipUrl && uploadedZipUrl.startsWith('https://')) {
+          summaryData.package_zip_url = uploadedZipUrl;
+        }
+      } catch (zipUploadErr) {
+        console.warn('[Client Summary] On-demand package ZIP upload notice:', zipUploadErr.message);
+      }
+    }
+
     // 3. Resolve Operations Webhook Settings
     const webhookUrl = (settingsService.get('OPERATIONS_WEBHOOK_URL') || process.env.OPERATIONS_WEBHOOK_URL || '').trim();
     const webhookSecret = (settingsService.get('OPERATIONS_WEBHOOK_SECRET') || process.env.OPERATIONS_WEBHOOK_SECRET || '').trim();
 
-    const appBaseUrl = settingsService.get('SIGNING_BASE_URL') || 'http://localhost:5173';
-    const apiBaseUrl = process.env.API_BASE_URL || `${appBaseUrl.replace(':5173', ':3000')}/api`;
+    // Determine reliable public HTTPS domain for secure fallbacks (must be HTTPS without credentials)
+    const hostHeader = (req.get('x-forwarded-host') || req.get('host') || '').split(':')[0].trim();
+    const isLocalhost = !hostHeader || hostHeader === 'localhost' || hostHeader === '127.0.0.1';
+    const secureDomain = isLocalhost ? 'contract.onesol.ae' : hostHeader;
+    const secureOrigin = `https://${secureDomain}`;
+    const apiBaseUrl = process.env.API_BASE_URL && process.env.API_BASE_URL.startsWith('https://')
+      ? process.env.API_BASE_URL.replace(/\/+$/, '')
+      : `${secureOrigin}/api`;
+
+    function sanitizeToHttps(urlStr, fallbackPath) {
+      if (!urlStr || typeof urlStr !== 'string' || !urlStr.trim()) {
+        return `${apiBaseUrl}${fallbackPath}`;
+      }
+      let cleaned = urlStr.trim().replace(/^(https?:\/\/)[^/@]+@/i, '$1');
+      if (cleaned.startsWith('https://')) return cleaned;
+      if (cleaned.startsWith('http://')) {
+        if (cleaned.includes('localhost') || cleaned.includes('127.0.0.1')) {
+          return `${apiBaseUrl}${fallbackPath}`;
+        }
+        return cleaned.replace(/^http:\/\//i, 'https://');
+      }
+      if (cleaned.startsWith('/')) {
+        return `${secureOrigin}${cleaned}`;
+      }
+      return `${apiBaseUrl}/${cleaned.replace(/^\/+/, '')}`;
+    }
 
     const attachments = Array.isArray(summaryData.attachments) ? summaryData.attachments : [];
 
@@ -850,16 +921,16 @@ router.post('/:contractId/share-operations', async (req, res) => {
         state: contract.state,
         signedAt: contract.signed_at,
         pdfSha256: contract.pdf_sha256,
-        ghlFileUrl: contract.ghl_file_url || null,
+        ghlFileUrl: signedContractUrl || contract.ghl_file_url || null,
       },
       documents: {
-        // Direct permanent GHL Media URLs (fallback to API download links if not yet uploaded)
-        signedContractPdfUrl: contract.ghl_file_url || `${apiBaseUrl}/contracts/${contract.id}/pdf`,
-        clientSummaryPdfUrl: summaryData.summary_pdf_url || `${apiBaseUrl}/client-summary/${contract.id}/pdf`,
-        packageZipUrl: summaryData.package_zip_url || `${apiBaseUrl}/client-summary/${contract.id}/package-zip`,
+        // Direct permanent HTTPS URLs (never http or localhost credentials)
+        signedContractPdfUrl: sanitizeToHttps(signedContractUrl, `/sign/${contract.signing_token || contract.id}/pdf`),
+        clientSummaryPdfUrl: sanitizeToHttps(summaryData.summary_pdf_url, `/client-summary/${contract.id}/pdf`),
+        packageZipUrl: sanitizeToHttps(summaryData.package_zip_url, `/client-summary/${contract.id}/package-zip`),
         attachments: attachments.map(att => ({
           name: att.name || 'Attachment',
-          url: att.url || '',
+          url: sanitizeToHttps(att.url, `/client-summary/${contract.id}/attachments`),
           mimeType: att.mimeType || 'application/octet-stream',
           sizeBytes: att.sizeBytes || 0,
           category: att.category || 'General',
