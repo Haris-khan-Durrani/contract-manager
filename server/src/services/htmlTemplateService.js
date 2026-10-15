@@ -253,13 +253,16 @@ function renderHtmlTemplate(html, css, context = {}, options = {}) {
     // Jurisdiction
     'jurisdiction': jurisdiction,
 
-    // Fees & Totals
+    // Fees & Totals (Individual Variable Inputs)
     'total_fees': totalFees,
     'fees.total_fees': totalFees,
+    'contract_value': totalFees,
+    'fees.contract_value': totalFees,
     'discounted_total': totalAfterDiscount,
     'total_after_discount': totalAfterDiscount,
     'fees.total_after_discount': totalAfterDiscount,
-    'contract_value': totalFees,
+    'discounted_amount': totalAfterDiscount,
+    'fees.discounted_amount': totalAfterDiscount,
 
     'fees.currency_text': currencyText,
     'currency': currencyText,
@@ -267,10 +270,12 @@ function renderHtmlTemplate(html, css, context = {}, options = {}) {
     'fees.payment_mode': paymentMode,
     'payment_mode': paymentMode,
     'payment_terms': paymentMode,
+    'fees.payment_terms': paymentMode,
 
     'fees.additional_information': additionalInfo,
     'additional_information': additionalInfo,
     'visa_type': additionalInfo,
+    'fees.visa_type': additionalInfo,
 
     // Schedule Three, Milestones & Commercial Terms
     'fees.payment_breakup': scheduleThreeContent,

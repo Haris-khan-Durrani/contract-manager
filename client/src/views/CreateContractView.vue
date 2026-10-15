@@ -382,7 +382,7 @@
                       v-else-if="f.type === 'textarea'"
                       v-model="formResponses[f.key]"
                       class="form-control"
-                      rows="3"
+                      :rows="f.rows || 3"
                       :placeholder="f.placeholder"
                       @input="onIntakeFieldInput(f.key, $event.target.value)"
                     ></textarea>

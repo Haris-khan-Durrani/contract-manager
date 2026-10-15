@@ -2831,22 +2831,36 @@ const importCssText = ref('')
 const importLogoUrl = ref('https://assets.cdn.filesafe.space/NJOPxsxylG8ulEPo9hX9/media/6ab2a26318891558b460bf74.png')
 
 const quickVariables = ref([
-  'applicant.full_name',
-  'applicant.passport_or_eid',
-  'applicant.nationality',
-  'applicant.mobile',
-  'applicant.address',
-  'applicant.email',
-  'applicant.date_of_birth',
-  'applicant.dependents',
+  // Individual Variable Inputs (Commercial Terms & Fees)
+  'contract_value',
+  'discounted_amount',
+  'payment_terms',
+  'visa_type',
+  'fees.total_fees',
+  'fees.total_after_discount',
+  'fees.payment_mode',
+  'fees.currency_text',
+  'fees.additional_information',
   'commercial_terms',
   'schedule_three_content',
-  'fees.total_after_discount',
-  'fees.currency_text',
-  'fees.payment_mode',
-  'fees.additional_information',
-  'fees.payment_breakup',
-  'fees.initial_amount',
+  // Applicant Details
+  'applicant.full_name',
+  'client_name',
+  'applicant.passport_or_eid',
+  'passport_number',
+  'applicant.nationality',
+  'nationality',
+  'applicant.mobile',
+  'phone',
+  'applicant.address',
+  'address',
+  'applicant.email',
+  'client_email',
+  'applicant.date_of_birth',
+  'date_of_birth',
+  'applicant.dependents',
+  'dependents',
+  // System, Jurisdiction & Signatures
   'contract.date',
   'jurisdiction',
   'logo_url',
@@ -3883,23 +3897,47 @@ const formFieldsList = computed(() => {
   return s.fields || []
 })
 
-// Combined variables list from System + Form + Contact
+// Combined variables list from System + Form + Contact + Individual Inputs
 const availableVariables = computed(() => {
   const vars = [
-    { token: 'client_name',       label: 'Client Full Name / اسم العميل', category: 'Contact', source: 'GHL Contact / Form' },
-    { token: 'passport_number',   label: 'Passport or EID No. / جواز السفر', category: 'Contact', source: 'Form / Contact' },
-    { token: 'nationality',       label: 'Nationality / الجنسية', category: 'Contact', source: 'Form / Contact' },
-    { token: 'phone',             label: 'Mobile Phone / رقم المحمول', category: 'Contact', source: 'GHL Contact' },
-    { token: 'client_email',      label: 'Email Address / البريد الإلكتروني', category: 'Contact', source: 'GHL Contact' },
-    { token: 'address',           label: 'Physical Address / العنوان', category: 'Contact', source: 'GHL Contact' },
-    { token: 'date_of_birth',     label: 'Date of Birth / تاريخ الميلاد', category: 'Contact', source: 'Form / Contact' },
-    { token: 'dependents',        label: 'Dependents / المعالون', category: 'Intake Form', source: 'Form Input' },
-    { token: 'visa_type',         label: 'Visa Program / برنامج التأشيرة', category: 'Intake Form', source: 'Form Input' },
-    { token: 'contract_value',    label: 'Total Fee / إجمالي الرسوم', category: 'Pricing', source: 'Form Input' },
-    { token: 'discounted_amount', label: 'Discounted Amount / بعد الخصم', category: 'Pricing', source: 'Form Input' },
-    { token: 'payment_terms',     label: 'Payment Mode / طريقة وسداد الدفع', category: 'Pricing', source: 'Form Input' },
-    { token: 'contract_id',       label: 'Contract ID', category: 'System', source: 'Auto-Generated' },
-    { token: 'created_date',      label: 'Effective Date', category: 'System', source: 'Auto-Generated' },
+    // ── Individual Variable Inputs (Commercial Terms & Fees) ──
+    { token: 'contract_value',    label: 'Total Professional Fees / إجمالي الرسوم المهنية', category: 'Individual Variable Inputs (Fees)', source: 'Individual Inputs / Form' },
+    { token: 'discounted_amount', label: 'Amount after Exclusive Discount / المبلغ بعد الخصم', category: 'Individual Variable Inputs (Fees)', source: 'Individual Inputs / Form' },
+    { token: 'payment_terms',     label: 'Payment Mode / Schedule / طريقة وسداد الدفع', category: 'Individual Variable Inputs (Fees)', source: 'Individual Inputs / Form' },
+    { token: 'visa_type',         label: 'Visa Program / Scope (Schedule Two) / برنامج التأشيرة', category: 'Individual Variable Inputs (Fees)', source: 'Individual Inputs / Form' },
+    { token: 'fees.total_fees',   label: 'Total Fees (HTML Engine) / إجمالي الرسوم', category: 'Individual Variable Inputs (Fees)', source: 'Individual Inputs / Form' },
+    { token: 'fees.total_after_discount', label: 'Total After Discount (HTML Engine) / بعد الخصم', category: 'Individual Variable Inputs (Fees)', source: 'Individual Inputs / Form' },
+    { token: 'fees.payment_mode', label: 'Payment Mode (HTML Engine) / طريقة وسداد الدفع', category: 'Individual Variable Inputs (Fees)', source: 'Individual Inputs / Form' },
+    { token: 'fees.currency_text', label: 'Currency / العملة المعتمدة', category: 'Individual Variable Inputs (Fees)', source: 'Fee Settings' },
+    { token: 'commercial_terms',  label: 'Commercial Terms / Schedule 3 Content', category: 'Individual Variable Inputs (Fees)', source: 'Rich Text Editor' },
+    { token: 'schedule_three_content', label: 'Schedule Three Rich Content', category: 'Individual Variable Inputs (Fees)', source: 'Rich Text Editor' },
+
+    // ── Applicant & Contact Variables ──
+    { token: 'applicant.full_name',       label: 'Applicant Full Name / اسم العميل', category: 'Contact', source: 'GHL Contact / Form' },
+    { token: 'client_name',               label: 'Client Name (Alias) / اسم العميل', category: 'Contact', source: 'GHL Contact / Form' },
+    { token: 'applicant.passport_or_eid', label: 'Passport or EID No. / جواز السفر', category: 'Contact', source: 'Form / Contact' },
+    { token: 'passport_number',           label: 'Passport Number (Alias) / رقم الجواز', category: 'Contact', source: 'Form / Contact' },
+    { token: 'applicant.nationality',     label: 'Nationality / الجنسية', category: 'Contact', source: 'Form / Contact' },
+    { token: 'nationality',               label: 'Nationality (Alias) / الجنسية', category: 'Contact', source: 'Form / Contact' },
+    { token: 'applicant.mobile',          label: 'Mobile Phone / رقم المحمول', category: 'Contact', source: 'GHL Contact' },
+    { token: 'phone',                     label: 'Phone (Alias) / رقم الهاتف', category: 'Contact', source: 'GHL Contact' },
+    { token: 'applicant.email',           label: 'Email Address / البريد الإلكتروني', category: 'Contact', source: 'GHL Contact' },
+    { token: 'client_email',              label: 'Client Email (Alias) / البريد الإلكتروني', category: 'Contact', source: 'GHL Contact' },
+    { token: 'applicant.address',         label: 'Physical Address / العنوان', category: 'Contact', source: 'GHL Contact' },
+    { token: 'address',                   label: 'Address (Alias) / العنوان', category: 'Contact', source: 'GHL Contact' },
+    { token: 'applicant.date_of_birth',   label: 'Date of Birth / تاريخ الميلاد', category: 'Contact', source: 'Form / Contact' },
+    { token: 'date_of_birth',             label: 'Date of Birth (Alias) / تاريخ الميلاد', category: 'Contact', source: 'Form / Contact' },
+    { token: 'applicant.dependents',      label: 'Dependents / المعالون', category: 'Intake Form', source: 'Form Input' },
+    { token: 'dependents',                label: 'Dependents (Alias) / المعالون', category: 'Intake Form', source: 'Form Input' },
+
+    // ── System & Legal Variables ──
+    { token: 'contract_id',       label: 'Contract ID / رقم العقد', category: 'System', source: 'Auto-Generated' },
+    { token: 'created_date',      label: 'Effective Date / تاريخ العقد', category: 'System', source: 'Auto-Generated' },
+    { token: 'contract.date',     label: 'Contract Date (Alias) / تاريخ التحرير', category: 'System', source: 'Auto-Generated' },
+    { token: 'jurisdiction',      label: 'Jurisdiction / الاختصاص القضائي', category: 'System', source: 'Settings' },
+    { token: 'signature.client',  label: 'Client Signature / توقيع العميل', category: 'Signatures', source: 'Digital Signature' },
+    { token: 'signature.company', label: 'Company Signature / توقيع الشركة', category: 'Signatures', source: 'System Assets' },
+    { token: 'company_stamp_url', label: 'Company Stamp Seal / ختم الشركة', category: 'Signatures', source: 'System Assets' },
   ]
 
   for (const f of formFieldsList.value) {
@@ -3939,19 +3977,34 @@ function getCompLabel(type) {
 function renderTokens(text) {
   if (!text) return ''
   return String(text)
-    .replace(/\{\{client_name\}\}/g, 'John Doe / محمد علي')
-    .replace(/\{\{passport_number\}\}/g, 'P12345678')
-    .replace(/\{\{nationality\}\}/g, 'British / بريطاني')
-    .replace(/\{\{phone\}\}/g, '+971 50 123 4567')
-    .replace(/\{\{client_email\}\}/g, 'client@example.com')
-    .replace(/\{\{address\}\}/g, 'Dubai, UAE')
-    .replace(/\{\{date_of_birth\}\}/g, '01 Jan 1988')
-    .replace(/\{\{dependents\}\}/g, 'Spouse + 2 Children / لا يوجد')
-    .replace(/\{\{visa_type\}\}/g, 'Portugal D7 Residency Visa')
-    .replace(/\{\{contract_value\}\}/g, '€5,000')
-    .replace(/\{\{discounted_amount\}\}/g, '€4,500')
-    .replace(/\{\{payment_terms\}\}/g, 'Bank Wire Transfer / تحويل بنكي')
+    .replace(/\{\{(?:applicant\.)?full_name\}\}/g, 'ALI KAMRAN')
+    .replace(/\{\{client_name\}\}/g, 'ALI KAMRAN')
+    .replace(/\{\{(?:applicant\.)?passport_or_eid\}\}/g, 'CQ4220892')
+    .replace(/\{\{passport_number\}\}/g, 'CQ4220892')
+    .replace(/\{\{(?:applicant\.)?nationality\}\}/g, 'PAKISTANI')
+    .replace(/\{\{(?:applicant\.)?mobile\}\}/g, '+966 54 128 1675')
+    .replace(/\{\{phone\}\}/g, '+966 54 128 1675')
+    .replace(/\{\{(?:applicant\.)?email\}\}/g, 'kamran.ali@gmail.com')
+    .replace(/\{\{client_email\}\}/g, 'kamran.ali@gmail.com')
+    .replace(/\{\{(?:applicant\.)?address\}\}/g, 'RIYADH, SAUDI ARABIA')
+    .replace(/\{\{(?:applicant\.)?date_of_birth\}\}/g, '14 APR 1991')
+    .replace(/\{\{date_of_birth\}\}/g, '14 APR 1991')
+    .replace(/\{\{(?:applicant\.)?dependents\}\}/g, 'Spouse & Kids under 18 are included.')
+    .replace(/\{\{dependents\}\}/g, 'Spouse & Kids under 18 are included.')
+    .replace(/\{\{visa_type\}\}/g, 'Cyprus Business Residence Visa')
+    .replace(/\{\{fees\.additional_information\}\}/g, 'Cyprus Business Residence Visa')
+    .replace(/\{\{contract_value\}\}/g, '20,000 EUR')
+    .replace(/\{\{fees\.total_fees\}\}/g, '20,000 EUR')
+    .replace(/\{\{discounted_amount\}\}/g, '15,000 EUR')
+    .replace(/\{\{fees\.total_after_discount\}\}/g, '15,000 EUR')
+    .replace(/\{\{payment_terms\}\}/g, '50% Upon Signing, 50% on Approval')
+    .replace(/\{\{fees\.payment_mode\}\}/g, '50% Upon Signing, 50% on Approval')
+    .replace(/\{\{fees\.currency_text\}\}/g, 'THE GREAT BRITAIN POUND (GBP)')
+    .replace(/\{\{commercial_terms\}\}/g, '50% Upon Signing, 50% on Approval')
+    .replace(/\{\{schedule_three_content\}\}/g, '50% Upon Signing, 50% on Approval')
+    .replace(/\{\{jurisdiction\}\}/g, 'Courts of Dubai International Financial Centre (DIFC)')
     .replace(/\{\{created_date\}\}/g, todayDate)
+    .replace(/\{\{contract\.date\}\}/g, todayDate)
     .replace(/\{\{contract_id\}\}/g, '#360-10042')
 }
 
@@ -4677,22 +4730,38 @@ const previewIframeSrcdoc = computed(() => {
   
   // Replace tokens with preview values
   let rendered = html
-    .replace(/\{\{applicant\.full_name\}\}/g, 'ALI KAMRAN')
-    .replace(/\{\{applicant\.passport_or_eid\}\}/g, 'CQ4220892')
-    .replace(/\{\{applicant\.nationality\}\}/g, 'PAKISTANI')
-    .replace(/\{\{applicant\.mobile\}\}/g, '+966 54 128 1675')
-    .replace(/\{\{applicant\.address\}\}/g, 'RIYADH, SAUDI ARABIA')
-    .replace(/\{\{applicant\.email\}\}/g, 'kamran.ali@gmail.com')
-    .replace(/\{\{applicant\.date_of_birth\}\}/g, '14 APR 1991')
-    .replace(/\{\{applicant\.dependents\}\}/g, 'Spouse & Kids under 18 are included.')
+    .replace(/\{\{(?:applicant\.)?full_name\}\}/g, 'ALI KAMRAN')
+    .replace(/\{\{client_name\}\}/g, 'ALI KAMRAN')
+    .replace(/\{\{(?:applicant\.)?passport_or_eid\}\}/g, 'CQ4220892')
+    .replace(/\{\{passport_number\}\}/g, 'CQ4220892')
+    .replace(/\{\{(?:applicant\.)?nationality\}\}/g, 'PAKISTANI')
+    .replace(/\{\{nationality\}\}/g, 'PAKISTANI')
+    .replace(/\{\{(?:applicant\.)?mobile\}\}/g, '+966 54 128 1675')
+    .replace(/\{\{phone\}\}/g, '+966 54 128 1675')
+    .replace(/\{\{(?:applicant\.)?address\}\}/g, 'RIYADH, SAUDI ARABIA')
+    .replace(/\{\{address\}\}/g, 'RIYADH, SAUDI ARABIA')
+    .replace(/\{\{(?:applicant\.)?email\}\}/g, 'kamran.ali@gmail.com')
+    .replace(/\{\{client_email\}\}/g, 'kamran.ali@gmail.com')
+    .replace(/\{\{(?:applicant\.)?date_of_birth\}\}/g, '14 APR 1991')
+    .replace(/\{\{date_of_birth\}\}/g, '14 APR 1991')
+    .replace(/\{\{(?:applicant\.)?dependents\}\}/g, 'Spouse & Kids under 18 are included.')
+    .replace(/\{\{dependents\}\}/g, 'Spouse & Kids under 18 are included.')
     .replace(/\{\{jurisdiction\}\}/g, 'Courts of Dubai International Financial Centre (DIFC)')
-    .replace(/\{\{fees\.total_after_discount\}\}/g, '£15,000 GBP')
+    .replace(/\{\{contract_value\}\}/g, '20,000 EUR')
+    .replace(/\{\{fees\.total_fees\}\}/g, '20,000 EUR')
+    .replace(/\{\{discounted_amount\}\}/g, '15,000 EUR')
+    .replace(/\{\{fees\.total_after_discount\}\}/g, '15,000 EUR')
     .replace(/\{\{fees\.currency_text\}\}/g, 'THE GREAT BRITAIN POUND (GBP)')
-    .replace(/\{\{fees\.payment_mode\}\}/g, '50% Initial, 50% on approval')
-    .replace(/\{\{fees\.additional_information\}\}/g, 'Cyprus Business Residence Advisory')
-    .replace(/\{\{fees\.payment_breakup\}\}/g, 'Initial Deposit upon signing, balance upon milestone')
-    .replace(/\{\{fees\.initial_amount\}\}/g, '£7,500 GBP')
+    .replace(/\{\{payment_terms\}\}/g, '50% Upon Signing, 50% on Approval')
+    .replace(/\{\{fees\.payment_mode\}\}/g, '50% Upon Signing, 50% on Approval')
+    .replace(/\{\{visa_type\}\}/g, 'Cyprus Business Residence Visa')
+    .replace(/\{\{fees\.additional_information\}\}/g, 'Cyprus Business Residence Visa')
+    .replace(/\{\{commercial_terms\}\}/g, '50% Upon Signing, 50% on Approval')
+    .replace(/\{\{schedule_three_content\}\}/g, '50% Upon Signing, 50% on Approval')
+    .replace(/\{\{fees\.payment_breakup\}\}/g, '50% Upon Signing, 50% on Approval')
+    .replace(/\{\{fees\.initial_amount\}\}/g, '15,000 EUR')
     .replace(/\{\{contract\.date\}\}/g, new Date().toLocaleDateString('en-GB'))
+    .replace(/\{\{created_date\}\}/g, new Date().toLocaleDateString('en-GB'))
     .replace(/src=["'](?:assets\/)?logo-left\.png["']/gi, 'src="https://assets.cdn.filesafe.space/NJOPxsxylG8ulEPo9hX9/media/6ab2a26318891558b460bf74.png"')
     .replace(/src=["'](?:assets\/)?logo-right\.png["']/gi, 'src="https://assets.cdn.filesafe.space/NJOPxsxylG8ulEPo9hX9/media/6ab2a26318891558b460bf74.png"')
 

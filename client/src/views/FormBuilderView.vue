@@ -276,7 +276,7 @@
                       <textarea
                         v-else-if="field.type === 'textarea'"
                         class="mock-input"
-                        rows="2"
+                        :rows="field.rows || 3"
                         :placeholder="field.placeholder || `Enter ${field.label}...`"
                         disabled
                       ></textarea>
@@ -353,11 +353,54 @@
                 <h3 class="inspector-title">Field Settings</h3>
                 <span class="text-muted" style="font-size: 0.72rem;">Key: <code>{{ selectedField.key }}</code></span>
               </div>
-              <span class="badge badge-primary">{{ selectedField.type }}</span>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <button
+                  type="button"
+                  class="btn-toggle-type"
+                  :class="{ active: selectedField.type === 'textarea' }"
+                  @click="toggleFieldTextarea(selectedField)"
+                  :title="selectedField.type === 'textarea' ? 'Convert back to Short Text' : 'Convert to Textarea (multi-line)'"
+                >
+                  <span v-if="selectedField.type === 'textarea'">🔤 Switch to Text</span>
+                  <span v-else>📄 Convert to Textarea</span>
+                </button>
+                <span class="badge badge-primary">{{ selectedField.type }}</span>
+              </div>
             </div>
 
             <!-- General Config -->
             <div class="inspector-section">
+              <!-- Field Type Selector / Converter -->
+              <div class="form-group">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                  <label class="form-label" style="margin-bottom: 0;">Field Type / Input Format</label>
+                  <span class="badge badge-neutral" style="font-size: 0.65rem;">Convertible</span>
+                </div>
+                <select
+                  v-model="selectedField.type"
+                  class="form-control"
+                  @change="onFieldTypeChange(selectedField)"
+                >
+                  <option v-for="ft in fieldTypes" :key="ft.type" :value="ft.type">
+                    {{ ft.icon }} {{ ft.label }} ({{ ft.type }})
+                  </option>
+                </select>
+                <small class="text-muted">Easily switch to <strong>Paragraph / Long (textarea)</strong> or any other type.</small>
+              </div>
+
+              <!-- Textarea specific options: rows / height -->
+              <div class="form-group" v-if="selectedField.type === 'textarea'">
+                <label class="form-label">Textarea Visible Lines (Rows)</label>
+                <select v-model="selectedField.rows" class="form-control" @change="saveStatus = 'unsaved'">
+                  <option :value="2">2 Lines (Compact)</option>
+                  <option :value="3">3 Lines (Standard Paragraph)</option>
+                  <option :value="4">4 Lines (Detailed Notes)</option>
+                  <option :value="6">6 Lines (Large Text Box)</option>
+                  <option :value="8">8 Lines (Extensive Description)</option>
+                </select>
+                <small class="text-muted">Controls default box height in forms and client intake.</small>
+              </div>
+
               <div class="form-group">
                 <label class="form-label">Field Label <span class="req">*</span></label>
                 <input
@@ -381,7 +424,15 @@
 
               <div class="form-group" v-if="!['checkbox', 'heading', 'divider', 'file'].includes(selectedField.type)">
                 <label class="form-label">Placeholder Text</label>
+                <textarea
+                  v-if="selectedField.type === 'textarea'"
+                  v-model="selectedField.placeholder"
+                  class="form-control"
+                  rows="2"
+                  placeholder="e.g. Enter detailed background or notes..."
+                ></textarea>
                 <input
+                  v-else
                   type="text"
                   v-model="selectedField.placeholder"
                   class="form-control"
@@ -390,12 +441,12 @@
 
               <div class="form-group">
                 <label class="form-label">Help / Instruction Text</label>
-                <input
-                  type="text"
+                <textarea
                   v-model="selectedField.helpText"
                   class="form-control"
-                  placeholder="Shown below input"
-                />
+                  rows="2"
+                  placeholder="Shown below input (multi-line guidance)"
+                ></textarea>
               </div>
 
               <div class="form-row-2">
@@ -698,7 +749,7 @@
                       v-else-if="f.type === 'textarea'"
                       v-model="previewValues[f.key]"
                       class="form-control"
-                      rows="3"
+                      :rows="f.rows || 3"
                       :placeholder="f.placeholder"
                       :required="f.required"
                     ></textarea>
@@ -1348,6 +1399,34 @@ function onLabelChange() {
   if (cleanKey && (!selectedField.value.key || selectedField.value.key.startsWith('applicant.field_') || selectedField.value.key.startsWith('field_'))) {
     selectedField.value.key = selectedSection.value?.isRepeater ? cleanKey : `applicant.${cleanKey}`
   }
+}
+
+function onFieldTypeChange(field) {
+  if (!field) return
+  if (field.type === 'textarea') {
+    if (!field.rows) field.rows = 3
+    if (!field.width || field.width === 'half') field.width = 'full'
+  } else if (['dropdown', 'radio', 'multiselect', 'checkbox_group'].includes(field.type)) {
+    if (!field.options || !field.options.length) {
+      field.options = [
+        { label: 'Option 1', value: 'Option 1' },
+        { label: 'Option 2', value: 'Option 2' },
+      ]
+    }
+  }
+  saveStatus.value = 'unsaved'
+}
+
+function toggleFieldTextarea(field) {
+  if (!field) return
+  if (field.type === 'textarea') {
+    field.type = 'text'
+  } else {
+    field.type = 'textarea'
+    if (!field.rows) field.rows = 3
+    if (!field.width || field.width === 'half') field.width = 'full'
+  }
+  saveStatus.value = 'unsaved'
 }
 
 function addOption() {
@@ -2093,6 +2172,33 @@ onMounted(() => {
   font-size: 0.95rem;
   font-weight: 700;
   color: var(--color-text-base);
+}
+
+.btn-toggle-type {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-toggle-type:hover {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.btn-toggle-type.active {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1d4ed8;
 }
 
 .section-subtitle {
