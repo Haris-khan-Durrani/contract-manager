@@ -187,6 +187,61 @@ router.put('/:id', requirePermission('form:edit'), async (req, res) => {
   }
 });
 
+// ─── POST /api/forms/:id/duplicate — Duplicate form ───────────────────────────
+router.post('/:id/duplicate', requirePermission('form:create'), async (req, res) => {
+  try {
+    const { locationId, userId } = req.ghlUser;
+    const formId = req.params.id;
+    const { name: customName } = req.body || {};
+
+    const [rows] = await db.execute(
+      `SELECT * FROM contract_forms 
+       WHERE id = ? 
+         AND (location_id = ? OR location_id = 'loc_default_001' OR location_id = 'GLOBAL' OR LOWER(location_id) = LOWER(?))`,
+      [formId, locationId, locationId]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ error: 'Form not found.' });
+    }
+
+    const source = rows[0];
+    const newName = (customName && customName.trim()) || `${source.name} (Copy)`;
+
+    let schemaJson = source.schema_json;
+    if (typeof schemaJson === 'object' && schemaJson !== null) {
+      schemaJson = JSON.stringify(schemaJson);
+    }
+    let settingsJson = source.settings_json;
+    if (typeof settingsJson === 'object' && settingsJson !== null) {
+      settingsJson = JSON.stringify(settingsJson);
+    }
+
+    const [result] = await db.execute(
+      `INSERT INTO contract_forms (location_id, name, description, form_mode, settings_json, schema_json, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        locationId,
+        newName,
+        source.description || '',
+        source.form_mode || 'NORMAL',
+        settingsJson,
+        schemaJson,
+        userId,
+      ]
+    );
+
+    res.status(201).json({
+      formId: result.insertId,
+      name: newName,
+      message: 'Form duplicated successfully.',
+    });
+  } catch (err) {
+    console.error('[Forms] Duplicate error:', err.message);
+    res.status(500).json({ error: 'Failed to duplicate form.' });
+  }
+});
+
 // ─── POST /api/forms/:id/submit — Submit form response ────────────────────────
 router.post('/:id/submit', async (req, res) => {
   try {

@@ -88,6 +88,20 @@
           Saving…
         </span>
 
+        <button
+          type="button"
+          class="btn btn-secondary btn-sm"
+          @click="duplicateCurrentForm"
+          :disabled="saving"
+          title="Duplicate this entire form into a new copy"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+          </svg>
+          Duplicate Form
+        </button>
+
         <button class="btn btn-primary btn-sm" @click="saveForm" :disabled="saving">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
@@ -208,6 +222,12 @@
                     >▼</button>
                     <button
                       type="button"
+                      class="btn-tool-xs"
+                      @click.stop="duplicateSection(sec.id)"
+                      title="Duplicate Section & Fields"
+                    >📋</button>
+                    <button
+                      type="button"
                       class="btn-tool-xs btn-danger"
                       @click.stop="deleteSection(sec.id)"
                       title="Delete section"
@@ -301,8 +321,15 @@
                         >▼</button>
                         <button
                           type="button"
+                          class="btn-tool-mini"
+                          @click.stop="duplicateField(sec.id, field)"
+                          title="Duplicate Field"
+                        >📋</button>
+                        <button
+                          type="button"
                           class="btn-tool-mini btn-danger"
                           @click.stop="deleteField(sec.id, field.id)"
+                          title="Delete Field"
                         >✕</button>
                       </div>
                     </div>
@@ -518,6 +545,27 @@
                   + Add Another Condition
                 </button>
               </div>
+
+              <!-- Inspector Field Action Buttons -->
+              <div class="form-group" style="border-top: 1px solid var(--color-border); padding-top: var(--space-4); display: flex; gap: var(--space-2); margin-top: var(--space-4);">
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-sm"
+                  style="flex: 1;"
+                  @click="duplicateField(selectedSectionId, selectedField)"
+                  title="Duplicate this field"
+                >
+                  📋 Duplicate Field
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-danger btn-sm"
+                  @click="deleteField(selectedSectionId, selectedField.id)"
+                  title="Delete this field"
+                >
+                  ✕ Delete
+                </button>
+              </div>
             </div>
           </div>
 
@@ -559,6 +607,27 @@
                   <label class="form-label">Add Button Text</label>
                   <input type="text" v-model="selectedSection.addButtonText" class="form-control" placeholder="e.g. + Add Another Person" />
                 </div>
+              </div>
+
+              <!-- Inspector Section Action Buttons -->
+              <div class="form-group" style="border-top: 1px solid var(--color-border); padding-top: var(--space-4); display: flex; gap: var(--space-2); margin-top: var(--space-4);">
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-sm"
+                  style="flex: 1;"
+                  @click="duplicateSection(selectedSection.id)"
+                  title="Duplicate this section and all its fields"
+                >
+                  📋 Duplicate Section
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-danger btn-sm"
+                  @click="deleteSection(selectedSection.id)"
+                  title="Delete section"
+                >
+                  ✕ Delete
+                </button>
               </div>
             </div>
           </div>
@@ -991,11 +1060,13 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
+import Swal from 'sweetalert2'
 import { useAuthStore } from '../stores/auth'
 
 const route = useRoute()
+const router = useRouter()
 const auth  = useAuthStore()
 const formId = route.params.id
 
@@ -1156,6 +1227,39 @@ function deleteSection(id) {
   }
 }
 
+function duplicateSection(secId) {
+  const sIdx = sections.value.findIndex(s => s.id === secId)
+  if (sIdx === -1) return
+  const sec = sections.value[sIdx]
+
+  const cloned = JSON.parse(JSON.stringify(sec))
+  const secUid = Date.now().toString(36)
+  cloned.id = `sec_${secUid}`
+  cloned.title = `${cloned.title || 'Section'} (Copy)`
+
+  if (cloned.isRepeater && cloned.repeaterKey) {
+    cloned.repeaterKey = `${cloned.repeaterKey}_copy`
+  }
+
+  if (Array.isArray(cloned.fields)) {
+    cloned.fields = cloned.fields.map(f => {
+      const fUid = Date.now().toString(36) + Math.random().toString(36).substring(2, 5)
+      return {
+        ...f,
+        id: `f_${fUid}`,
+        key: f.key ? `${f.key}_copy` : `field_${f.type}_${fUid}`,
+      }
+    })
+  }
+
+  sections.value.splice(sIdx + 1, 0, cloned)
+  selectedSectionId.value = cloned.id
+  if (cloned.fields && cloned.fields.length > 0) {
+    selectedFieldId.value = cloned.fields[0].id
+  }
+  saveStatus.value = 'unsaved'
+}
+
 function moveSection(index, delta) {
   const target = index + delta
   if (target < 0 || target >= sections.value.length) return
@@ -1203,6 +1307,29 @@ function deleteField(secId, fieldId) {
   if (selectedFieldId.value === fieldId) {
     selectedFieldId.value = s.fields[0]?.id || null
   }
+}
+
+function duplicateField(secId, field) {
+  const s = sections.value.find(s => s.id === secId)
+  if (!s || !s.fields) return
+  const fIdx = s.fields.findIndex(f => f.id === field.id)
+  if (fIdx === -1) return
+
+  const cloned = JSON.parse(JSON.stringify(field))
+  const uid = Date.now().toString(36) + Math.random().toString(36).substring(2, 5)
+  cloned.id = `f_${uid}`
+  cloned.label = `${cloned.label || 'Field'} (Copy)`
+
+  if (cloned.key) {
+    cloned.key = `${cloned.key}_copy`
+  } else {
+    cloned.key = `field_${cloned.type}_${uid}`
+  }
+
+  s.fields.splice(fIdx + 1, 0, cloned)
+  selectedSectionId.value = secId
+  selectedFieldId.value = cloned.id
+  saveStatus.value = 'unsaved'
 }
 
 function moveField(secId, index, delta) {
@@ -1429,6 +1556,57 @@ async function saveForm() {
     saveStatus.value = ''
   } finally {
     saving.value = false
+  }
+}
+
+async function duplicateCurrentForm() {
+  const { value: newName } = await Swal.fire({
+    title: 'Duplicate Form',
+    text: 'Enter a name for the duplicated form copy:',
+    input: 'text',
+    inputValue: `${formName.value} (Copy)`,
+    showCancelButton: true,
+    confirmButtonText: 'Duplicate',
+    cancelButtonText: 'Cancel',
+    confirmButtonColor: '#4f46e5',
+    inputValidator: (val) => {
+      if (!val || !val.trim()) return 'Form name is required!'
+    }
+  })
+
+  if (!newName) return
+
+  try {
+    // Save current changes first so latest changes are preserved in the duplicate
+    await saveForm()
+
+    const res = await axios.post(
+      `${apiBase}/forms/${formId}/duplicate`,
+      { name: newName.trim() },
+      { headers: getHeaders() }
+    )
+
+    const result = await Swal.fire({
+      title: 'Form Duplicated!',
+      text: `"${newName.trim()}" created successfully. Would you like to switch to editing it?`,
+      icon: 'success',
+      showCancelButton: true,
+      confirmButtonText: 'Open Duplicated Form',
+      cancelButtonText: 'Stay on Current Form',
+      confirmButtonColor: '#4f46e5',
+    })
+
+    if (result.isConfirmed && res.data?.formId) {
+      router.push(`/forms/${res.data.formId}/builder`)
+    }
+  } catch (err) {
+    console.error('Failed to duplicate form:', err)
+    Swal.fire({
+      title: 'Error',
+      text: err.response?.data?.error || 'Failed to duplicate form.',
+      icon: 'error',
+      confirmButtonColor: '#4f46e5',
+    })
   }
 }
 

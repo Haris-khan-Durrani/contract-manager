@@ -99,6 +99,17 @@
             <div class="footer-actions">
               <button
                 type="button"
+                class="btn-action-mini"
+                @click.stop="duplicateForm(form)"
+                title="Duplicate Form"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+              </button>
+              <button
+                type="button"
                 class="btn-delete-mini"
                 @click.stop="deleteForm(form)"
                 title="Delete Form"
@@ -183,6 +194,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
+import Swal from 'sweetalert2'
 import { useAuthStore } from '../stores/auth'
 
 const router = useRouter()
@@ -397,6 +409,58 @@ async function createForm() {
   }
 }
 
+async function duplicateForm(form) {
+  const { value: formName } = await Swal.fire({
+    title: 'Duplicate Form',
+    text: `Enter a name for the duplicated copy of "${form.name}":`,
+    input: 'text',
+    inputValue: `${form.name} (Copy)`,
+    showCancelButton: true,
+    confirmButtonText: 'Duplicate',
+    cancelButtonText: 'Cancel',
+    confirmButtonColor: '#4f46e5',
+    inputValidator: (value) => {
+      if (!value || !value.trim()) {
+        return 'Form name is required!'
+      }
+    }
+  })
+
+  if (!formName) return
+
+  try {
+    const res = await axios.post(
+      `${apiBase}/forms/${form.id}/duplicate`,
+      { name: formName.trim() },
+      { headers: getHeaders() }
+    )
+
+    await fetchForms()
+
+    const result = await Swal.fire({
+      title: 'Form Duplicated!',
+      text: `"${formName.trim()}" has been successfully created.`,
+      icon: 'success',
+      showCancelButton: true,
+      confirmButtonText: 'Open in Builder',
+      cancelButtonText: 'Close',
+      confirmButtonColor: '#4f46e5',
+    })
+
+    if (result.isConfirmed && res.data?.formId) {
+      router.push(`/forms/${res.data.formId}/builder`)
+    }
+  } catch (err) {
+    console.error('Failed to duplicate form:', err)
+    Swal.fire({
+      title: 'Error',
+      text: err.response?.data?.error || 'Failed to duplicate form.',
+      icon: 'error',
+      confirmButtonColor: '#4f46e5',
+    })
+  }
+}
+
 async function deleteForm(form) {
   if (!confirm(`Are you sure you want to delete form "${form.name}"?`)) return
   try {
@@ -533,6 +597,26 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.btn-action-mini {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  padding: 3px 5px;
+  border-radius: 4px;
+  opacity: 0.6;
+  transition: all 0.15s;
+}
+
+.btn-action-mini:hover {
+  opacity: 1;
+  color: var(--color-primary-light);
+  background: rgba(79, 70, 229, 0.1);
 }
 
 .btn-delete-mini {
