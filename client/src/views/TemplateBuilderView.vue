@@ -117,6 +117,20 @@
             </svg>
             <span>Versions</span>
           </button>
+
+          <button
+            type="button"
+            class="tab-btn"
+            :class="{ active: activeTab === 'settings' }"
+            @click="activeTab = 'settings'"
+            title="Contract Requirement & Section Settings"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+            <span>Contract Settings</span>
+          </button>
         </div>
       </div>
 
@@ -2222,6 +2236,147 @@
 
         </div>
       </div>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- TAB 6: CONTRACT BUILDER SETTINGS & REQUIREMENT SECTIONS             -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <div v-show="activeTab === 'settings'" class="tab-pane-container contract-settings-tab animate-fade-in">
+        <div class="settings-view-wrapper">
+          <!-- TOP HEADER BANNER -->
+          <div class="versions-header-card glass-card">
+            <div class="versions-header-left">
+              <div class="versions-badge-row">
+                <span class="badge badge-primary badge-sm">Template Blueprint Requirement Settings</span>
+                <span class="badge badge-success badge-sm">{{ activeTemplateSectionsCount }}/4 Optional Sections Active</span>
+              </div>
+              <h2 class="versions-header-title">Contract Builder Settings &amp; Requirement Sections</h2>
+              <p class="versions-header-desc">
+                Customize which requirement sections and schedules are included when staff create a contract with this template.
+                All sections are enabled and open by default. Disabled sections are automatically omitted from the contract creation page.
+              </p>
+            </div>
+            <div class="versions-header-actions">
+              <button type="button" class="btn btn-primary btn-publish-version" @click="saveTemplate(false)" :disabled="saving">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                  <polyline points="17 21 17 13 7 13 7 21"/>
+                </svg>
+                <span>{{ saving ? 'Saving…' : 'Save Settings' }}</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- SETTINGS MATRIX CARD -->
+          <div class="glass-card panel-card settings-panel-box">
+            <div class="settings-grid">
+              <!-- Setting 1: Section 3 Intake Specifications -->
+              <div class="setting-item-box" :class="{ disabled: !templateSectionSettings.intakeFields }">
+                <div class="setting-item-meta">
+                  <div class="setting-item-title-row">
+                    <span class="setting-dot" :class="{ on: templateSectionSettings.intakeFields }"></span>
+                    <strong>3. Intake Specifications</strong>
+                  </div>
+                  <small>Dynamic questions &amp; template criteria</small>
+                </div>
+                <label class="switch-control" title="Toggle Intake Specifications section">
+                  <input type="checkbox" v-model="templateSectionSettings.intakeFields" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+
+              <!-- Setting 2: Section 5 Group / Team Applicants -->
+              <div class="setting-item-box" :class="{ disabled: !templateSectionSettings.groupApplicants }">
+                <div class="setting-item-meta">
+                  <div class="setting-item-title-row">
+                    <span class="setting-dot" :class="{ on: templateSectionSettings.groupApplicants }"></span>
+                    <strong>5. Group Applicants</strong>
+                  </div>
+                  <small>Additional dependents &amp; applicants repeater</small>
+                </div>
+                <label class="switch-control" title="Toggle Group Applicants section">
+                  <input type="checkbox" v-model="templateSectionSettings.groupApplicants" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+
+              <!-- Setting 3: Section 6 Commercial Terms & Fees (Schedule Three) -->
+              <div class="setting-item-box" :class="{ disabled: !templateSectionSettings.commercialTerms }">
+                <div class="setting-item-meta">
+                  <div class="setting-item-title-row">
+                    <span class="setting-dot" :class="{ on: templateSectionSettings.commercialTerms }"></span>
+                    <strong>6. Commercial Terms &amp; Fees</strong>
+                  </div>
+                  <small>Schedule Three terms, presets &amp; fee variables</small>
+                </div>
+                <label class="switch-control" title="Toggle Section 6 Commercial Terms & Fees">
+                  <input type="checkbox" v-model="templateSectionSettings.commercialTerms" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+
+              <!-- Setting 4: Rich Text Editor Sub-box -->
+              <div class="setting-item-box sub-setting" :class="{ disabled: !templateSectionSettings.commercialTerms || !templateSectionSettings.includeScheduleThreeRte }">
+                <div class="setting-item-meta">
+                  <div class="setting-item-title-row">
+                    <span class="setting-dot" :class="{ on: templateSectionSettings.commercialTerms && templateSectionSettings.includeScheduleThreeRte }"></span>
+                    <strong>└ Rich Text Editor (Schedule 3)</strong>
+                  </div>
+                  <small>Visual WYSIWYG milestone editor &amp; presets</small>
+                </div>
+                <label class="switch-control" title="Toggle Rich Text Editor" :class="{ 'opacity-50': !templateSectionSettings.commercialTerms }">
+                  <input type="checkbox" v-model="templateSectionSettings.includeScheduleThreeRte" :disabled="!templateSectionSettings.commercialTerms" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+
+              <!-- Setting 5: Individual Variable Inputs Sub-box -->
+              <div class="setting-item-box sub-setting" :class="{ disabled: !templateSectionSettings.commercialTerms || !templateSectionSettings.includeIndividualVars }">
+                <div class="setting-item-meta">
+                  <div class="setting-item-title-row">
+                    <span class="setting-dot" :class="{ on: templateSectionSettings.commercialTerms && templateSectionSettings.includeIndividualVars }"></span>
+                    <strong>└ Individual Variable Inputs</strong>
+                  </div>
+                  <small>Fees, discount, payment schedule, visa scope</small>
+                </div>
+                <label class="switch-control" title="Toggle Individual Variable Inputs" :class="{ 'opacity-50': !templateSectionSettings.commercialTerms }">
+                  <input type="checkbox" v-model="templateSectionSettings.includeIndividualVars" :disabled="!templateSectionSettings.commercialTerms" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+
+              <!-- Setting 6: Section 7 Signature Controls -->
+              <div class="setting-item-box" :class="{ disabled: !templateSectionSettings.signatureControls }">
+                <div class="setting-item-meta">
+                  <div class="setting-item-title-row">
+                    <span class="setting-dot" :class="{ on: templateSectionSettings.signatureControls }"></span>
+                    <strong>7. Signature Controls</strong>
+                  </div>
+                  <small>Draw, Type, Upload signing permissions</small>
+                </div>
+                <label class="switch-control" title="Toggle Signature Controls section">
+                  <input type="checkbox" v-model="templateSectionSettings.signatureControls" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Footer info and reset button -->
+            <div class="settings-footer-row" style="margin-top: 24px;">
+              <span class="settings-hint">
+                💡 Disabled sections are omitted from the generated contract and will not block creation.
+              </span>
+              <div style="display: flex; gap: 10px; align-items: center;">
+                <button type="button" class="btn btn-sm btn-secondary" @click="resetTemplateSections">
+                  Reset to Default (All Open)
+                </button>
+                <button type="button" class="btn btn-sm btn-primary" @click="saveTemplate(false)" :disabled="saving">
+                  {{ saving ? 'Saving…' : 'Save Changes' }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- PUBLISH VERSION MODAL -->
@@ -2401,7 +2556,38 @@ const MAX_HISTORY = 40
 const canUndo = computed(() => undoStack.value.length > 0)
 const canRedo = computed(() => redoStack.value.length > 0)
 
-const activeTab = ref('builder') // 'builder' | 'form' | 'variables' | 'preview' | 'code' | 'versions'
+const activeTab = ref('builder') // 'builder' | 'form' | 'variables' | 'preview' | 'code' | 'versions' | 'settings'
+
+// ─── Contract Requirement & Section Settings ──────────────────────────────────
+const rawCreationRules = ref({})
+const templateSectionSettings = ref({
+  intakeFields:            true,
+  groupApplicants:         true,
+  commercialTerms:         true,
+  includeScheduleThreeRte: true,
+  includeIndividualVars:   true,
+  signatureControls:       true,
+})
+
+const activeTemplateSectionsCount = computed(() => {
+  let count = 0
+  if (templateSectionSettings.value.intakeFields) count++
+  if (templateSectionSettings.value.groupApplicants) count++
+  if (templateSectionSettings.value.commercialTerms) count++
+  if (templateSectionSettings.value.signatureControls) count++
+  return count
+})
+
+function resetTemplateSections() {
+  templateSectionSettings.value = {
+    intakeFields:            true,
+    groupApplicants:         true,
+    commercialTerms:         true,
+    includeScheduleThreeRte: true,
+    includeIndividualVars:   true,
+    signatureControls:       true,
+  }
+}
 // Studio Preferences Persistence Helpers (localStorage)
 function saveStudioPreference(key, value) {
   try {
@@ -4604,6 +4790,36 @@ async function loadTemplate() {
       addNewPage()
     }
 
+    if (t.creation_rules_json) {
+      try {
+        rawCreationRules.value = typeof t.creation_rules_json === 'string'
+          ? JSON.parse(t.creation_rules_json)
+          : t.creation_rules_json
+      } catch (_) {
+        rawCreationRules.value = {}
+      }
+    } else {
+      rawCreationRules.value = {}
+    }
+
+    const schemaObj = t.document_schema_json
+      ? (typeof t.document_schema_json === 'string' ? JSON.parse(t.document_schema_json) : t.document_schema_json)
+      : null
+
+    const savedToggles = rawCreationRules.value?.sectionToggles || schemaObj?.sectionToggles || null
+    if (savedToggles) {
+      templateSectionSettings.value = {
+        intakeFields:            savedToggles.intakeFields ?? true,
+        groupApplicants:         savedToggles.groupApplicants ?? true,
+        commercialTerms:         savedToggles.commercialTerms ?? true,
+        includeScheduleThreeRte: savedToggles.includeScheduleThreeRte ?? true,
+        includeIndividualVars:   savedToggles.includeIndividualVars ?? true,
+        signatureControls:       savedToggles.signatureControls ?? true,
+      }
+    } else {
+      resetTemplateSections()
+    }
+
     availableForms.value = fRes.data.forms || []
     if (selectedFormId.value) {
       onFormChange()
@@ -4648,6 +4864,12 @@ async function saveTemplate(incrementVersion = false, summary = '') {
       dataFields: documentSchema.value.dataFields || [],
       pages: documentSchema.value.pages || [],
       blocks: denormalizeToFlatBlocks(documentSchema.value),
+      sectionToggles: { ...templateSectionSettings.value },
+    }
+
+    const updatedCreationRules = {
+      ...(rawCreationRules.value || {}),
+      sectionToggles: { ...templateSectionSettings.value },
     }
 
     const res = await axios.put(
@@ -4659,11 +4881,14 @@ async function saveTemplate(incrementVersion = false, summary = '') {
         formId: selectedFormId.value,
         isActive: isActive.value,
         documentSchema: fullSchema,
+        creationRules: updatedCreationRules,
         incrementVersion,
-        changeSummary: summary || 'Updated fixed A4 template layout',
+        changeSummary: summary || 'Updated template configuration and requirement sections',
       },
       { headers: getHeaders() }
     )
+
+    rawCreationRules.value = updatedCreationRules
 
     if (incrementVersion && res.data.version) {
       currentVersion.value = res.data.version
@@ -7994,6 +8219,166 @@ watch(activeTab, (newTab, oldTab) => {
   color: #64748b;
   max-width: 440px;
   margin: 0 auto 18px auto;
+}
+
+/* ═══════════════════════════════════════════════════════════════════ */
+/* CONTRACT SETTINGS TAB STYLES                                       */
+/* ═══════════════════════════════════════════════════════════════════ */
+.contract-settings-tab {
+  background: #f8fafc;
+  padding: 28px 36px 64px;
+}
+
+.settings-view-wrapper {
+  max-width: 1040px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.settings-panel-box {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+}
+
+.setting-item-box {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px 16px;
+  transition: all 0.15s ease;
+}
+
+.setting-item-box:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.setting-item-box.sub-setting {
+  margin-left: 12px;
+  border-left: 3px solid #818cf8;
+  background: #fafbff;
+}
+
+.setting-item-box.disabled {
+  opacity: 0.65;
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.setting-item-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.setting-item-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: #1e293b;
+}
+
+.setting-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #94a3b8;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.setting-dot.on {
+  background: #10b981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
+}
+
+.setting-item-meta small {
+  font-size: 0.76rem;
+  color: #64748b;
+}
+
+/* Modern Toggle Switch */
+.switch-control {
+  position: relative;
+  display: inline-block;
+  width: 42px;
+  height: 24px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.switch-control input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.switch-control .slider {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #cbd5e1;
+  transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 24px;
+}
+
+.switch-control .slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.switch-control input:checked + .slider {
+  background-color: #4f46e5;
+}
+
+.switch-control input:checked + .slider:before {
+  transform: translateX(18px);
+}
+
+.switch-control.opacity-50 {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.settings-footer-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px dashed #e2e8f0;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.settings-hint {
+  font-size: 0.8rem;
+  color: #64748b;
 }
 
 @media (max-width: 1024px) {
