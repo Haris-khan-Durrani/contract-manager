@@ -451,6 +451,19 @@
 
               <button
                 type="button"
+                class="palette-btn highlight-btn"
+                @click="insertPrebuilt('course_of_action')"
+                title="Insert bilingual Course of Action preamble"
+              >
+                <div class="btn-icon">🎯</div>
+                <div class="btn-text">
+                  <strong>Course of Action (EN/AR)</strong>
+                  <span>Bilingual application process procedure preamble</span>
+                </div>
+              </button>
+
+              <button
+                type="button"
                 class="palette-btn"
                 @click="insertPrebuilt('schedule_one')"
               >
@@ -758,6 +771,43 @@
                   <span class="float-tag-name">{{ isTrSelected ? 'Bilingual Row' : `&lt;${selectedHtmlTag}&gt;` }}</span>
                   <span v-if="hasSelectedRow && !isTrSelected" class="float-tag-sub">In Row</span>
                   <span v-else-if="isTrSelected" class="float-tag-sub" style="color: #38bdf8;">(EN + AR)</span>
+                </div>
+
+                <!-- Applicant Quick Fields Dropdown Button on Floating Toolbar -->
+                <div v-if="isApplicantTableSelected" class="float-dropdown-wrapper">
+                  <button
+                    type="button"
+                    class="float-btn float-btn-applicant"
+                    @click="showApplicantFieldsMenu = !showApplicantFieldsMenu"
+                    title="Quick add or toggle applicant fields (Name, Mobile, Address, Email, etc.) in English & Arabic"
+                  >
+                    <span>👤 Quick Fields ▾</span>
+                  </button>
+                  <div v-if="showApplicantFieldsMenu" class="float-dropdown-menu" @click.stop>
+                    <div class="dropdown-header">Applicant Fields (EN + AR)</div>
+                    <button
+                      v-for="field in applicantFieldList"
+                      :key="field.key"
+                      type="button"
+                      class="dropdown-item"
+                      :class="{ 'is-present': field.isPresent }"
+                      @click="toggleApplicantField(field)"
+                    >
+                      <span class="item-status">{{ field.isPresent ? '✓' : '+' }}</span>
+                      <span class="item-name">{{ field.labelEn }}</span>
+                      <span class="item-sub" dir="rtl">{{ field.labelAr }}</span>
+                    </button>
+                    <div class="dropdown-divider"></div>
+                    <button
+                      type="button"
+                      class="dropdown-item item-action"
+                      @click="insertCourseOfActionHeader"
+                      :disabled="isCourseOfActionPresent"
+                    >
+                      <span>🎯</span>
+                      <span>{{ isCourseOfActionPresent ? 'Course of Action Present' : 'Add Course of Action Header' }}</span>
+                    </button>
+                  </div>
                 </div>
 
                 <!-- Select Entire Bilingual Row (when child inside row is focused) -->
@@ -1395,6 +1445,144 @@
                 </h3>
               </div>
               <button type="button" class="btn-icon-xs text-danger" @click="clearHtmlSelection" title="Deselect">✕</button>
+            </div>
+
+            <!-- 👤 SCHEDULE ONE & APPLICANT FIELDS TOOLKIT CARD -->
+            <div v-if="isApplicantTableSelected" class="inspector-section inspector-applicant-card">
+              <div class="applicant-card-header">
+                <div style="display: flex; align-items: center; gap: 7px;">
+                  <span class="applicant-card-icon">👤</span>
+                  <div>
+                    <h4 class="section-subtitle" style="margin: 0; font-size: 0.85rem; color: #0f172a; font-weight: 700;">
+                      Schedule One: Applicant Details
+                    </h4>
+                    <div style="font-size: 0.7rem; color: #64748b;">
+                      1-Click Bilingual Inserter (EN + AR Synchronized)
+                    </div>
+                  </div>
+                </div>
+                <span class="badge badge-success" style="font-size: 0.68rem; font-weight: 700;">
+                  EN &amp; AR Paired
+                </span>
+              </div>
+
+              <!-- Course of Action Action Bar -->
+              <div class="applicant-action-bar" style="margin-top: 10px; padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <span style="font-size: 0.75rem; font-weight: 700; color: #334155;">
+                    🎯 Course of Action / خطة العمل
+                  </span>
+                  <span
+                    class="badge"
+                    :class="isCourseOfActionPresent ? 'badge-success' : 'badge-neutral'"
+                    style="font-size: 0.65rem;"
+                  >
+                    {{ isCourseOfActionPresent ? '✓ Present' : 'Missing' }}
+                  </span>
+                </div>
+
+                <button
+                  v-if="!isCourseOfActionPresent"
+                  type="button"
+                  class="btn btn-xs btn-primary btn-block"
+                  @click="insertCourseOfActionHeader"
+                  title="Insert bilingual Course of Action preamble directly above Schedule One"
+                  style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 5px; font-weight: 600; padding: 6px 10px;"
+                >
+                  <span>🎯</span>
+                  <span>Insert "Course of Action" Header (EN &amp; AR)</span>
+                </button>
+                <div v-else style="display: flex; gap: 6px;">
+                  <button
+                    type="button"
+                    class="btn btn-xs btn-secondary"
+                    @click="selectCourseOfActionHeader"
+                    style="flex: 1; font-size: 0.72rem; display: flex; align-items: center; justify-content: center; gap: 4px;"
+                  >
+                    <span>🔍 View / Edit</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-xs btn-danger-soft"
+                    @click="removeCourseOfActionHeader"
+                    title="Remove Course of Action section"
+                    style="font-size: 0.72rem; padding: 4px 8px;"
+                  >
+                    <span>🗑️ Remove</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Main Applicant Subheading Toggle -->
+              <div style="margin-top: 10px; display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; background: #f1f5f9; border-radius: 6px;">
+                <div>
+                  <div style="font-size: 0.75rem; font-weight: 600; color: #1e293b;">
+                    Main Applicant Subheading
+                  </div>
+                  <div style="font-size: 0.68rem; color: #64748b;" dir="rtl">
+                    المتقدم الرئيسي: / Main Applicant:
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  class="btn btn-xs"
+                  :class="hasMainApplicantSubheading ? 'btn-success' : 'btn-outline-primary'"
+                  @click="toggleMainApplicantSubheading"
+                  style="font-size: 0.72rem; padding: 3px 8px;"
+                >
+                  {{ hasMainApplicantSubheading ? '✓ Included' : '+ Add' }}
+                </button>
+              </div>
+
+              <!-- Standard Applicant Field Chips -->
+              <div class="applicant-fields-section" style="margin-top: 12px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <span style="font-size: 0.75rem; font-weight: 700; color: #334155;">
+                    Applicant Information Fields:
+                  </span>
+                  <span style="font-size: 0.68rem; color: #64748b;">
+                    Click to Add/Remove
+                  </span>
+                </div>
+
+                <div class="applicant-fields-grid">
+                  <button
+                    v-for="field in applicantFieldList"
+                    :key="field.key"
+                    type="button"
+                    class="field-pill-btn"
+                    :class="{ 'field-pill-active': field.isPresent }"
+                    @click="toggleApplicantField(field)"
+                    :title="field.isPresent ? `Click to remove ${field.labelEn} from English & Arabic` : `Click to insert ${field.labelEn} into English & Arabic`"
+                  >
+                    <div class="pill-top">
+                      <span class="pill-badge">{{ field.isPresent ? '✓' : '+' }}</span>
+                      <span class="pill-en">{{ field.labelEn.replace(':', '') }}</span>
+                    </div>
+                    <div class="pill-ar" dir="rtl">{{ field.labelAr.replace(':', '') }}</div>
+                    <div class="pill-token">{{ field.defaultToken }}</div>
+                  </button>
+                </div>
+
+                <div style="margin-top: 8px; display: flex; justify-content: space-between; gap: 6px;">
+                  <button
+                    type="button"
+                    class="btn btn-xs btn-outline-primary"
+                    @click="addAllApplicantFields"
+                    style="flex: 1; font-size: 0.7rem; padding: 4px;"
+                  >
+                    + Add All 8 Fields
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-xs btn-outline-secondary"
+                    @click="resetApplicantFieldsToStandard"
+                    style="flex: 1; font-size: 0.7rem; padding: 4px;"
+                  >
+                    Standard 6 Fields
+                  </button>
+                </div>
+              </div>
             </div>
 
             <!-- 🌐 BILINGUAL ROW TOP CONTROLS (Always visible at the top when inside a table row) -->
@@ -3330,6 +3518,490 @@ const selectedHtmlImageWidth = ref('')
 const imageFileInputRef = ref(null)
 let activeSelectedDomEl = null
 
+const showApplicantFieldsMenu = ref(false)
+const domUpdateTick = ref(0)
+
+const APPLICANT_STANDARD_FIELDS = [
+  {
+    key: 'name',
+    labelEn: 'Name:',
+    labelAr: 'الاسم:',
+    field: 'applicant.full_name',
+    defaultToken: '{{client_name}}',
+    fallbackToken: '{{applicant.full_name}}',
+    matchRegex: /name|الاسم|full_name|client_name/i,
+    isRtlNumeric: false,
+    order: 1,
+  },
+  {
+    key: 'passport_eid',
+    labelEn: 'Passport/EID No.:',
+    labelAr: 'رقم جواز السفر / الهوية:',
+    field: 'applicant.passport_or_eid',
+    defaultToken: '{{passport_eid}}',
+    fallbackToken: '{{applicant.passport_or_eid}}',
+    matchRegex: /passport|eid|جواز|الهوية|passport_number|passport_eid/i,
+    isRtlNumeric: false,
+    order: 2,
+  },
+  {
+    key: 'nationality',
+    labelEn: 'Nationality:',
+    labelAr: 'الجنسية:',
+    field: 'applicant.nationality',
+    defaultToken: '{{nationality}}',
+    fallbackToken: '{{applicant.nationality}}',
+    matchRegex: /nationality|الجنسية/i,
+    isRtlNumeric: false,
+    order: 3,
+  },
+  {
+    key: 'mobile',
+    labelEn: 'Mobile:',
+    labelAr: 'المحمول:',
+    field: 'applicant.mobile',
+    defaultToken: '{{mobile}}',
+    fallbackToken: '{{applicant.mobile}}',
+    matchRegex: /mobile|phone|المحمول|الهاتف/i,
+    isRtlNumeric: true,
+    order: 4,
+  },
+  {
+    key: 'address',
+    labelEn: 'Address:',
+    labelAr: 'العنوان:',
+    field: 'applicant.address',
+    defaultToken: '{{address}}',
+    fallbackToken: '{{applicant.address}}',
+    matchRegex: /address|العنوان/i,
+    isRtlNumeric: false,
+    order: 5,
+  },
+  {
+    key: 'email',
+    labelEn: 'Email Address:',
+    labelAr: 'عنوان البريد الإلكتروني:',
+    field: 'applicant.email',
+    defaultToken: '{{email}}',
+    fallbackToken: '{{applicant.email}}',
+    matchRegex: /email|البريد الإلكتروني|client_email/i,
+    isRtlNumeric: true,
+    order: 6,
+  },
+  {
+    key: 'dob',
+    labelEn: 'Date of Birth:',
+    labelAr: 'تاريخ الميلاد:',
+    field: 'applicant.date_of_birth',
+    defaultToken: '{{date_of_birth}}',
+    fallbackToken: '{{applicant.date_of_birth}}',
+    matchRegex: /birth|الميلاد|date_of_birth|dob/i,
+    isRtlNumeric: false,
+    order: 7,
+  },
+  {
+    key: 'dependents',
+    labelEn: 'Dependents:',
+    labelAr: 'المعالون:',
+    field: 'applicant.dependents',
+    defaultToken: '{{dependents}}',
+    fallbackToken: '{{applicant.dependents}}',
+    matchRegex: /dependent|المعالون|المعيل/i,
+    isRtlNumeric: false,
+    order: 8,
+  },
+]
+
+function getApplicantPairedContext() {
+  const canvas = document.getElementById('html-studio-canvas')
+  if (!canvas) return null
+
+  let enCell = null
+  let arCell = null
+  let outerTr = null
+
+  if (activeSelectedDomEl && canvas.contains(activeSelectedDomEl)) {
+    enCell = activeSelectedDomEl.closest('.en-cell')
+    arCell = activeSelectedDomEl.closest('.ar-cell')
+    outerTr = activeSelectedDomEl.closest('tr')
+
+    if (enCell) {
+      outerTr = outerTr || enCell.closest('tr')
+      arCell = outerTr?.querySelector('.ar-cell') || enCell.parentElement?.querySelector('.ar-cell')
+    } else if (arCell) {
+      outerTr = outerTr || arCell.closest('tr')
+      enCell = outerTr?.querySelector('.en-cell') || arCell.parentElement?.querySelector('.en-cell')
+    } else if (outerTr) {
+      enCell = outerTr.querySelector('.en-cell')
+      arCell = outerTr.querySelector('.ar-cell')
+    }
+  }
+
+  const hasApplicantTable = (tr) => {
+    if (!tr) return false
+    const txt = tr.textContent || ''
+    return tr.querySelector('.table-like, .data-wrap') || txt.includes('SCHEDULE ONE') || txt.includes('الجدول الأول')
+  }
+
+  if (!outerTr || !hasApplicantTable(outerTr)) {
+    const pageEls = Array.from(canvas.querySelectorAll('.page:not(.page-no), section.page'))
+    const activePg = pageEls[activePageIndex.value] || pageEls[6] || pageEls[0]
+    if (activePg) {
+      const foundTr = Array.from(activePg.querySelectorAll('tr')).find(hasApplicantTable)
+      if (foundTr) {
+        outerTr = foundTr
+        enCell = foundTr.querySelector('.en-cell')
+        arCell = foundTr.querySelector('.ar-cell')
+      }
+    }
+  }
+
+  if (!outerTr || !hasApplicantTable(outerTr)) {
+    const allRows = Array.from(canvas.querySelectorAll('tr'))
+    const foundTr = allRows.find(hasApplicantTable)
+    if (foundTr) {
+      outerTr = foundTr
+      enCell = foundTr.querySelector('.en-cell')
+      arCell = foundTr.querySelector('.ar-cell')
+    }
+  }
+
+  if (!enCell && !arCell && !outerTr) return null
+
+  const enTable = enCell?.querySelector('table.table-like') || enCell?.querySelector('table')
+  const arTable = arCell?.querySelector('table.table-like') || arCell?.querySelector('table')
+
+  return {
+    enCell,
+    arCell,
+    outerTr,
+    enTable,
+    arTable,
+  }
+}
+
+function ensureApplicantTables(ctx) {
+  if (!ctx) return null
+  if (!ctx.enTable && ctx.enCell) {
+    let wrap = ctx.enCell.querySelector('.data-wrap')
+    if (!wrap) {
+      wrap = document.createElement('div')
+      wrap.className = 'data-wrap'
+      ctx.enCell.appendChild(wrap)
+    }
+    const tbl = document.createElement('table')
+    tbl.className = 'table-like'
+    tbl.innerHTML = '<tbody></tbody>'
+    wrap.appendChild(tbl)
+    ctx.enTable = tbl
+  }
+  if (!ctx.arTable && ctx.arCell) {
+    let wrap = ctx.arCell.querySelector('.data-wrap')
+    if (!wrap) {
+      wrap = document.createElement('div')
+      wrap.className = 'data-wrap'
+      ctx.arCell.appendChild(wrap)
+    }
+    const tbl = document.createElement('table')
+    tbl.className = 'table-like'
+    tbl.innerHTML = '<tbody></tbody>'
+    wrap.appendChild(tbl)
+    ctx.arTable = tbl
+  }
+  return ctx
+}
+
+const isApplicantTableSelected = computed(() => {
+  if (!isHtmlTemplate.value) return false
+  const _ = domUpdateTick.value
+
+  const canvas = document.getElementById('html-studio-canvas')
+  if (!canvas) return false
+
+  if (activeSelectedDomEl && canvas.contains(activeSelectedDomEl)) {
+    if (activeSelectedDomEl.closest('table.table-like, .data-wrap')) return true
+    const outerTr = activeSelectedDomEl.closest('tr')
+    if (outerTr) {
+      const text = outerTr.textContent || ''
+      if (text.includes('SCHEDULE ONE') || text.includes('الجدول الأول') || outerTr.querySelector('.table-like')) {
+        return true
+      }
+    }
+  }
+
+  // Also active if on the Schedule One page (page 7 / index 6)
+  if (activePageIndex.value === 6) {
+    const ctx = getApplicantPairedContext()
+    return !!(ctx && (ctx.enTable || ctx.arTable))
+  }
+
+  return false
+})
+
+const applicantFieldList = computed(() => {
+  const _ = domUpdateTick.value
+  const ctx = getApplicantPairedContext()
+  if (!ctx || (!ctx.enTable && !ctx.arTable)) {
+    return APPLICANT_STANDARD_FIELDS.map(f => ({ ...f, isPresent: false }))
+  }
+
+  const enRows = ctx.enTable ? Array.from(ctx.enTable.querySelectorAll('tr')) : []
+  const arRows = ctx.arTable ? Array.from(ctx.arTable.querySelectorAll('tr')) : []
+
+  return APPLICANT_STANDARD_FIELDS.map(f => {
+    const presentInEn = enRows.some(tr => {
+      const txt = tr.textContent || ''
+      const fieldAttr = tr.querySelector('[data-field]')?.getAttribute('data-field') || ''
+      return f.matchRegex.test(txt) || (fieldAttr && fieldAttr.includes(f.field))
+    })
+    const presentInAr = arRows.some(tr => {
+      const txt = tr.textContent || ''
+      const fieldAttr = tr.querySelector('[data-field]')?.getAttribute('data-field') || ''
+      return f.matchRegex.test(txt) || (fieldAttr && fieldAttr.includes(f.field))
+    })
+
+    return {
+      ...f,
+      isPresent: presentInEn || presentInAr,
+      presentInEn,
+      presentInAr,
+    }
+  })
+})
+
+const isCourseOfActionPresent = computed(() => {
+  const _ = domUpdateTick.value
+  const ctx = getApplicantPairedContext()
+  if (!ctx || !ctx.outerTr) return false
+  let prev = ctx.outerTr.previousElementSibling
+  while (prev) {
+    const text = prev.textContent || ''
+    if (text.includes('COURSE OF ACTION') || text.includes('خطة العمل')) {
+      return true
+    }
+    prev = prev.previousElementSibling
+  }
+  return false
+})
+
+const hasMainApplicantSubheading = computed(() => {
+  const _ = domUpdateTick.value
+  const ctx = getApplicantPairedContext()
+  if (!ctx || !ctx.enTable) return false
+  return Array.from(ctx.enTable.querySelectorAll('tr')).some(tr => 
+    tr.querySelector('.table-subheading') || tr.textContent.includes('Main Applicant')
+  )
+})
+
+function toggleApplicantField(field) {
+  let ctx = getApplicantPairedContext()
+  if (!ctx) return
+  ctx = ensureApplicantTables(ctx)
+  if (!ctx.enTable || !ctx.arTable) return
+
+  const isCurrentlyPresent = applicantFieldList.value.find(f => f.key === field.key)?.isPresent
+
+  if (isCurrentlyPresent) {
+    // Remove from both tables
+    recordHistoryState(`Remove ${field.labelEn}`)
+    const removeMatch = (table) => {
+      if (!table) return
+      Array.from(table.querySelectorAll('tr')).forEach(tr => {
+        const txt = tr.textContent || ''
+        const fieldAttr = tr.querySelector('[data-field]')?.getAttribute('data-field') || ''
+        if (field.matchRegex.test(txt) || (fieldAttr && fieldAttr.includes(field.field))) {
+          tr.remove()
+        }
+      })
+    }
+    removeMatch(ctx.enTable)
+    removeMatch(ctx.arTable)
+    syncDomToRawHtml()
+    domUpdateTick.value++
+    showStudioToast(`Removed ${field.labelEn} from English & Arabic tables.`, 'info')
+  } else {
+    // Add row to both tables in synced order
+    recordHistoryState(`Add ${field.labelEn} Row (EN+AR)`)
+
+    const existingHtml = ctx.enTable.innerHTML
+    const token = existingHtml.includes('applicant.') ? field.fallbackToken : field.defaultToken
+
+    // Create English TR
+    const enTr = document.createElement('tr')
+    enTr.innerHTML = `<td class="label">${field.labelEn}</td><td><span class="dynamic" data-field="${field.field}">${token}</span></td>`
+
+    // Create Arabic TR
+    const arTr = document.createElement('tr')
+    const rtlAttr = field.isRtlNumeric ? ' dir="ltr" style="direction: ltr; display: inline-block;"' : ''
+    arTr.innerHTML = `<td class="label">${field.labelAr}</td><td><span class="dynamic" data-field="${field.field}"${rtlAttr}>${token}</span></td>`
+
+    const insertOrdered = (table, newRow) => {
+      const tbody = table.querySelector('tbody') || table
+      const rows = Array.from(tbody.querySelectorAll('tr'))
+      let insertBeforeTr = null
+
+      for (const r of rows) {
+        if (r.querySelector('.table-subheading') || r.textContent.includes('Main Applicant') || r.textContent.includes('المتقدم الرئيسي')) {
+          continue
+        }
+        const txt = r.textContent || ''
+        const fieldAttr = r.querySelector('[data-field]')?.getAttribute('data-field') || ''
+        const matched = APPLICANT_STANDARD_FIELDS.find(f => f.matchRegex.test(txt) || (fieldAttr && fieldAttr.includes(f.field)))
+        if (matched && matched.order > field.order) {
+          insertBeforeTr = r
+          break
+        }
+      }
+
+      if (insertBeforeTr) {
+        tbody.insertBefore(newRow, insertBeforeTr)
+      } else {
+        tbody.appendChild(newRow)
+      }
+    }
+
+    insertOrdered(ctx.enTable, enTr)
+    insertOrdered(ctx.arTable, arTr)
+
+    syncDomToRawHtml()
+    domUpdateTick.value++
+    selectHtmlElement(enTr)
+    showStudioToast(`✓ Added ${field.labelEn} to English & Arabic columns!`, 'success')
+  }
+}
+
+function addAllApplicantFields() {
+  APPLICANT_STANDARD_FIELDS.forEach(f => {
+    const status = applicantFieldList.value.find(item => item.key === f.key)
+    if (!status?.isPresent) {
+      toggleApplicantField(f)
+    }
+  })
+}
+
+function resetApplicantFieldsToStandard() {
+  const standardKeys = ['name', 'passport_eid', 'nationality', 'mobile', 'address', 'email']
+  APPLICANT_STANDARD_FIELDS.forEach(f => {
+    const isStd = standardKeys.includes(f.key)
+    const status = applicantFieldList.value.find(item => item.key === f.key)
+    if (isStd && !status?.isPresent) {
+      toggleApplicantField(f)
+    } else if (!isStd && status?.isPresent) {
+      toggleApplicantField(f)
+    }
+  })
+}
+
+function toggleMainApplicantSubheading() {
+  let ctx = getApplicantPairedContext()
+  if (!ctx) return
+  ctx = ensureApplicantTables(ctx)
+  recordHistoryState('Toggle Main Applicant Subheading')
+
+  if (hasMainApplicantSubheading.value) {
+    if (ctx.enTable) {
+      const tr = Array.from(ctx.enTable.querySelectorAll('tr')).find(r => r.querySelector('.table-subheading') || r.textContent.includes('Main Applicant'))
+      if (tr) tr.remove()
+    }
+    if (ctx.arTable) {
+      const tr = Array.from(ctx.arTable.querySelectorAll('tr')).find(r => r.querySelector('.table-subheading') || r.textContent.includes('المتقدم الرئيسي'))
+      if (tr) tr.remove()
+    }
+    showStudioToast('Removed Main Applicant subheading.', 'info')
+  } else {
+    if (ctx.enTable) {
+      const tbody = ctx.enTable.querySelector('tbody') || ctx.enTable
+      const enSub = document.createElement('tr')
+      enSub.innerHTML = '<td colspan="2" class="table-subheading">Main Applicant:</td>'
+      tbody.insertBefore(enSub, tbody.firstElementChild)
+    }
+    if (ctx.arTable) {
+      const tbody = ctx.arTable.querySelector('tbody') || ctx.arTable
+      const arSub = document.createElement('tr')
+      arSub.innerHTML = '<td colspan="2" class="table-subheading">المتقدم الرئيسي:</td>'
+      tbody.insertBefore(arSub, tbody.firstElementChild)
+    }
+    showStudioToast('✓ Added Main Applicant subheading in English and Arabic.', 'success')
+  }
+
+  syncDomToRawHtml()
+  domUpdateTick.value++
+}
+
+function insertCourseOfActionHeader() {
+  const ctx = getApplicantPairedContext()
+  if (!ctx || !ctx.outerTr) {
+    insertPrebuilt('course_of_action')
+    return
+  }
+
+  let prev = ctx.outerTr.previousElementSibling
+  while (prev) {
+    const text = prev.textContent || ''
+    if (text.includes('COURSE OF ACTION') || text.includes('خطة العمل')) {
+      showStudioToast('Course of Action section is already present above Schedule One.', 'info')
+      selectHtmlElement(prev)
+      prev.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return
+    }
+    prev = prev.previousElementSibling
+  }
+
+  recordHistoryState('Insert Course of Action Header')
+
+  const tr = document.createElement('tr')
+  tr.innerHTML = `
+<td class="en-cell">
+  <div class="section-title">COURSE OF ACTION:</div>
+  <p class="clause">Our course of action for application process will exactly follow our offered services explained above and set in Terms &amp; Conditions enclosed in and with this package:</p>
+</td>
+<td class="ar-cell">
+  <div class="section-title">خطة العمل:</div>
+  <p class="clause">ستتبع خطة عملنا لإجراءات الطلب بالضبط الخدمات المقدمة الموضحة أعلاه والمنصوص عليها في الشروط والأحكام المرفقة في هذا الملف:</p>
+</td>`.trim()
+
+  ctx.outerTr.parentNode.insertBefore(tr, ctx.outerTr)
+
+  syncDomToRawHtml()
+  domUpdateTick.value++
+  selectHtmlElement(tr)
+  tr.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  showStudioToast('✓ Inserted Course of Action header above Schedule One (English & Arabic)!', 'success')
+}
+
+function selectCourseOfActionHeader() {
+  const ctx = getApplicantPairedContext()
+  if (!ctx || !ctx.outerTr) return
+  let prev = ctx.outerTr.previousElementSibling
+  while (prev) {
+    const text = prev.textContent || ''
+    if (text.includes('COURSE OF ACTION') || text.includes('خطة العمل')) {
+      selectHtmlElement(prev)
+      prev.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return
+    }
+    prev = prev.previousElementSibling
+  }
+}
+
+function removeCourseOfActionHeader() {
+  const ctx = getApplicantPairedContext()
+  if (!ctx || !ctx.outerTr) return
+  let prev = ctx.outerTr.previousElementSibling
+  while (prev) {
+    const text = prev.textContent || ''
+    if (text.includes('COURSE OF ACTION') || text.includes('خطة العمل')) {
+      recordHistoryState('Remove Course of Action Header')
+      prev.remove()
+      syncDomToRawHtml()
+      domUpdateTick.value++
+      showStudioToast('Removed Course of Action header.', 'info')
+      return
+    }
+    prev = prev.previousElementSibling
+  }
+}
+
 const hasSelectedRow = computed(() => {
   if (!activeSelectedDomEl) return false
   return !!activeSelectedDomEl.closest('tr')
@@ -4096,14 +4768,25 @@ function buildCanvasHtml(rawHtml, customCss) {
 
   // Replace tokens with preview values
   let rendered = rawHtml
-    .replace(/\{\{applicant\.full_name\}\}/g, 'ALI KAMRAN')
-    .replace(/\{\{applicant\.passport_or_eid\}\}/g, 'CQ4220892')
-    .replace(/\{\{applicant\.nationality\}\}/g, 'PAKISTANI')
-    .replace(/\{\{applicant\.mobile\}\}/g, '+966 54 128 1675')
-    .replace(/\{\{applicant\.address\}\}/g, 'RIYADH, SAUDI ARABIA')
-    .replace(/\{\{applicant\.email\}\}/g, 'kamran.ali@gmail.com')
-    .replace(/\{\{applicant\.date_of_birth\}\}/g, '14 APR 1991')
-    .replace(/\{\{applicant\.dependents\}\}/g, 'Spouse & Kids under 18 are included.')
+    .replace(/\{\{(?:applicant\.)?full_name\}\}/g, 'ALI KAMRAN')
+    .replace(/\{\{client_name\}\}/g, 'ALI KAMRAN')
+    .replace(/\{\{(?:applicant\.)?passport_or_eid\}\}/g, 'CQ4220892')
+    .replace(/\{\{passport_eid\}\}/g, 'CQ4220892')
+    .replace(/\{\{passport_number\}\}/g, 'CQ4220892')
+    .replace(/\{\{(?:applicant\.)?nationality\}\}/g, 'PAKISTANI')
+    .replace(/\{\{nationality\}\}/g, 'PAKISTANI')
+    .replace(/\{\{(?:applicant\.)?mobile\}\}/g, '+966 54 128 1675')
+    .replace(/\{\{mobile\}\}/g, '+966 54 128 1675')
+    .replace(/\{\{phone\}\}/g, '+966 54 128 1675')
+    .replace(/\{\{(?:applicant\.)?address\}\}/g, 'RIYADH, SAUDI ARABIA')
+    .replace(/\{\{address\}\}/g, 'RIYADH, SAUDI ARABIA')
+    .replace(/\{\{(?:applicant\.)?email\}\}/g, 'kamran.ali@gmail.com')
+    .replace(/\{\{email\}\}/g, 'kamran.ali@gmail.com')
+    .replace(/\{\{client_email\}\}/g, 'kamran.ali@gmail.com')
+    .replace(/\{\{(?:applicant\.)?date_of_birth\}\}/g, '14 APR 1991')
+    .replace(/\{\{date_of_birth\}\}/g, '14 APR 1991')
+    .replace(/\{\{(?:applicant\.)?dependents\}\}/g, 'Spouse & Kids under 18 are included.')
+    .replace(/\{\{dependents\}\}/g, 'Spouse & Kids under 18 are included.')
     .replace(/\{\{jurisdiction\}\}/g, 'Courts of Dubai International Financial Centre (DIFC)')
     .replace(/\{\{fees\.total_after_discount\}\}/g, '£15,000 GBP')
     .replace(/\{\{fees\.currency_text\}\}/g, 'THE GREAT BRITAIN POUND (GBP)')
@@ -4154,6 +4837,7 @@ function syncDomToRawHtml() {
 
   const docEl = clone.querySelector('.document') || clone
   documentSchema.value.rawHtml = docEl.outerHTML || clone.innerHTML
+  domUpdateTick.value++
   nextTick(() => {
     refreshLayersList()
   })
@@ -4797,24 +5481,34 @@ function addComponent(type) {
       key_value: `
 <tr class="group-gap">
   <td class="en-cell">
-    <div class="section-title">APPLICANT DETAILS:</div>
+    <div class="section-title">SCHEDULE ONE:</div>
     <div class="data-wrap">
       <table class="table-like">
-        <tr><td class="label">Name:</td><td><span class="dynamic" data-field="applicant.full_name">{{applicant.full_name}}</span></td></tr>
-        <tr><td class="label">Passport/EID:</td><td><span class="dynamic" data-field="applicant.passport_or_eid">{{applicant.passport_or_eid}}</span></td></tr>
-        <tr><td class="label">Nationality:</td><td><span class="dynamic" data-field="applicant.nationality">{{applicant.nationality}}</span></td></tr>
-        <tr><td class="label">Mobile:</td><td><span class="dynamic" data-field="applicant.mobile">{{applicant.mobile}}</span></td></tr>
+        <tbody>
+          <tr><td colspan="2" class="table-subheading">Main Applicant:</td></tr>
+          <tr><td class="label">Name:</td><td><span class="dynamic" data-field="applicant.full_name">{{client_name}}</span></td></tr>
+          <tr><td class="label">Passport/EID No.:</td><td><span class="dynamic" data-field="applicant.passport_or_eid">{{passport_eid}}</span></td></tr>
+          <tr><td class="label">Nationality:</td><td><span class="dynamic" data-field="applicant.nationality">{{nationality}}</span></td></tr>
+          <tr><td class="label">Mobile:</td><td><span class="dynamic" data-field="applicant.mobile">{{mobile}}</span></td></tr>
+          <tr><td class="label">Address:</td><td><span class="dynamic" data-field="applicant.address">{{address}}</span></td></tr>
+          <tr><td class="label">Email Address:</td><td><span class="dynamic" data-field="applicant.email">{{email}}</span></td></tr>
+        </tbody>
       </table>
     </div>
   </td>
   <td class="ar-cell">
-    <div class="section-title">بيانات المتقدم:</div>
+    <div class="section-title">الجدول الأول:</div>
     <div class="data-wrap">
       <table class="table-like">
-        <tr><td class="label">الاسم:</td><td><span class="dynamic" data-field="applicant.full_name">{{applicant.full_name}}</span></td></tr>
-        <tr><td class="label">رقم الجواز / الهوية:</td><td><span class="dynamic" data-field="applicant.passport_or_eid">{{applicant.passport_or_eid}}</span></td></tr>
-        <tr><td class="label">الجنسية:</td><td><span class="dynamic" data-field="applicant.nationality">{{applicant.nationality}}</span></td></tr>
-        <tr><td class="label">المحمول:</td><td><span class="dynamic" data-field="applicant.mobile">{{applicant.mobile}}</span></td></tr>
+        <tbody>
+          <tr><td colspan="2" class="table-subheading">المتقدم الرئيسي:</td></tr>
+          <tr><td class="label">الاسم:</td><td><span class="dynamic" data-field="applicant.full_name">{{client_name}}</span></td></tr>
+          <tr><td class="label">رقم جواز السفر / الهوية:</td><td><span class="dynamic" data-field="applicant.passport_or_eid">{{passport_eid}}</span></td></tr>
+          <tr><td class="label">الجنسية:</td><td><span class="dynamic" data-field="applicant.nationality">{{nationality}}</span></td></tr>
+          <tr><td class="label">المحمول:</td><td><span class="dynamic" data-field="applicant.mobile" dir="ltr" style="direction: ltr; display: inline-block;">{{mobile}}</span></td></tr>
+          <tr><td class="label">العنوان:</td><td><span class="dynamic" data-field="applicant.address">{{address}}</span></td></tr>
+          <tr><td class="label">عنوان البريد الإلكتروني:</td><td><span class="dynamic" data-field="applicant.email" dir="ltr" style="direction: ltr; display: inline-block;">{{email}}</span></td></tr>
+        </tbody>
       </table>
     </div>
   </td>
@@ -4976,27 +5670,48 @@ function insertPrebuilt(templateKey) {
     <div class="clause-row"><div class="clause-number">٢.</div><div class="clause-text">النزاعات والاختصاص القضائي: تخضع لمحاكم مركز دبي المالي العالمي (DIFC).</div></div>
   </td>
 </tr>`,
+      course_of_action: `
+<tr>
+  <td class="en-cell">
+    <div class="section-title">COURSE OF ACTION:</div>
+    <p class="clause">Our course of action for application process will exactly follow our offered services explained above and set in Terms &amp; Conditions enclosed in and with this package:</p>
+  </td>
+  <td class="ar-cell">
+    <div class="section-title">خطة العمل:</div>
+    <p class="clause">ستتبع خطة عملنا لإجراءات الطلب بالضبط الخدمات المقدمة الموضحة أعلاه والمنصوص عليها في الشروط والأحكام المرفقة في هذا الملف:</p>
+  </td>
+</tr>`,
       schedule_one: `
 <tr class="group-gap">
   <td class="en-cell">
-    <div class="section-title">SCHEDULE ONE: APPLICANT DETAILS</div>
+    <div class="section-title">SCHEDULE ONE:</div>
     <div class="data-wrap">
       <table class="table-like">
-        <tr><td class="label">Name:</td><td><span class="dynamic" data-field="applicant.full_name">{{applicant.full_name}}</span></td></tr>
-        <tr><td class="label">Passport/EID:</td><td><span class="dynamic" data-field="applicant.passport_or_eid">{{applicant.passport_or_eid}}</span></td></tr>
-        <tr><td class="label">Nationality:</td><td><span class="dynamic" data-field="applicant.nationality">{{applicant.nationality}}</span></td></tr>
-        <tr><td class="label">Mobile:</td><td><span class="dynamic" data-field="applicant.mobile">{{applicant.mobile}}</span></td></tr>
+        <tbody>
+          <tr><td colspan="2" class="table-subheading">Main Applicant:</td></tr>
+          <tr><td class="label">Name:</td><td><span class="dynamic" data-field="applicant.full_name">{{client_name}}</span></td></tr>
+          <tr><td class="label">Passport/EID No.:</td><td><span class="dynamic" data-field="applicant.passport_or_eid">{{passport_eid}}</span></td></tr>
+          <tr><td class="label">Nationality:</td><td><span class="dynamic" data-field="applicant.nationality">{{nationality}}</span></td></tr>
+          <tr><td class="label">Mobile:</td><td><span class="dynamic" data-field="applicant.mobile">{{mobile}}</span></td></tr>
+          <tr><td class="label">Address:</td><td><span class="dynamic" data-field="applicant.address">{{address}}</span></td></tr>
+          <tr><td class="label">Email Address:</td><td><span class="dynamic" data-field="applicant.email">{{email}}</span></td></tr>
+        </tbody>
       </table>
     </div>
   </td>
   <td class="ar-cell">
-    <div class="section-title">الجدول الأول: بيانات المتقدم</div>
+    <div class="section-title">الجدول الأول:</div>
     <div class="data-wrap">
       <table class="table-like">
-        <tr><td class="label">الاسم:</td><td><span class="dynamic" data-field="applicant.full_name">{{applicant.full_name}}</span></td></tr>
-        <tr><td class="label">رقم الجواز / الهوية:</td><td><span class="dynamic" data-field="applicant.passport_or_eid">{{applicant.passport_or_eid}}</span></td></tr>
-        <tr><td class="label">الجنسية:</td><td><span class="dynamic" data-field="applicant.nationality">{{applicant.nationality}}</span></td></tr>
-        <tr><td class="label">المحمول:</td><td><span class="dynamic" data-field="applicant.mobile">{{applicant.mobile}}</span></td></tr>
+        <tbody>
+          <tr><td colspan="2" class="table-subheading">المتقدم الرئيسي:</td></tr>
+          <tr><td class="label">الاسم:</td><td><span class="dynamic" data-field="applicant.full_name">{{client_name}}</span></td></tr>
+          <tr><td class="label">رقم جواز السفر / الهوية:</td><td><span class="dynamic" data-field="applicant.passport_or_eid">{{passport_eid}}</span></td></tr>
+          <tr><td class="label">الجنسية:</td><td><span class="dynamic" data-field="applicant.nationality">{{nationality}}</span></td></tr>
+          <tr><td class="label">المحمول:</td><td><span class="dynamic" data-field="applicant.mobile" dir="ltr" style="direction: ltr; display: inline-block;">{{mobile}}</span></td></tr>
+          <tr><td class="label">العنوان:</td><td><span class="dynamic" data-field="applicant.address">{{address}}</span></td></tr>
+          <tr><td class="label">عنوان البريد الإلكتروني:</td><td><span class="dynamic" data-field="applicant.email" dir="ltr" style="direction: ltr; display: inline-block;">{{email}}</span></td></tr>
+        </tbody>
       </table>
     </div>
   </td>
@@ -8206,6 +8921,215 @@ watch(activeTab, (newTab, oldTab) => {
 .btn-outline-secondary:hover {
   background: #f1f5f9;
   color: #0f172a;
+}
+
+/* ── Schedule One Applicant Toolkit & Field Chips ── */
+.inspector-applicant-card {
+  background: #ffffff;
+  border: 1.5px solid #0284c7;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 14px;
+  box-shadow: 0 1px 4px rgba(2, 132, 199, 0.08);
+}
+
+.applicant-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e0f2fe;
+}
+
+.applicant-card-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: #e0f2fe;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+}
+
+.applicant-fields-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.field-pill-btn {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.field-pill-btn:hover {
+  border-color: #38bdf8;
+  background: #f0f9ff;
+  transform: translateY(-1px);
+}
+
+.field-pill-btn.field-pill-active {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+
+.pill-top {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pill-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #cbd5e1;
+  color: #334155;
+}
+
+.field-pill-active .pill-badge {
+  background: #22c55e;
+  color: #ffffff;
+}
+
+.pill-en {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.pill-ar {
+  font-size: 0.68rem;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.pill-token {
+  font-size: 0.62rem;
+  color: #0284c7;
+  font-family: monospace;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Floating Toolbar Dropdown */
+.float-dropdown-wrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.float-btn-applicant {
+  background: #0284c7 !important;
+  color: #ffffff !important;
+  font-weight: 600;
+}
+
+.float-btn-applicant:hover {
+  background: #0369a1 !important;
+}
+
+.float-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+  min-width: 230px;
+  max-height: 380px;
+  overflow-y: auto;
+  z-index: 1000;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dropdown-header {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  letter-spacing: 0.5px;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 8px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.74rem;
+  color: #1e293b;
+  transition: all 0.12s ease;
+}
+
+.dropdown-item:hover {
+  background: #f1f5f9;
+}
+
+.dropdown-item.is-present {
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.dropdown-item .item-status {
+  font-weight: 700;
+  width: 14px;
+  color: #0284c7;
+}
+
+.dropdown-item.is-present .item-status {
+  color: #16a34a;
+}
+
+.dropdown-item .item-name {
+  font-weight: 600;
+  flex: 1;
+  margin-left: 4px;
+}
+
+.dropdown-item .item-sub {
+  font-size: 0.68rem;
+  color: #64748b;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: #e2e8f0;
+  margin: 4px 0;
+}
+
+.dropdown-item.item-action {
+  color: #0284c7;
+  font-weight: 600;
+  gap: 6px;
+}
+
+.dropdown-item.item-action:hover {
+  background: #e0f2fe;
 }
 
 /* ── Layers Drawer in Sidebar ── */
