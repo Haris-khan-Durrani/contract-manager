@@ -1290,35 +1290,36 @@ function buildPreviewDocument() {
   if (previewDataMode.value === 'sample') {
     // High fidelity sample data simulation
     rendered = rendered
-      .replace(/\{\{applicant\.full_name\}\}/g, 'ALI KAMRAN')
-      .replace(/\{\{applicant\.passport_or_eid\}\}/g, 'CQ4220892')
-      .replace(/\{\{applicant\.nationality\}\}/g, 'PAKISTANI')
-      .replace(/\{\{applicant\.mobile\}\}/g, '+966 54 128 1675')
-      .replace(/\{\{applicant\.address\}\}/g, 'RIYADH, SAUDI ARABIA')
-      .replace(/\{\{applicant\.email\}\}/g, 'kamran.ali@gmail.com')
-      .replace(/\{\{applicant\.date_of_birth\}\}/g, '14 APR 1991')
-      .replace(/\{\{applicant\.dependents\}\}/g, 'Spouse & Kids under 18 are included.')
+      .replace(/\{\{(?:applicant\.)?(?:full_)?name|client_name|recipient_name|main_applicant\}\}/g, 'ALI KAMRAN')
+      .replace(/\{\{(?:applicant\.)?passport(?:_or_eid|_number)?|passport_eid|idnumber\}\}/g, 'CQ4220892')
+      .replace(/\{\{(?:applicant\.)?nationality\}\}/g, 'PAKISTANI')
+      .replace(/\{\{(?:applicant\.)?(?:mobile|phone)|contact_number\}\}/g, '+966 54 128 1675')
+      .replace(/\{\{(?:applicant\.)?address\}\}/g, 'RIYADH, SAUDI ARABIA')
+      .replace(/\{\{(?:applicant\.)?email|client_email\}\}/g, 'kamran.ali@gmail.com')
+      .replace(/\{\{(?:applicant\.)?(?:date_of_birth|dob)\}\}/g, '14 APR 1991')
+      .replace(/\{\{(?:applicant\.)?dependents|note\}\}/g, 'Spouse & Kids under 18 are included.')
       .replace(/\{\{jurisdiction\}\}/g, 'Courts of Dubai International Financial Centre (DIFC)')
-      .replace(/\{\{fees\.total_after_discount\}\}/g, '£15,000 GBP')
-      .replace(/\{\{fees\.currency_text\}\}/g, 'THE GREAT BRITAIN POUND (GBP)')
-      .replace(/\{\{fees\.payment_mode\}\}/g, '50% Initial, 50% on approval')
-      .replace(/\{\{fees\.additional_information\}\}/g, 'Cyprus Business Residence Advisory')
-      .replace(/\{\{fees\.payment_breakup\}\}/g, 'Initial Deposit upon signing, balance upon milestone')
-      .replace(/\{\{fees\.initial_amount\}\}/g, '£7,500 GBP')
+      .replace(/\{\{(?:fees\.)?total_after_discount|discounted_total|discounted_amount\}\}/g, '£15,000 GBP')
+      .replace(/\{\{(?:fees\.)?total_fees|contract_value\}\}/g, '£20,000 GBP')
+      .replace(/\{\{(?:fees\.)?currency(?:_text)?\}\}/g, 'THE GREAT BRITAIN POUND (GBP)')
+      .replace(/\{\{(?:fees\.)?payment_mode|payment_terms\}\}/g, '50% Initial, 50% on approval')
+      .replace(/\{\{(?:fees\.)?additional_information|visa_type\}\}/g, 'UK Innovator Founder Visa Advisory')
+      .replace(/\{\{(?:fees\.)?payment_breakup\}\}/g, 'Initial Deposit upon signing, balance upon milestone')
+      .replace(/\{\{(?:fees\.)?initial_amount|initial_deposit\}\}/g, '£7,500 GBP')
       .replace(/\{\{(?:commercial_terms|schedule_three_content|fees\.commercial_terms|fees\.schedule_three|milestones)\}\}/g, `
 <div class="milestones-preview" style="font-size: 8.2pt; line-height: 1.4; color: var(--ink);">
-  <p style="margin: 0 0 1.5mm 0;"><strong>Total Professional Fees:</strong> 20,000 EUR</p>
-  <p style="margin: 0 0 1.5mm 0;"><strong>Amount after Exclusive Discount:</strong> 15,000 EUR</p>
+  <p style="margin: 0 0 1.5mm 0;"><strong>Total Professional Fees:</strong> 20,000 GBP</p>
+  <p style="margin: 0 0 1.5mm 0;"><strong>Amount after Exclusive Discount:</strong> 15,000 GBP</p>
   <p style="margin: 0 0 1mm 0;"><strong>Agreed Payment Milestones:</strong></p>
   <ul style="margin: 0 0 1.5mm 0; padding-inline-start: 16px;">
-    <li style="margin-bottom: 0.8mm;"><strong>First Milestone (50% Advance):</strong> 7,500 EUR payable upon signing this agreement.</li>
-    <li style="margin-bottom: 0.8mm;"><strong>Second Milestone (50% Balance):</strong> 7,500 EUR payable upon formal file approval / visa issuance.</li>
+    <li style="margin-bottom: 0.8mm;"><strong>First Milestone (50% Advance):</strong> 7,500 GBP payable upon signing this agreement.</li>
+    <li style="margin-bottom: 0.8mm;"><strong>Second Milestone (50% Balance):</strong> 7,500 GBP payable upon formal endorsement / visa issuance.</li>
   </ul>
   <p style="margin: 0 0 1.5mm 0;"><strong>Payment Mode:</strong> International Bank Wire Transfer / Swift.</p>
   <p style="margin: 0; font-style: italic; color: var(--muted); font-size: 7.6pt;">All fees are net of third-party government charges and subject to standard terms of business.</p>
 </div>
 `.trim())
-      .replace(/\{\{contract\.date\}\}/g, new Date().toLocaleDateString('en-GB'))
+      .replace(/\{\{(?:contract\.)?date|today|today_date|contract_date\}\}/g, new Date().toLocaleDateString('en-GB'))
       .replace(/src=["'](?:assets\/)?logo-left\.png["']/gi, 'src="https://assets.cdn.filesafe.space/NJOPxsxylG8ulEPo9hX9/media/6ab2a26318891558b460bf74.png"')
       .replace(/src=["'](?:assets\/)?logo-right\.png["']/gi, 'src="https://assets.cdn.filesafe.space/NJOPxsxylG8ulEPo9hX9/media/6ab2a26318891558b460bf74.png"')
   } else {

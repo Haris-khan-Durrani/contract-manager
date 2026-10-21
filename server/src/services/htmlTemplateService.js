@@ -316,7 +316,7 @@ function renderHtmlTemplate(html, css, context = {}, options = {}) {
 
   // Handle Team Members Schedule One Dynamic Blueprint Repeater
   const teamMembers = form.teamMembers || context.teamMembers || form.team_members || context.team_members || [];
-  if (Array.isArray(teamMembers) && teamMembers.length > 0) {
+  if (Array.isArray(teamMembers) && teamMembers.length > 0 && !rendered.includes('data-schedule-one-processed="true"')) {
     const primaryApplicant = {
       name:        fullName,
       passport:    passportOrEid,
@@ -343,98 +343,43 @@ function renderHtmlTemplate(html, css, context = {}, options = {}) {
 
     const allApplicants = [primaryApplicant, ...extraApplicants];
 
-    // 1. Process English Schedule One (inside en-cell)
-    const enRegex = /(<div\b[^>]*\bclass=["'][^"']*\bsection-title\b[^"']*["'][^>]*>(?:(?!<\/div>)[\s\S])*?SCHEDULE ONE(?:(?!<\/div>)[\s\S])*?<\/div>\s*)([\s\S]*?)(?=\s*<\/td>\s*<td\b[^>]*\bclass=["'][^"']*\bar-cell)/i;
+    // Strictly cell-bounded (cannot cross </td>) to ensure ONLY Page 7 Schedule One is matched
+    const enRegex = /(<td\b([^>]*\bclass=["'][^"']*\ben-cell\b[^"']*["'][^>]*)>(?:(?!<\/td>)[\s\S])*?<div\b[^>]*\bclass=["'][^"']*\bsection-title\b[^"']*["'][^>]*>(?:(?!<\/div>)[\s\S])*?SCHEDULE ONE[\s\S]*?<\/div>\s*)([\s\S]*?<table\b[^>]*>[\s\S]*?<\/table>(?:\s*<\/div>)?)\s*(?=<\/td>)/i;
+    const arRegex = /(<td\b([^>]*\bclass=["'][^"']*\bar-cell\b[^"']*["'][^>]*)>(?:(?!<\/td>)[\s\S])*?<div\b[^>]*\bclass=["'][^"']*\bsection-title\b[^"']*["'][^>]*>(?:(?!<\/div>)[\s\S])*?الجدول الأول[\s\S]*?<\/div>\s*)([\s\S]*?<table\b[^>]*>[\s\S]*?<\/table>(?:\s*<\/div>)?)\s*(?=<\/td>)/i;
+
     const enMatch = rendered.match(enRegex);
-    if (enMatch) {
-      const titlePrefix = enMatch[1];
-      const cardBlueprint = enMatch[2].trim();
-
-      const repeatedEn = allApplicants.map((app, idx) => {
-        let card = cardBlueprint;
-
-        // Number the heading cleanly
-        if (card.includes('Main Applicant:')) {
-          card = card.replace(/Main Applicant:/g, `Main Applicant: ${idx + 1}`);
-        } else if (card.includes('Main Applicant')) {
-          card = card.replace(/Main Applicant/g, `Main Applicant: ${idx + 1}`);
-        } else {
-          card = `<p class="clause" style="margin-top: 6px;"><b>Main Applicant: ${idx + 1}</b></p>\n` + card;
-        }
-
-        const appMap = {
-          'client_name': app.name,
-          'applicant.full_name': app.name,
-          'applicant.name': app.name,
-          'main_applicant': app.name,
-          'recipient_name': app.name,
-
-          'passport_eid': app.passport,
-          'passport_number': app.passport,
-          'applicant.passport_or_eid': app.passport,
-          'applicant.passport': app.passport,
-          'passport': app.passport,
-          'idnumber': app.passport,
-
-          'nationality': app.nationality,
-          'applicant.nationality': app.nationality,
-
-          'mobile': app.phone,
-          'phone': app.phone,
-          'applicant.mobile': app.phone,
-          'applicant.phone': app.phone,
-          'contact_number': app.phone,
-
-          'address': app.address,
-          'applicant.address': app.address,
-
-          'email': app.email,
-          'client_email': app.email,
-          'applicant.email': app.email,
-
-          'date_of_birth': app.dob,
-          'applicant.date_of_birth': app.dob,
-          'dob': app.dob,
-
-          'dependents': app.note || 'Spouse & Kids under 18 are included.',
-          'applicant.dependents': app.note || 'Spouse & Kids under 18 are included.',
-          'note': app.note || 'Spouse & Kids under 18 are included.',
-        };
-
-        card = card.replace(/\{\{([^}]+)\}\}/g, (m, k) => {
-          const clean = k.trim().toLowerCase();
-          for (const [mk, mv] of Object.entries(appMap)) {
-            if (mk.toLowerCase() === clean) return mv || '—';
-          }
-          return m;
-        });
-
-        return card;
-      }).join('\n<div style="margin: 14px 0 10px; border-top: 1px dashed #cfd8db;"></div>\n');
-
-      rendered = rendered.replace(enMatch[0], () => `${titlePrefix}\n${repeatedEn}`);
-    }
-
-    // 2. Process Arabic Schedule One (inside ar-cell)
-    const arRegex = /(<div\b[^>]*\bclass=["'][^"']*\bsection-title\b[^"']*["'][^>]*>(?:(?!<\/div>)[\s\S])*?الجدول الأول(?:(?!<\/div>)[\s\S])*?<\/div>\s*)([\s\S]*?)(?=\s*<\/td>\s*<\/(?:tr|tbody|table))/i;
     const arMatch = rendered.match(arRegex);
-    if (arMatch) {
-      const titlePrefix = arMatch[1];
-      const cardBlueprint = arMatch[2].trim();
 
-      const repeatedAr = allApplicants.map((app, idx) => {
-        let card = cardBlueprint;
+    if (enMatch && arMatch) {
+      const enPrefix = enMatch[1];
+      const enBlueprint = enMatch[3].trim();
 
-        // Number the heading cleanly
-        if (card.includes('المتقدم الرئيسي:')) {
-          card = card.replace(/المتقدم الرئيسي:/g, `المتقدم الرئيسي: ${idx + 1}`);
-        } else if (card.includes('المتقدم الرئيسي')) {
-          card = card.replace(/المتقدم الرئيسي/g, `المتقدم الرئيسي: ${idx + 1}`);
+      const arPrefix = arMatch[1];
+      const arBlueprint = arMatch[3].trim();
+
+      const buildCard = (blueprint, app, idx, isArabic) => {
+        let card = blueprint;
+
+        // Clean numbering: replace any existing "Main Applicant" label with clean number
+        if (!isArabic) {
+          if (card.includes('Main Applicant:')) {
+            card = card.replace(/Main Applicant:/g, `Main Applicant: ${idx + 1}`);
+          } else if (card.includes('Main Applicant')) {
+            card = card.replace(/Main Applicant/g, `Main Applicant: ${idx + 1}`);
+          } else {
+            card = `<p class="clause" style="margin: 4px 0 2px; font-weight: 700; font-size: 8pt;">Main Applicant: ${idx + 1}</p>\n` + card;
+          }
         } else {
-          card = `<p class="clause" style="margin-top: 6px;" dir="rtl"><b>المتقدم الرئيسي: ${idx + 1}</b></p>\n` + card;
+          if (card.includes('المتقدم الرئيسي:')) {
+            card = card.replace(/المتقدم الرئيسي:/g, `المتقدم الرئيسي: ${idx + 1}`);
+          } else if (card.includes('المتقدم الرئيسي')) {
+            card = card.replace(/المتقدم الرئيسي/g, `المتقدم الرئيسي: ${idx + 1}`);
+          } else {
+            card = `<p class="clause" style="margin: 4px 0 2px; font-weight: 700; font-size: 8pt;" dir="rtl">المتقدم الرئيسي: ${idx + 1}</p>\n` + card;
+          }
         }
 
-        const noteArVal = app.noteAr || (app.note && app.note.includes('Spouse') ? 'الزوجة والأطفال دون 18 عاماً مشمولون.' : app.note) || 'الزوجة والأطفال دون 18 عاماً مشمولون.';
+        const noteVal = isArabic ? (app.noteAr || 'الزوجة والأطفال دون 18 عاماً مشمولون.') : (app.note || 'Spouse & Kids under 18 are included.');
 
         const appMap = {
           'client_name': app.name,
@@ -470,9 +415,9 @@ function renderHtmlTemplate(html, css, context = {}, options = {}) {
           'applicant.date_of_birth': app.dob,
           'dob': app.dob,
 
-          'dependents': noteArVal,
-          'applicant.dependents': noteArVal,
-          'note': noteArVal,
+          'dependents': noteVal,
+          'applicant.dependents': noteVal,
+          'note': noteVal,
         };
 
         card = card.replace(/\{\{([^}]+)\}\}/g, (m, k) => {
@@ -483,18 +428,28 @@ function renderHtmlTemplate(html, css, context = {}, options = {}) {
           return m;
         });
 
-        // Ensure phone & email in Arabic column stay in LTR so + symbol and formatting never flip
-        card = card.replace(/(<span\b[^>]*\bclass=["'][^"']*\bdynamic\b[^"']*["'])([^>]*>[\s\S]*?<\/span>)/gi, (m, openTag, rest) => {
-          if ((openTag.includes('mobile') || openTag.includes('phone') || openTag.includes('email')) && !openTag.includes('dir=')) {
-            return `${openTag} dir="ltr" style="direction: ltr;"${rest}`;
-          }
-          return m;
-        });
+        // Ensure compact font and padding for multi-applicant view to avoid page-7 overflow
+        card = card.replace(/<table\b([^>]*)>/i, '<table $1 style="font-size: 7.2pt; line-height: 1.25; margin-bottom: 2px;">');
+        card = card.replace(/<td\b([^>]*)class=["']([^"']*\blabel\b[^"']*)["']/gi, '<td $1class="$2" style="padding: 1.2px 3px; font-size: 7.2pt;"');
+
+        if (isArabic) {
+          card = card.replace(/(<span\b[^>]*\bclass=["'][^"']*\bdynamic\b[^"']*["'])([^>]*>[\s\S]*?<\/span>)/gi, (m, openTag, rest) => {
+            if ((openTag.includes('mobile') || openTag.includes('phone') || openTag.includes('email')) && !openTag.includes('dir=')) {
+              return `${openTag} dir="ltr" style="direction: ltr; display: inline-block; unicode-bidi: embed;"${rest}`;
+            }
+            return m;
+          });
+        }
 
         return card;
-      }).join('\n<div style="margin: 14px 0 10px; border-top: 1px dashed #cfd8db;"></div>\n');
+      };
 
-      rendered = rendered.replace(arMatch[0], () => `${titlePrefix}\n${repeatedAr}`);
+      const separator = '\n<div style="margin: 6px 0 4px; border-top: 1px dashed #cbd5e1;"></div>\n';
+      const repeatedEn = allApplicants.map((app, idx) => buildCard(enBlueprint, app, idx, false)).join(separator);
+      const repeatedAr = allApplicants.map((app, idx) => buildCard(arBlueprint, app, idx, true)).join(separator);
+
+      rendered = rendered.replace(enMatch[0], () => `${enPrefix.replace('<td ', '<td data-schedule-one-processed="true" ')}\n${repeatedEn}`);
+      rendered = rendered.replace(arMatch[0], () => `${arPrefix.replace('<td ', '<td data-schedule-one-processed="true" ')}\n${repeatedAr}`);
     }
   }
 
