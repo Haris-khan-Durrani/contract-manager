@@ -195,14 +195,14 @@ async function buildSnapshot(opts) {
   // Construct full list of applicants (Applicant 1 + additional team applicants)
   const primaryApplicant = {
     name:        formResponse?.client_name || ghlContact?.fullNameLowerCase || '',
-    passport:    formResponse?.passport_number || '',
+    passport:    formResponse?.passport_number || formResponse?.passport_eid || '',
     nationality: formResponse?.nationality || '',
     phone:       formResponse?.phone || ghlContact?.phone || '',
     address:     formResponse?.address || ghlContact?.address1 || '',
     email:       formResponse?.client_email || ghlContact?.email || '',
     dob:         formResponse?.date_of_birth || '',
-    note:        formResponse?.note || 'Spouse & Kids under 18 are included.',
-    noteAr:      formResponse?.note_ar || 'الزوجة والأطفال دون 18 عاماً مشمولون.',
+    note:        formResponse?.note || '',
+    noteAr:      formResponse?.note_ar || '',
   };
 
   const extraApplicants = (Array.isArray(formResponse?.teamMembers) ? formResponse.teamMembers : []).map(m => ({
@@ -213,8 +213,8 @@ async function buildSnapshot(opts) {
     address:     m.address || '',
     email:       m.email || '',
     dob:         m.dob || '',
-    note:        m.note || 'Spouse & Kids under 18 are included.',
-    noteAr:      m.noteAr || m.note || 'الزوجة والأطفال دون 18 عاماً مشمولون.',
+    note:        m.note || '',
+    noteAr:      m.noteAr || m.note || '',
   }));
 
   const allApplicants = [primaryApplicant, ...extraApplicants];
@@ -233,7 +233,7 @@ async function buildSnapshot(opts) {
     <tr><td style="font-weight: bold; padding: 2px 0;">Address:</td><td>${app.address || '—'}</td></tr>
     <tr><td style="font-weight: bold; padding: 2px 0;">Email Address:</td><td>${app.email || '—'}</td></tr>
     <tr><td style="font-weight: bold; padding: 2px 0;">Date of Birth:</td><td>${app.dob || '—'}</td></tr>
-    <tr><td style="font-weight: bold; padding: 2px 0;">Note:</td><td>${app.note || 'Spouse & Kids under 18 are included.'}</td></tr>
+    <tr><td style="font-weight: bold; padding: 2px 0;">Note:</td><td>${app.note || '—'}</td></tr>
   </table>
 </div>
       `.trim()).join('\n<hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 12px 0;" />\n');
@@ -249,7 +249,7 @@ async function buildSnapshot(opts) {
     <tr><td style="font-weight: bold; padding: 2px 0;">العنوان:</td><td>${app.address || '—'}</td></tr>
     <tr><td style="font-weight: bold; padding: 2px 0;">عنوان البريد الإلكتروني:</td><td>${app.email || '—'}</td></tr>
     <tr><td style="font-weight: bold; padding: 2px 0;">تاريخ الميلاد:</td><td>${app.dob || '—'}</td></tr>
-    <tr><td style="font-weight: bold; padding: 2px 0;">ملاحظة:</td><td>${app.noteAr || app.note || 'الزوجة والأطفال دون 18 عاماً مشمولون.'}</td></tr>
+    <tr><td style="font-weight: bold; padding: 2px 0;">ملاحظة:</td><td>${app.noteAr || app.note || '—'}</td></tr>
   </table>
 </div>
       `.trim()).join('\n<hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 12px 0;" />\n');

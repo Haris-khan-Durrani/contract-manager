@@ -143,12 +143,46 @@ function ensureSignatureDataFields(html) {
 }
 
 /**
+ * Restore any corrupted dummy strings back to standard tokens
+ */
+function restoreCorruptedTokens(html) {
+  if (!html || typeof html !== 'string') return html || '';
+  let cleaned = html;
+
+  // 1. Restore trapped dummy values inside dynamic spans
+  cleaned = cleaned.replace(/(<span\b[^>]*\bdata-field=["'](?:applicant\.)?(?:full_)?name["'][^>]*>)\s*(?:ALI KAMRAN|Haris Khan)\s*(<\/span>)/gi, '$1{{client_name}}$2');
+  cleaned = cleaned.replace(/(<span\b[^>]*\bdata-field=["'](?:applicant\.)?passport(?:_or_eid|_number)?["'][^>]*>)\s*CQ4220892\s*(<\/span>)/gi, '$1{{passport_eid}}$2');
+  cleaned = cleaned.replace(/(<span\b[^>]*\bdata-field=["'](?:applicant\.)?nationality["'][^>]*>)\s*PAKISTANI\s*(<\/span>)/gi, '$1{{nationality}}$2');
+  cleaned = cleaned.replace(/(<span\b[^>]*\bdata-field=["'](?:applicant\.)?(?:mobile|phone)["'][^>]*>)\s*\+966 54 128 1675\s*(<\/span>)/gi, '$1{{mobile}}$2');
+  cleaned = cleaned.replace(/(<span\b[^>]*\bdata-field=["'](?:applicant\.)?address["'][^>]*>)\s*RIYADH, SAUDI ARABIA\s*(<\/span>)/gi, '$1{{address}}$2');
+  cleaned = cleaned.replace(/(<span\b[^>]*\bdata-field=["'](?:applicant\.)?email["'][^>]*>)\s*kamran\.ali@gmail\.com\s*(<\/span>)/gi, '$1{{email}}$2');
+  cleaned = cleaned.replace(/(<span\b[^>]*\bdata-field=["'](?:applicant\.)?(?:date_of_birth|dob)["'][^>]*>)\s*14 APR 1991\s*(<\/span>)/gi, '$1{{date_of_birth}}$2');
+
+  // 2. Declaration text restoration (English & Arabic as seen on Page 10 / Page 11)
+  cleaned = cleaned.replace(/I\/we,\s*(?:<span\b[^>]*>)?\s*(?:ALI KAMRAN|Haris Khan)\s*(?:<\/span>)?\s*holding/gi, 'I/we, <span class="dynamic" data-field="applicant.full_name">{{client_name}}</span> holding');
+  cleaned = cleaned.replace(/number\s*(?:<span\b[^>]*>)?\s*CQ4220892\s*(?:<\/span>)?\s*have hired/gi, 'number <span class="dynamic" data-field="applicant.passport_or_eid">{{passport_eid}}</span> have hired');
+
+  cleaned = cleaned.replace(/أنا\/نحن،?\s*(?:<span\b[^>]*>)?\s*(?:ALI KAMRAN|Haris Khan)\s*(?:<\/span>)?،?\s*حامل/gi, 'أنا/نحن، <span class="dynamic" data-field="applicant.full_name">{{client_name}}</span>، حامل');
+  cleaned = cleaned.replace(/جواز السفر رقم\s*(?:<span\b[^>]*>)?\s*CQ4220892\s*(?:<\/span>)?\s*،?\s*قد تعاقدت/gi, 'جواز السفر رقم <span class="dynamic" data-field="applicant.passport_or_eid">{{passport_eid}}</span>، قد تعاقدت');
+
+  // 3. Table cells in Schedule One
+  cleaned = cleaned.replace(/(<td\b[^>]*>\s*)(?:<span\b[^>]*>)?CQ4220892(?:<\/span>)?(\s*<\/td>)/gi, '$1<span class="dynamic" data-field="applicant.passport_or_eid">{{passport_eid}}</span>$2');
+  cleaned = cleaned.replace(/(<td\b[^>]*>\s*)(?:<span\b[^>]*>)?PAKISTANI(?:<\/span>)?(\s*<\/td>)/gi, '$1<span class="dynamic" data-field="applicant.nationality">{{nationality}}</span>$2');
+  cleaned = cleaned.replace(/(<td\b[^>]*>\s*)(?:<span\b[^>]*>)?\+966 54 128 1675(?:<\/span>)?(\s*<\/td>)/gi, '$1<span class="dynamic" data-field="applicant.mobile">{{mobile}}</span>$2');
+  cleaned = cleaned.replace(/(<td\b[^>]*>\s*)(?:<span\b[^>]*>)?RIYADH, SAUDI ARABIA(?:<\/span>)?(\s*<\/td>)/gi, '$1<span class="dynamic" data-field="applicant.address">{{address}}</span>$2');
+  cleaned = cleaned.replace(/(<td\b[^>]*>\s*)(?:<span\b[^>]*>)?kamran\.ali@gmail\.com(?:<\/span>)?(\s*<\/td>)/gi, '$1<span class="dynamic" data-field="applicant.email">{{email}}</span>$2');
+  cleaned = cleaned.replace(/(<td\b[^>]*>\s*)(?:<span\b[^>]*>)?14 APR 1991(?:<\/span>)?(\s*<\/td>)/gi, '$1<span class="dynamic" data-field="applicant.date_of_birth">{{date_of_birth}}</span>$2');
+
+  return cleaned;
+}
+
+/**
  * Substitute dynamic tokens into HTML template
  */
 function renderHtmlTemplate(html, css, context = {}, options = {}) {
   const logoUrl = options.logoUrl || context.logoUrl || DEFAULT_LOGO_URL;
   const { html: normHtml, css: normCss } = normalizeTemplateAssets(html, css, logoUrl);
-  let rendered = ensureSignatureDataFields(normHtml);
+  let rendered = restoreCorruptedTokens(ensureSignatureDataFields(normHtml));
 
   const form = context.form || {};
   const contact = context.contact || {};
@@ -156,15 +190,15 @@ function renderHtmlTemplate(html, css, context = {}, options = {}) {
   const applicant = context.applicant || {};
   const system = context.system || {};
 
-  // Resolve values with flexible fallbacks
-  const fullName = applicant.full_name || form.client_name || form.recipientName || contact.name || context.fullName || context.name || 'Valued Client';
+  // Resolve values with flexible fallbacks - if not provided or empty, show '—'
+  const fullName = applicant.full_name || form.client_name || form.recipientName || contact.name || context.fullName || context.name || '—';
   const passportOrEid = applicant.passport_or_eid || form.passport_number || form.passport_eid || form.idNumber || contact.passport || context.passportOrEid || context.passport || '—';
   const nationality = applicant.nationality || form.nationality || contact.nationality || context.nationality || '—';
   const mobile = applicant.mobile || form.phone || form.mobile || form.recipientPhone || contact.phone || context.mobile || context.phone || '—';
   const address = applicant.address || form.address || contact.address || context.address || '—';
   const email = applicant.email || form.client_email || form.recipientEmail || contact.email || context.email || '—';
   const dateOfBirth = applicant.date_of_birth || form.date_of_birth || form.dob || context.dateOfBirth || context.dob || '—';
-  const dependents = applicant.dependents || form.dependents || form.note || context.dependents || context.note || 'Spouse & Kids under 18 are included.';
+  const dependents = applicant.dependents || form.dependents || form.note || context.dependents || context.note || '—';
 
   const sectionsConfig = form.sectionsConfig || {};
   const isCommercialTermsDisabled = sectionsConfig.commercialTerms === false;
@@ -334,11 +368,11 @@ function renderHtmlTemplate(html, css, context = {}, options = {}) {
       passport:    m.passport || m.idNumber || '',
       nationality: m.nationality || '',
       phone:       m.phone || m.mobile || '',
-      address:     m.address || address || '',
+      address:     m.address || '',
       email:       m.email || '',
       dob:         m.dob || '',
-      note:        m.note || 'Spouse & Kids under 18 are included.',
-      noteAr:      m.noteAr || m.note || 'الزوجة والأطفال دون 18 عاماً مشمولون.',
+      note:        m.note || '',
+      noteAr:      m.noteAr || m.note || '',
     }));
 
     const allApplicants = [primaryApplicant, ...extraApplicants];
@@ -363,23 +397,23 @@ function renderHtmlTemplate(html, css, context = {}, options = {}) {
         // Clean numbering: replace any existing "Main Applicant" label with clean number
         if (!isArabic) {
           if (card.includes('Main Applicant:')) {
-            card = card.replace(/Main Applicant:/g, `Main Applicant: ${idx + 1}`);
+            card = card.replace(/Main Applicant:\s*\d*/g, `Main Applicant: ${idx + 1}`);
           } else if (card.includes('Main Applicant')) {
-            card = card.replace(/Main Applicant/g, `Main Applicant: ${idx + 1}`);
+            card = card.replace(/Main Applicant\s*\d*/g, `Main Applicant: ${idx + 1}`);
           } else {
             card = `<p class="clause" style="margin: 4px 0 2px; font-weight: 700; font-size: 8pt;">Main Applicant: ${idx + 1}</p>\n` + card;
           }
         } else {
           if (card.includes('المتقدم الرئيسي:')) {
-            card = card.replace(/المتقدم الرئيسي:/g, `المتقدم الرئيسي: ${idx + 1}`);
+            card = card.replace(/المتقدم الرئيسي:\s*\d*/g, `المتقدم الرئيسي: ${idx + 1}`);
           } else if (card.includes('المتقدم الرئيسي')) {
-            card = card.replace(/المتقدم الرئيسي/g, `المتقدم الرئيسي: ${idx + 1}`);
+            card = card.replace(/المتقدم الرئيسي\s*\d*/g, `المتقدم الرئيسي: ${idx + 1}`);
           } else {
             card = `<p class="clause" style="margin: 4px 0 2px; font-weight: 700; font-size: 8pt;" dir="rtl">المتقدم الرئيسي: ${idx + 1}</p>\n` + card;
           }
         }
 
-        const noteVal = isArabic ? (app.noteAr || 'الزوجة والأطفال دون 18 عاماً مشمولون.') : (app.note || 'Spouse & Kids under 18 are included.');
+        const noteVal = isArabic ? (app.noteAr || app.note || '—') : (app.note || '—');
 
         const appMap = {
           'client_name': app.name,
@@ -420,13 +454,39 @@ function renderHtmlTemplate(html, css, context = {}, options = {}) {
           'note': noteVal,
         };
 
+        // First replace any standard {{tokens}}
         card = card.replace(/\{\{([^}]+)\}\}/g, (m, k) => {
           const clean = k.trim().toLowerCase();
           for (const [mk, mv] of Object.entries(appMap)) {
-            if (mk.toLowerCase() === clean) return mv || '—';
+            if (mk.toLowerCase() === clean) {
+              const val = (mv !== undefined && mv !== null && String(mv).trim() !== '') ? String(mv).trim() : '—';
+              return val;
+            }
           }
-          return m;
+          return '—';
         });
+
+        // Also clean out any static dummy placeholders in the blueprint!
+        // This guarantees that even if the blueprint in the database had dummy text baked into it,
+        // it is strictly replaced with the current applicant's actual values or '—'!
+        card = card
+          .replace(/(<span\b[^>]*\bdata-field=["'](?:applicant\.)?(?:full_)?name["'][^>]*>)[^<]*(<\/span>)/gi, `$1${app.name || '—'}$2`)
+          .replace(/(<span\b[^>]*\bdata-field=["'](?:applicant\.)?passport(?:_or_eid|_number)?["'][^>]*>)[^<]*(<\/span>)/gi, `$1${app.passport || '—'}$2`)
+          .replace(/(<span\b[^>]*\bdata-field=["'](?:applicant\.)?nationality["'][^>]*>)[^<]*(<\/span>)/gi, `$1${app.nationality || '—'}$2`)
+          .replace(/(<span\b[^>]*\bdata-field=["'](?:applicant\.)?(?:mobile|phone)["'][^>]*>)[^<]*(<\/span>)/gi, `$1${app.phone || '—'}$2`)
+          .replace(/(<span\b[^>]*\bdata-field=["'](?:applicant\.)?address["'][^>]*>)[^<]*(<\/span>)/gi, `$1${app.address || '—'}$2`)
+          .replace(/(<span\b[^>]*\bdata-field=["'](?:applicant\.)?email["'][^>]*>)[^<]*(<\/span>)/gi, `$1${app.email || '—'}$2`)
+          .replace(/(<span\b[^>]*\bdata-field=["'](?:applicant\.)?(?:date_of_birth|dob)["'][^>]*>)[^<]*(<\/span>)/gi, `$1${app.dob || '—'}$2`)
+          .replace(/(<span\b[^>]*\bdata-field=["'](?:applicant\.)?dependents["'][^>]*>)[^<]*(<\/span>)/gi, `$1${noteVal}$2`);
+
+        // Extra fallback for plain text dummy values in blueprint
+        card = card
+          .replace(/\bCQ4220892\b/g, app.passport || '—')
+          .replace(/\bPAKISTANI\b/g, app.nationality || '—')
+          .replace(/\+966 54 128 1675/g, app.phone || '—')
+          .replace(/RIYADH, SAUDI ARABIA/g, app.address || '—')
+          .replace(/kamran\.ali@gmail\.com/g, app.email || '—')
+          .replace(/14 APR 1991/g, app.dob || '—');
 
         // Ensure compact font and padding for multi-applicant view to avoid page-7 overflow
         card = card.replace(/<table\b([^>]*)>/i, '<table $1 style="font-size: 7.2pt; line-height: 1.25; margin-bottom: 2px;">');

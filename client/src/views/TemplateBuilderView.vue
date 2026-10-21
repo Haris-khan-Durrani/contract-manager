@@ -4762,52 +4762,43 @@ function deleteSelectedHtmlElement() {
   }
 }
 
+function restoreCorruptedTokens(html) {
+  if (!html || typeof html !== 'string') return html || ''
+  let cleaned = html
+
+  // 1. Restore trapped dummy values inside dynamic spans
+  cleaned = cleaned.replace(/(<span\b[^>]*\bdata-field=["'](?:applicant\.)?(?:full_)?name["'][^>]*>)\s*(?:ALI KAMRAN|Haris Khan)\s*(<\/span>)/gi, '$1{{client_name}}$2')
+  cleaned = cleaned.replace(/(<span\b[^>]*\bdata-field=["'](?:applicant\.)?passport(?:_or_eid|_number)?["'][^>]*>)\s*CQ4220892\s*(<\/span>)/gi, '$1{{passport_eid}}$2')
+  cleaned = cleaned.replace(/(<span\b[^>]*\bdata-field=["'](?:applicant\.)?nationality["'][^>]*>)\s*PAKISTANI\s*(<\/span>)/gi, '$1{{nationality}}$2')
+  cleaned = cleaned.replace(/(<span\b[^>]*\bdata-field=["'](?:applicant\.)?(?:mobile|phone)["'][^>]*>)\s*\+966 54 128 1675\s*(<\/span>)/gi, '$1{{mobile}}$2')
+  cleaned = cleaned.replace(/(<span\b[^>]*\bdata-field=["'](?:applicant\.)?address["'][^>]*>)\s*RIYADH, SAUDI ARABIA\s*(<\/span>)/gi, '$1{{address}}$2')
+  cleaned = cleaned.replace(/(<span\b[^>]*\bdata-field=["'](?:applicant\.)?email["'][^>]*>)\s*kamran\.ali@gmail\.com\s*(<\/span>)/gi, '$1{{email}}$2')
+  cleaned = cleaned.replace(/(<span\b[^>]*\bdata-field=["'](?:applicant\.)?(?:date_of_birth|dob)["'][^>]*>)\s*14 APR 1991\s*(<\/span>)/gi, '$1{{date_of_birth}}$2')
+
+  // 2. Declaration text restoration (English & Arabic as seen on Page 10 / Page 11)
+  cleaned = cleaned.replace(/I\/we,\s*(?:<span\b[^>]*>)?\s*(?:ALI KAMRAN|Haris Khan)\s*(?:<\/span>)?\s*holding/gi, 'I/we, <span class="dynamic" data-field="applicant.full_name">{{client_name}}</span> holding')
+  cleaned = cleaned.replace(/number\s*(?:<span\b[^>]*>)?\s*CQ4220892\s*(?:<\/span>)?\s*have hired/gi, 'number <span class="dynamic" data-field="applicant.passport_or_eid">{{passport_eid}}</span> have hired')
+
+  cleaned = cleaned.replace(/أنا\/نحن،?\s*(?:<span\b[^>]*>)?\s*(?:ALI KAMRAN|Haris Khan)\s*(?:<\/span>)?،?\s*حامل/gi, 'أنا/نحن، <span class="dynamic" data-field="applicant.full_name">{{client_name}}</span>، حامل')
+  cleaned = cleaned.replace(/جواز السفر رقم\s*(?:<span\b[^>]*>)?\s*CQ4220892\s*(?:<\/span>)?\s*،?\s*قد تعاقدت/gi, 'جواز السفر رقم <span class="dynamic" data-field="applicant.passport_or_eid">{{passport_eid}}</span>، قد تعاقدت')
+
+  // 3. Table cells in Schedule One
+  cleaned = cleaned.replace(/(<td\b[^>]*>\s*)(?:<span\b[^>]*>)?CQ4220892(?:<\/span>)?(\s*<\/td>)/gi, '$1<span class="dynamic" data-field="applicant.passport_or_eid">{{passport_eid}}</span>$2')
+  cleaned = cleaned.replace(/(<td\b[^>]*>\s*)(?:<span\b[^>]*>)?PAKISTANI(?:<\/span>)?(\s*<\/td>)/gi, '$1<span class="dynamic" data-field="applicant.nationality">{{nationality}}</span>$2')
+  cleaned = cleaned.replace(/(<td\b[^>]*>\s*)(?:<span\b[^>]*>)?\+966 54 128 1675(?:<\/span>)?(\s*<\/td>)/gi, '$1<span class="dynamic" data-field="applicant.mobile">{{mobile}}</span>$2')
+  cleaned = cleaned.replace(/(<td\b[^>]*>\s*)(?:<span\b[^>]*>)?RIYADH, SAUDI ARABIA(?:<\/span>)?(\s*<\/td>)/gi, '$1<span class="dynamic" data-field="applicant.address">{{address}}</span>$2')
+  cleaned = cleaned.replace(/(<td\b[^>]*>\s*)(?:<span\b[^>]*>)?kamran\.ali@gmail\.com(?:<\/span>)?(\s*<\/td>)/gi, '$1<span class="dynamic" data-field="applicant.email">{{email}}</span>$2')
+  cleaned = cleaned.replace(/(<td\b[^>]*>\s*)(?:<span\b[^>]*>)?14 APR 1991(?:<\/span>)?(\s*<\/td>)/gi, '$1<span class="dynamic" data-field="applicant.date_of_birth">{{date_of_birth}}</span>$2')
+
+  return cleaned
+}
+
 function buildCanvasHtml(rawHtml, customCss) {
   if (!rawHtml) return ''
   const css = customCss || ''
 
-  // Replace tokens with preview values
-  let rendered = rawHtml
-    .replace(/\{\{(?:applicant\.)?full_name\}\}/g, 'ALI KAMRAN')
-    .replace(/\{\{client_name\}\}/g, 'ALI KAMRAN')
-    .replace(/\{\{(?:applicant\.)?passport_or_eid\}\}/g, 'CQ4220892')
-    .replace(/\{\{passport_eid\}\}/g, 'CQ4220892')
-    .replace(/\{\{passport_number\}\}/g, 'CQ4220892')
-    .replace(/\{\{(?:applicant\.)?nationality\}\}/g, 'PAKISTANI')
-    .replace(/\{\{nationality\}\}/g, 'PAKISTANI')
-    .replace(/\{\{(?:applicant\.)?mobile\}\}/g, '+966 54 128 1675')
-    .replace(/\{\{mobile\}\}/g, '+966 54 128 1675')
-    .replace(/\{\{phone\}\}/g, '+966 54 128 1675')
-    .replace(/\{\{(?:applicant\.)?address\}\}/g, 'RIYADH, SAUDI ARABIA')
-    .replace(/\{\{address\}\}/g, 'RIYADH, SAUDI ARABIA')
-    .replace(/\{\{(?:applicant\.)?email\}\}/g, 'kamran.ali@gmail.com')
-    .replace(/\{\{email\}\}/g, 'kamran.ali@gmail.com')
-    .replace(/\{\{client_email\}\}/g, 'kamran.ali@gmail.com')
-    .replace(/\{\{(?:applicant\.)?date_of_birth\}\}/g, '14 APR 1991')
-    .replace(/\{\{date_of_birth\}\}/g, '14 APR 1991')
-    .replace(/\{\{(?:applicant\.)?dependents\}\}/g, 'Spouse & Kids under 18 are included.')
-    .replace(/\{\{dependents\}\}/g, 'Spouse & Kids under 18 are included.')
-    .replace(/\{\{jurisdiction\}\}/g, 'Courts of Dubai International Financial Centre (DIFC)')
-    .replace(/\{\{fees\.total_after_discount\}\}/g, '£15,000 GBP')
-    .replace(/\{\{fees\.currency_text\}\}/g, 'THE GREAT BRITAIN POUND (GBP)')
-    .replace(/\{\{fees\.payment_mode\}\}/g, '50% Initial, 50% on approval')
-    .replace(/\{\{fees\.additional_information\}\}/g, 'Cyprus Business Residence Advisory')
-    .replace(/\{\{fees\.payment_breakup\}\}/g, 'Initial Deposit upon signing, balance upon milestone')
-    .replace(/\{\{fees\.initial_amount\}\}/g, '£7,500 GBP')
-    .replace(/\{\{(?:commercial_terms|schedule_three_content|fees\.commercial_terms|fees\.schedule_three|milestones)\}\}/g, `
-<div class="milestones-preview" style="font-size: 8.2pt; line-height: 1.4; color: var(--ink);">
-  <p style="margin: 0 0 1.5mm 0;"><strong>Total Professional Fees:</strong> 20,000 EUR</p>
-  <p style="margin: 0 0 1.5mm 0;"><strong>Amount after Exclusive Discount:</strong> 15,000 EUR</p>
-  <p style="margin: 0 0 1mm 0;"><strong>Agreed Payment Milestones:</strong></p>
-  <ul style="margin: 0 0 1.5mm 0; padding-inline-start: 16px;">
-    <li style="margin-bottom: 0.8mm;"><strong>First Milestone (50% Advance):</strong> 7,500 EUR payable upon signing this agreement.</li>
-    <li style="margin-bottom: 0.8mm;"><strong>Second Milestone (50% Balance):</strong> 7,500 EUR payable upon formal file approval / visa issuance.</li>
-  </ul>
-  <p style="margin: 0 0 1.5mm 0;"><strong>Payment Mode:</strong> International Bank Wire Transfer / Swift.</p>
-  <p style="margin: 0; font-style: italic; color: var(--muted); font-size: 7.6pt;">All fees are net of third-party government charges and subject to standard terms of business.</p>
-</div>
-`.trim())
-    .replace(/\{\{contract\.date\}\}/g, new Date().toLocaleDateString('en-GB'))
+  // Preserve shortcodes in visual canvas so editing and syncing DOM never converts tokens into static text!
+  let rendered = restoreCorruptedTokens(rawHtml)
     .replace(/src=["'](?:assets\/)?logo-left\.png["']/gi, 'src="https://assets.cdn.filesafe.space/NJOPxsxylG8ulEPo9hX9/media/6ab2a26318891558b460bf74.png"')
     .replace(/src=["'](?:assets\/)?logo-right\.png["']/gi, 'src="https://assets.cdn.filesafe.space/NJOPxsxylG8ulEPo9hX9/media/6ab2a26318891558b460bf74.png"')
 
@@ -4836,7 +4827,10 @@ function syncDomToRawHtml() {
   clone.querySelectorAll('style').forEach(el => el.remove())
 
   const docEl = clone.querySelector('.document') || clone
-  documentSchema.value.rawHtml = docEl.outerHTML || clone.innerHTML
+  let raw = docEl.outerHTML || clone.innerHTML
+  // Ensure that any dummy strings are restored back to shortcodes
+  raw = restoreCorruptedTokens(raw)
+  documentSchema.value.rawHtml = raw
   domUpdateTick.value++
   nextTick(() => {
     refreshLayersList()
@@ -5931,11 +5925,12 @@ function normalizeLoadedSchema(rawSchema) {
 
   // Check if raw HTML/CSS template
   if (s.rawHtml || s.type === 'HTML') {
+    const cleanHtml = restoreCorruptedTokens(s.rawHtml || '')
     return {
       type: 'HTML',
       title: s.title || templateName.value || 'Legal Services Agreement',
       templateCode: s.templateCode || 'CUSTOM_TEMPLATE',
-      rawHtml: s.rawHtml || '',
+      rawHtml: cleanHtml,
       customCss: s.customCss || '',
       pageCount: s.pageCount || 1,
       detectedVariables: s.detectedVariables || [],
@@ -6271,12 +6266,16 @@ async function saveTemplate(incrementVersion = false, summary = '') {
   saveStatus.value = 'saving'
 
   try {
+    // Ensure rawHtml is restored to clean tokens and no dummy strings are saved to DB
+    const cleanedRawHtml = restoreCorruptedTokens(documentSchema.value.rawHtml || '')
+    documentSchema.value.rawHtml = cleanedRawHtml
+
     // Generate both structured pages and flat blocks for 100% backward & forward compatibility
     const fullSchema = {
-      type: documentSchema.value.rawHtml ? 'HTML' : (documentSchema.value.type || 'STRUCTURED'),
+      type: cleanedRawHtml ? 'HTML' : (documentSchema.value.type || 'STRUCTURED'),
       title: documentSchema.value.title,
       templateCode: documentSchema.value.templateCode || 'CUSTOM_TEMPLATE',
-      rawHtml: documentSchema.value.rawHtml || '',
+      rawHtml: cleanedRawHtml,
       customCss: documentSchema.value.customCss || '',
       pageCount: documentSchema.value.pageCount || (documentSchema.value.pages?.length || 1),
       detectedVariables: documentSchema.value.detectedVariables || [],
