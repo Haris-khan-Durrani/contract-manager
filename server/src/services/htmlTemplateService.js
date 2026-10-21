@@ -157,14 +157,14 @@ function renderHtmlTemplate(html, css, context = {}, options = {}) {
   const system = context.system || {};
 
   // Resolve values with flexible fallbacks
-  const fullName = applicant.full_name || form.client_name || form.recipientName || contact.name || 'Valued Client';
-  const passportOrEid = applicant.passport_or_eid || form.passport_number || form.passport_eid || form.idNumber || contact.passport || '—';
-  const nationality = applicant.nationality || form.nationality || contact.nationality || '—';
-  const mobile = applicant.mobile || form.phone || form.mobile || form.recipientPhone || contact.phone || '—';
-  const address = applicant.address || form.address || contact.address || '—';
-  const email = applicant.email || form.client_email || form.recipientEmail || contact.email || '—';
-  const dateOfBirth = applicant.date_of_birth || form.date_of_birth || form.dob || '—';
-  const dependents = applicant.dependents || form.dependents || form.note || 'Spouse & Kids under 18 are included.';
+  const fullName = applicant.full_name || form.client_name || form.recipientName || contact.name || context.fullName || context.name || 'Valued Client';
+  const passportOrEid = applicant.passport_or_eid || form.passport_number || form.passport_eid || form.idNumber || contact.passport || context.passportOrEid || context.passport || '—';
+  const nationality = applicant.nationality || form.nationality || contact.nationality || context.nationality || '—';
+  const mobile = applicant.mobile || form.phone || form.mobile || form.recipientPhone || contact.phone || context.mobile || context.phone || '—';
+  const address = applicant.address || form.address || contact.address || context.address || '—';
+  const email = applicant.email || form.client_email || form.recipientEmail || contact.email || context.email || '—';
+  const dateOfBirth = applicant.date_of_birth || form.date_of_birth || form.dob || context.dateOfBirth || context.dob || '—';
+  const dependents = applicant.dependents || form.dependents || form.note || context.dependents || context.note || 'Spouse & Kids under 18 are included.';
 
   const sectionsConfig = form.sectionsConfig || {};
   const isCommercialTermsDisabled = sectionsConfig.commercialTerms === false;
@@ -314,7 +314,191 @@ function renderHtmlTemplate(html, css, context = {}, options = {}) {
     'company_stamp_url': companyStamp,
   };
 
-  // Replace {{token}} occurrences
+  // Handle Team Members Schedule One Dynamic Blueprint Repeater
+  const teamMembers = form.teamMembers || context.teamMembers || form.team_members || context.team_members || [];
+  if (Array.isArray(teamMembers) && teamMembers.length > 0) {
+    const primaryApplicant = {
+      name:        fullName,
+      passport:    passportOrEid,
+      nationality: nationality,
+      phone:       mobile,
+      address:     address,
+      email:       email,
+      dob:         dateOfBirth,
+      note:        dependents,
+      noteAr:      'الزوجة والأطفال دون 18 عاماً مشمولون.',
+    };
+
+    const extraApplicants = teamMembers.map(m => ({
+      name:        m.name || m.fullName || '',
+      passport:    m.passport || m.idNumber || '',
+      nationality: m.nationality || '',
+      phone:       m.phone || m.mobile || '',
+      address:     m.address || address || '',
+      email:       m.email || '',
+      dob:         m.dob || '',
+      note:        m.note || 'Spouse & Kids under 18 are included.',
+      noteAr:      m.noteAr || m.note || 'الزوجة والأطفال دون 18 عاماً مشمولون.',
+    }));
+
+    const allApplicants = [primaryApplicant, ...extraApplicants];
+
+    // 1. Process English Schedule One (inside en-cell)
+    const enRegex = /(<div\b[^>]*\bclass=["'][^"']*\bsection-title\b[^"']*["'][^>]*>(?:(?!<\/div>)[\s\S])*?SCHEDULE ONE(?:(?!<\/div>)[\s\S])*?<\/div>\s*)([\s\S]*?)(?=\s*<\/td>\s*<td\b[^>]*\bclass=["'][^"']*\bar-cell)/i;
+    const enMatch = rendered.match(enRegex);
+    if (enMatch) {
+      const titlePrefix = enMatch[1];
+      const cardBlueprint = enMatch[2].trim();
+
+      const repeatedEn = allApplicants.map((app, idx) => {
+        let card = cardBlueprint;
+
+        // Number the heading cleanly
+        if (card.includes('Main Applicant:')) {
+          card = card.replace(/Main Applicant:/g, `Main Applicant: ${idx + 1}`);
+        } else if (card.includes('Main Applicant')) {
+          card = card.replace(/Main Applicant/g, `Main Applicant: ${idx + 1}`);
+        } else {
+          card = `<p class="clause" style="margin-top: 6px;"><b>Main Applicant: ${idx + 1}</b></p>\n` + card;
+        }
+
+        const appMap = {
+          'client_name': app.name,
+          'applicant.full_name': app.name,
+          'applicant.name': app.name,
+          'main_applicant': app.name,
+          'recipient_name': app.name,
+
+          'passport_eid': app.passport,
+          'passport_number': app.passport,
+          'applicant.passport_or_eid': app.passport,
+          'applicant.passport': app.passport,
+          'passport': app.passport,
+          'idnumber': app.passport,
+
+          'nationality': app.nationality,
+          'applicant.nationality': app.nationality,
+
+          'mobile': app.phone,
+          'phone': app.phone,
+          'applicant.mobile': app.phone,
+          'applicant.phone': app.phone,
+          'contact_number': app.phone,
+
+          'address': app.address,
+          'applicant.address': app.address,
+
+          'email': app.email,
+          'client_email': app.email,
+          'applicant.email': app.email,
+
+          'date_of_birth': app.dob,
+          'applicant.date_of_birth': app.dob,
+          'dob': app.dob,
+
+          'dependents': app.note || 'Spouse & Kids under 18 are included.',
+          'applicant.dependents': app.note || 'Spouse & Kids under 18 are included.',
+          'note': app.note || 'Spouse & Kids under 18 are included.',
+        };
+
+        card = card.replace(/\{\{([^}]+)\}\}/g, (m, k) => {
+          const clean = k.trim().toLowerCase();
+          for (const [mk, mv] of Object.entries(appMap)) {
+            if (mk.toLowerCase() === clean) return mv || '—';
+          }
+          return m;
+        });
+
+        return card;
+      }).join('\n<div style="margin: 14px 0 10px; border-top: 1px dashed #cfd8db;"></div>\n');
+
+      rendered = rendered.replace(enMatch[0], () => `${titlePrefix}\n${repeatedEn}`);
+    }
+
+    // 2. Process Arabic Schedule One (inside ar-cell)
+    const arRegex = /(<div\b[^>]*\bclass=["'][^"']*\bsection-title\b[^"']*["'][^>]*>(?:(?!<\/div>)[\s\S])*?الجدول الأول(?:(?!<\/div>)[\s\S])*?<\/div>\s*)([\s\S]*?)(?=\s*<\/td>\s*<\/(?:tr|tbody|table))/i;
+    const arMatch = rendered.match(arRegex);
+    if (arMatch) {
+      const titlePrefix = arMatch[1];
+      const cardBlueprint = arMatch[2].trim();
+
+      const repeatedAr = allApplicants.map((app, idx) => {
+        let card = cardBlueprint;
+
+        // Number the heading cleanly
+        if (card.includes('المتقدم الرئيسي:')) {
+          card = card.replace(/المتقدم الرئيسي:/g, `المتقدم الرئيسي: ${idx + 1}`);
+        } else if (card.includes('المتقدم الرئيسي')) {
+          card = card.replace(/المتقدم الرئيسي/g, `المتقدم الرئيسي: ${idx + 1}`);
+        } else {
+          card = `<p class="clause" style="margin-top: 6px;" dir="rtl"><b>المتقدم الرئيسي: ${idx + 1}</b></p>\n` + card;
+        }
+
+        const noteArVal = app.noteAr || (app.note && app.note.includes('Spouse') ? 'الزوجة والأطفال دون 18 عاماً مشمولون.' : app.note) || 'الزوجة والأطفال دون 18 عاماً مشمولون.';
+
+        const appMap = {
+          'client_name': app.name,
+          'applicant.full_name': app.name,
+          'applicant.name': app.name,
+          'main_applicant': app.name,
+          'recipient_name': app.name,
+
+          'passport_eid': app.passport,
+          'passport_number': app.passport,
+          'applicant.passport_or_eid': app.passport,
+          'applicant.passport': app.passport,
+          'passport': app.passport,
+          'idnumber': app.passport,
+
+          'nationality': app.nationality,
+          'applicant.nationality': app.nationality,
+
+          'mobile': app.phone,
+          'phone': app.phone,
+          'applicant.mobile': app.phone,
+          'applicant.phone': app.phone,
+          'contact_number': app.phone,
+
+          'address': app.address,
+          'applicant.address': app.address,
+
+          'email': app.email,
+          'client_email': app.email,
+          'applicant.email': app.email,
+
+          'date_of_birth': app.dob,
+          'applicant.date_of_birth': app.dob,
+          'dob': app.dob,
+
+          'dependents': noteArVal,
+          'applicant.dependents': noteArVal,
+          'note': noteArVal,
+        };
+
+        card = card.replace(/\{\{([^}]+)\}\}/g, (m, k) => {
+          const clean = k.trim().toLowerCase();
+          for (const [mk, mv] of Object.entries(appMap)) {
+            if (mk.toLowerCase() === clean) return mv || '—';
+          }
+          return m;
+        });
+
+        // Ensure phone & email in Arabic column stay in LTR so + symbol and formatting never flip
+        card = card.replace(/(<span\b[^>]*\bclass=["'][^"']*\bdynamic\b[^"']*["'])([^>]*>[\s\S]*?<\/span>)/gi, (m, openTag, rest) => {
+          if ((openTag.includes('mobile') || openTag.includes('phone') || openTag.includes('email')) && !openTag.includes('dir=')) {
+            return `${openTag} dir="ltr" style="direction: ltr;"${rest}`;
+          }
+          return m;
+        });
+
+        return card;
+      }).join('\n<div style="margin: 14px 0 10px; border-top: 1px dashed #cfd8db;"></div>\n');
+
+      rendered = rendered.replace(arMatch[0], () => `${titlePrefix}\n${repeatedAr}`);
+    }
+  }
+
+  // Replace remaining global document {{token}} occurrences
   rendered = rendered.replace(/\{\{([^}]+)\}\}/g, (match, key) => {
     const cleanKey = key.trim();
     if (replacements[cleanKey] !== undefined) {
@@ -333,53 +517,6 @@ function renderHtmlTemplate(html, css, context = {}, options = {}) {
     // Return empty fallback instead of displaying broken raw handlebars to the user
     return '—';
   });
-
-  // Handle Team Members Schedule One Repeater if group/team mode
-  const teamMembers = form.teamMembers || context.teamMembers || [];
-  if (Array.isArray(teamMembers) && teamMembers.length > 0) {
-    // Generate extra applicants HTML for English and Arabic Schedule One
-    const extraApplicantsEn = teamMembers.map((m, idx) => `
-      <div class="data-wrap" style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed #cbd5e1;">
-        <table class="table-like">
-          <tr><td class="label">Main Applicant: ${idx + 2}</td><td></td></tr>
-          <tr><td class="label">Name:</td><td><span class="dynamic">${m.name || m.fullName || '—'}</span></td></tr>
-          <tr><td class="label">Passport/EID No.:</td><td><span class="dynamic">${m.passport || m.idNumber || '—'}</span></td></tr>
-          <tr><td class="label">Nationality:</td><td><span class="dynamic">${m.nationality || '—'}</span></td></tr>
-          <tr><td class="label">Mobile:</td><td><span class="dynamic">${m.phone || m.mobile || '—'}</span></td></tr>
-          <tr><td class="label">Address:</td><td><span class="dynamic">${m.address || address || '—'}</span></td></tr>
-          <tr><td class="label">Email Address:</td><td><span class="dynamic">${m.email || '—'}</span></td></tr>
-          <tr><td class="label">Date of Birth:</td><td><span class="dynamic">${m.dob || '—'}</span></td></tr>
-          <tr><td class="label">Dependents:</td><td><span class="dynamic">${m.note || 'Spouse & Kids under 18 are included.'}</span></td></tr>
-        </table>
-      </div>
-    `).join('\n');
-
-    const extraApplicantsAr = teamMembers.map((m, idx) => `
-      <div class="data-wrap" dir="rtl" style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed #cbd5e1;">
-        <table class="table-like" dir="rtl">
-          <tr><td class="label">المتقدم الرئيسي: ${idx + 2}</td><td></td></tr>
-          <tr><td class="label">الاسم:</td><td><span class="dynamic">${m.name || m.fullName || '—'}</span></td></tr>
-          <tr><td class="label">رقم جواز السفر / الهوية:</td><td><span class="dynamic">${m.passport || m.idNumber || '—'}</span></td></tr>
-          <tr><td class="label">الجنسية:</td><td><span class="dynamic">${m.nationality || '—'}</span></td></tr>
-          <tr><td class="label">المحمول:</td><td><span class="dynamic">${m.phone || m.mobile || '—'}</span></td></tr>
-          <tr><td class="label">العنوان:</td><td><span class="dynamic">${m.address || address || '—'}</span></td></tr>
-          <tr><td class="label">عنوان البريد الإلكتروني:</td><td><span class="dynamic">${m.email || '—'}</span></td></tr>
-          <tr><td class="label">تاريخ الميلاد:</td><td><span class="dynamic">${m.dob || '—'}</span></td></tr>
-          <tr><td class="label">المعالون:</td><td><span class="dynamic">${m.noteAr || m.note || 'الزوجة والأطفال دون 18 عاماً مشمولون.'}</span></td></tr>
-        </table>
-      </div>
-    `).join('\n');
-
-    // Inject after the primary applicant table inside page 7
-    rendered = rendered.replace(
-      /(<td class="en-cell">[\s\S]*?<div class="section-title">SCHEDULE ONE:<\/div>[\s\S]*?<div class="data-wrap">[\s\S]*?<\/div>)/i,
-      `$1\n${extraApplicantsEn}`
-    );
-    rendered = rendered.replace(
-      /(<td class="ar-cell">[\s\S]*?<div class="section-title">الجدول الأول:<\/div>[\s\S]*?<div class="data-wrap">[\s\S]*?<\/div>)/i,
-      `$1\n${extraApplicantsAr}`
-    );
-  }
 
   // Handle Client Signature Injection into .signature-line
   if (clientSignature) {
