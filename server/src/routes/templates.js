@@ -223,12 +223,26 @@ router.get('/', async (req, res) => {
       );
     }
 
-    // Deduplicate by template name
+    // Deduplicate by template name and sanitize rawHtml tokens
+    const { restoreCorruptedTokens } = require('../services/htmlTemplateService');
     const seen = new Set();
     const uniqueTemplates = (templates || []).filter(t => {
       if (seen.has(t.name)) return false;
       seen.add(t.name);
       return true;
+    }).map(t => {
+      if (t.document_schema_json) {
+        try {
+          const schema = typeof t.document_schema_json === 'string'
+            ? JSON.parse(t.document_schema_json)
+            : t.document_schema_json;
+          if (schema && (schema.rawHtml || schema.type === 'HTML')) {
+            schema.rawHtml = restoreCorruptedTokens(schema.rawHtml || '');
+            t.document_schema_json = schema;
+          }
+        } catch (_) {}
+      }
+      return t;
     });
 
     res.json({ templates: uniqueTemplates });
@@ -481,7 +495,20 @@ router.get('/:id', async (req, res) => {
     );
 
     if (!rows.length) return res.status(404).json({ error: 'Template not found.' });
-    res.json({ template: rows[0] });
+    const template = rows[0];
+    if (template.document_schema_json) {
+      try {
+        const schema = typeof template.document_schema_json === 'string'
+          ? JSON.parse(template.document_schema_json)
+          : template.document_schema_json;
+        if (schema && (schema.rawHtml || schema.type === 'HTML')) {
+          const { restoreCorruptedTokens } = require('../services/htmlTemplateService');
+          schema.rawHtml = restoreCorruptedTokens(schema.rawHtml || '');
+          template.document_schema_json = schema;
+        }
+      } catch (_) {}
+    }
+    res.json({ template });
   } catch (err) {
     console.error('[Templates] Get error:', err.message);
     res.status(500).json({ error: 'Failed to get template.' });
@@ -729,6 +756,15 @@ router.put('/:id', requirePermission('template:edit'), async (req, res) => {
       newVersion += 1;
     }
 
+    let cleanDocSchema = documentSchema;
+    if (cleanDocSchema && (cleanDocSchema.rawHtml || cleanDocSchema.type === 'HTML')) {
+      const { restoreCorruptedTokens } = require('../services/htmlTemplateService');
+      cleanDocSchema = {
+        ...cleanDocSchema,
+        rawHtml: restoreCorruptedTokens(cleanDocSchema.rawHtml || ''),
+      };
+    }
+
     await db.execute(
       `UPDATE contract_templates
        SET name = COALESCE(?, name),
@@ -750,7 +786,7 @@ router.put('/:id', requirePermission('template:edit'), async (req, res) => {
         formId !== undefined ? formId : null,
         isActive !== undefined ? isActive : null,
         newVersion,
-        documentSchema ? JSON.stringify(documentSchema) : null,
+        cleanDocSchema ? JSON.stringify(cleanDocSchema) : null,
         conditionalRules ? JSON.stringify(conditionalRules) : null,
         creationRules ? JSON.stringify(creationRules) : null,
         signingParties ? JSON.stringify(signingParties) : null,
@@ -758,7 +794,7 @@ router.put('/:id', requirePermission('template:edit'), async (req, res) => {
       ]
     );
 
-    if (incrementVersion && documentSchema) {
+    if (incrementVersion && cleanDocSchema) {
       await db.execute(
         `INSERT INTO contract_template_versions
            (template_id, version_number, document_schema_json, signing_parties_json, change_summary, created_by)
@@ -766,7 +802,7 @@ router.put('/:id', requirePermission('template:edit'), async (req, res) => {
         [
           templateId,
           newVersion,
-          JSON.stringify(documentSchema),
+          JSON.stringify(cleanDocSchema),
           signingParties ? JSON.stringify(signingParties) : null,
           changeSummary,
           userId,

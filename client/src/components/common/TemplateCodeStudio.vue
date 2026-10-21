@@ -1290,14 +1290,14 @@ function buildPreviewDocument() {
   if (previewDataMode.value === 'sample') {
     // High fidelity sample data simulation
     rendered = rendered
-      .replace(/\{\{(?:applicant\.)?(?:full_)?name|client_name|recipient_name|main_applicant\}\}/g, 'ALI KAMRAN')
-      .replace(/\{\{(?:applicant\.)?passport(?:_or_eid|_number)?|passport_eid|idnumber\}\}/g, 'CQ4220892')
-      .replace(/\{\{(?:applicant\.)?nationality\}\}/g, 'PAKISTANI')
-      .replace(/\{\{(?:applicant\.)?(?:mobile|phone)|contact_number\}\}/g, '+966 54 128 1675')
-      .replace(/\{\{(?:applicant\.)?address\}\}/g, 'RIYADH, SAUDI ARABIA')
-      .replace(/\{\{(?:applicant\.)?email|client_email\}\}/g, 'kamran.ali@gmail.com')
-      .replace(/\{\{(?:applicant\.)?(?:date_of_birth|dob)\}\}/g, '14 APR 1991')
-      .replace(/\{\{(?:applicant\.)?dependents|note\}\}/g, 'Spouse & Kids under 18 are included.')
+      .replace(/\{\{(?:applicant\.)?(?:full_)?name|client_name|recipient_name|main_applicant\}\}/g, '—')
+      .replace(/\{\{(?:applicant\.)?passport(?:_or_eid|_number)?|passport_eid|idnumber\}\}/g, '—')
+      .replace(/\{\{(?:applicant\.)?nationality\}\}/g, '—')
+      .replace(/\{\{(?:applicant\.)?(?:mobile|phone)|contact_number\}\}/g, '—')
+      .replace(/\{\{(?:applicant\.)?address\}\}/g, '—')
+      .replace(/\{\{(?:applicant\.)?email|client_email\}\}/g, '—')
+      .replace(/\{\{(?:applicant\.)?(?:date_of_birth|dob)\}\}/g, '—')
+      .replace(/\{\{(?:applicant\.)?dependents|note\}\}/g, '—')
       .replace(/\{\{jurisdiction\}\}/g, 'Courts of Dubai International Financial Centre (DIFC)')
       .replace(/\{\{(?:fees\.)?total_after_discount|discounted_total|discounted_amount\}\}/g, '£15,000 GBP')
       .replace(/\{\{(?:fees\.)?total_fees|contract_value\}\}/g, '£20,000 GBP')

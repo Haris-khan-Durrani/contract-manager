@@ -149,29 +149,43 @@ function restoreCorruptedTokens(html) {
   if (!html || typeof html !== 'string') return html || '';
   let cleaned = html;
 
-  // 1. Restore trapped dummy values inside dynamic spans
-  cleaned = cleaned.replace(/(<span\b[^>]*\bdata-field=["'](?:applicant\.)?(?:full_)?name["'][^>]*>)\s*(?:ALI KAMRAN|Haris Khan)\s*(<\/span>)/gi, '$1{{client_name}}$2');
-  cleaned = cleaned.replace(/(<span\b[^>]*\bdata-field=["'](?:applicant\.)?passport(?:_or_eid|_number)?["'][^>]*>)\s*CQ4220892\s*(<\/span>)/gi, '$1{{passport_eid}}$2');
-  cleaned = cleaned.replace(/(<span\b[^>]*\bdata-field=["'](?:applicant\.)?nationality["'][^>]*>)\s*PAKISTANI\s*(<\/span>)/gi, '$1{{nationality}}$2');
-  cleaned = cleaned.replace(/(<span\b[^>]*\bdata-field=["'](?:applicant\.)?(?:mobile|phone)["'][^>]*>)\s*\+966 54 128 1675\s*(<\/span>)/gi, '$1{{mobile}}$2');
-  cleaned = cleaned.replace(/(<span\b[^>]*\bdata-field=["'](?:applicant\.)?address["'][^>]*>)\s*RIYADH, SAUDI ARABIA\s*(<\/span>)/gi, '$1{{address}}$2');
-  cleaned = cleaned.replace(/(<span\b[^>]*\bdata-field=["'](?:applicant\.)?email["'][^>]*>)\s*kamran\.ali@gmail\.com\s*(<\/span>)/gi, '$1{{email}}$2');
-  cleaned = cleaned.replace(/(<span\b[^>]*\bdata-field=["'](?:applicant\.)?(?:date_of_birth|dob)["'][^>]*>)\s*14 APR 1991\s*(<\/span>)/gi, '$1{{date_of_birth}}$2');
+  // 1. Any span (with or without data-field, with or without class)
+  cleaned = cleaned.replace(/<span\b([^>]*)>\s*(?:ALI KAMRAN|Haris Khan)\s*<\/span>/gi, '<span$1>{{client_name}}</span>');
+  cleaned = cleaned.replace(/<span\b([^>]*)>\s*CQ4220892\s*<\/span>/gi, '<span$1>{{passport_eid}}</span>');
+  cleaned = cleaned.replace(/<span\b([^>]*)>\s*PAKISTANI\s*<\/span>/gi, '<span$1>{{nationality}}</span>');
+  cleaned = cleaned.replace(/<span\b([^>]*)>\s*\+966 54 128 1675\s*<\/span>/gi, '<span$1>{{mobile}}</span>');
+  cleaned = cleaned.replace(/<span\b([^>]*)>\s*RIYADH, SAUDI ARABIA\s*<\/span>/gi, '<span$1>{{address}}</span>');
+  cleaned = cleaned.replace(/<span\b([^>]*)>\s*kamran\.ali@gmail\.com\s*<\/span>/gi, '<span$1>{{email}}</span>');
+  cleaned = cleaned.replace(/<span\b([^>]*)>\s*14 APR 1991\s*<\/span>/gi, '<span$1>{{date_of_birth}}</span>');
 
-  // 2. Declaration text restoration (English & Arabic as seen on Page 10 / Page 11)
+  // 2. Contract Acceptance page (Page 11 / Page 12 - English & Arabic)
+  cleaned = cleaned.replace(/I\/we,?\s*(?:<span\b[^>]*>)?\s*(?:ALI KAMRAN|Haris Khan)\s*(?:<\/span>)?\s*hereby accept/gi, 'I/we, <span class="dynamic" data-field="applicant.full_name">{{client_name}}</span> hereby accept');
+  cleaned = cleaned.replace(/أنا\/نحن،?\s*(?:<span\b[^>]*>)?\s*(?:ALI KAMRAN|Haris Khan)\s*(?:<\/span>)?\s*أقبل\/نقبل/gi, 'أنا/نحن، <span class="dynamic" data-field="applicant.full_name">{{client_name}}</span> أقبل/نقبل');
+
+  // 3. Declaration text restoration (English & Arabic as seen on Page 10 / Page 11)
   cleaned = cleaned.replace(/I\/we,\s*(?:<span\b[^>]*>)?\s*(?:ALI KAMRAN|Haris Khan)\s*(?:<\/span>)?\s*holding/gi, 'I/we, <span class="dynamic" data-field="applicant.full_name">{{client_name}}</span> holding');
   cleaned = cleaned.replace(/number\s*(?:<span\b[^>]*>)?\s*CQ4220892\s*(?:<\/span>)?\s*have hired/gi, 'number <span class="dynamic" data-field="applicant.passport_or_eid">{{passport_eid}}</span> have hired');
 
   cleaned = cleaned.replace(/أنا\/نحن،?\s*(?:<span\b[^>]*>)?\s*(?:ALI KAMRAN|Haris Khan)\s*(?:<\/span>)?،?\s*حامل/gi, 'أنا/نحن، <span class="dynamic" data-field="applicant.full_name">{{client_name}}</span>، حامل');
   cleaned = cleaned.replace(/جواز السفر رقم\s*(?:<span\b[^>]*>)?\s*CQ4220892\s*(?:<\/span>)?\s*،?\s*قد تعاقدت/gi, 'جواز السفر رقم <span class="dynamic" data-field="applicant.passport_or_eid">{{passport_eid}}</span>، قد تعاقدت');
 
-  // 3. Table cells in Schedule One
+  // 4. Table cells in Schedule One
   cleaned = cleaned.replace(/(<td\b[^>]*>\s*)(?:<span\b[^>]*>)?CQ4220892(?:<\/span>)?(\s*<\/td>)/gi, '$1<span class="dynamic" data-field="applicant.passport_or_eid">{{passport_eid}}</span>$2');
   cleaned = cleaned.replace(/(<td\b[^>]*>\s*)(?:<span\b[^>]*>)?PAKISTANI(?:<\/span>)?(\s*<\/td>)/gi, '$1<span class="dynamic" data-field="applicant.nationality">{{nationality}}</span>$2');
   cleaned = cleaned.replace(/(<td\b[^>]*>\s*)(?:<span\b[^>]*>)?\+966 54 128 1675(?:<\/span>)?(\s*<\/td>)/gi, '$1<span class="dynamic" data-field="applicant.mobile">{{mobile}}</span>$2');
   cleaned = cleaned.replace(/(<td\b[^>]*>\s*)(?:<span\b[^>]*>)?RIYADH, SAUDI ARABIA(?:<\/span>)?(\s*<\/td>)/gi, '$1<span class="dynamic" data-field="applicant.address">{{address}}</span>$2');
   cleaned = cleaned.replace(/(<td\b[^>]*>\s*)(?:<span\b[^>]*>)?kamran\.ali@gmail\.com(?:<\/span>)?(\s*<\/td>)/gi, '$1<span class="dynamic" data-field="applicant.email">{{email}}</span>$2');
   cleaned = cleaned.replace(/(<td\b[^>]*>\s*)(?:<span\b[^>]*>)?14 APR 1991(?:<\/span>)?(\s*<\/td>)/gi, '$1<span class="dynamic" data-field="applicant.date_of_birth">{{date_of_birth}}</span>$2');
+
+  // 5. Global word-boundary replacement for any trapped dummy strings across all pages and tags
+  cleaned = cleaned.replace(/\bALI KAMRAN\b/g, '{{client_name}}');
+  cleaned = cleaned.replace(/\bHaris Khan\b/g, '{{client_name}}');
+  cleaned = cleaned.replace(/\bCQ4220892\b/g, '{{passport_eid}}');
+  cleaned = cleaned.replace(/\bPAKISTANI\b/g, '{{nationality}}');
+  cleaned = cleaned.replace(/\+966 54 128 1675/g, '{{mobile}}');
+  cleaned = cleaned.replace(/RIYADH, SAUDI ARABIA/g, '{{address}}');
+  cleaned = cleaned.replace(/kamran\.ali@gmail\.com/g, '{{email}}');
+  cleaned = cleaned.replace(/\b14 APR 1991\b/g, '{{date_of_birth}}');
 
   return cleaned;
 }
@@ -607,4 +621,5 @@ module.exports = {
   normalizeTemplateAssets,
   extractTemplateMetadata,
   renderHtmlTemplate,
+  restoreCorruptedTokens,
 };

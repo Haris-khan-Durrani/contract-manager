@@ -488,7 +488,7 @@
                       type="text"
                       v-model="form.recipientName"
                       class="form-control"
-                      placeholder="e.g. ALI KAMRAN"
+                      placeholder="e.g. Full Name / اسم العميل"
                       @input="syncField('client_name', form.recipientName)"
                     />
                   </div>
@@ -536,7 +536,7 @@
                       type="email"
                       v-model="form.recipientEmail"
                       class="form-control"
-                      placeholder="Alikamran003@gmail.com"
+                      placeholder="e.g. client@example.com"
                       @input="syncField('client_email', form.recipientEmail)"
                     />
                   </div>
